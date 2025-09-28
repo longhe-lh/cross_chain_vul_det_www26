@@ -1,0 +1,30 @@
+{
+    "src_chain": {
+        "depositEther1": []
+    },
+    "rel_chain": {
+        "submitCheckpoint": [
+            {
+                "submitCheckpoint": "function submitCheckpoint(\n bytes calldata data,\n uint[3][] calldata sigs\n ) external {\n (\n address proposer,\n uint256 start,\n uint256 end,\n bytes32 rootHash,\n bytes32 accountHash,\n uint256 _borChainID\n ) = abi.decode(\n data,\n (address, uint256, uint256, bytes32, bytes32, uint256)\n );\n\n require(CHAINID == _borChainID, \"Invalid bor chain id\");\n\n require(\n _buildHeaderBlock(proposer, start, end, rootHash),\n \"INCORRECT_HEADER_DATA\"\n );\n\n \n\n IStakeManager stakeManager = IStakeManager(\n registry.getStakeManagerAddress()\n );\n\n uint256 _reward = stakeManager.checkSignatures(\n end.sub(start).add(1),\n \n\n keccak256(abi.encodePacked(bytes(hex\"01\"), data)),\n accountHash,\n proposer,\n sigs\n );\n\n require(_reward != 0, \"Invalid checkpoint\");\n\n emit NewHeaderBlock(\n proposer,\n _nextHeaderBlock,\n _reward,\n start,\n end,\n rootHash\n );\n\n _nextHeaderBlock = _nextHeaderBlock.add(MAX_DEPOSITS);\n\n _blockDepositId = 1;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "withdraw1": [
+            {
+                "_depositFor": "function _depositFor(\n address user,\n address rootToken,\n bytes memory depositData\n ) private {\n bytes32 tokenType = tokenToType[rootToken];\n\n require(\n rootToChildToken[rootToken] != address(0x0) && tokenType != 0,\n \"RootChainManager: TOKEN_NOT_MAPPED\"\n );\n\n address predicateAddress = typeToPredicate[tokenType];\n\n require(\n predicateAddress != address(0),\n \"RootChainManager: INVALID_TOKEN_TYPE\"\n );\n\n require(user != address(0), \"RootChainManager: INVALID_USER\");\n\n ITokenPredicate(predicateAddress).lockTokens(\n _msgSender(),\n user,\n rootToken,\n depositData\n );\n\n bytes memory syncData = abi.encode(user, rootToken, depositData);\n\n _stateSender.syncState(\n childChainManagerAddress,\n abi.encode(DEPOSIT, syncData)\n );\n }"
+            },
+            {
+                "safeBatchTransferFrom": "function safeBatchTransferFrom(\n address from,\n address to,\n uint256[] memory ids,\n uint256[] memory amounts,\n bytes memory data\n ) public virtual override {\n require(\n ids.length == amounts.length,\n \"ERC1155: ids and amounts length mismatch\"\n );\n\n require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n require(\n from == _msgSender() || isApprovedForAll(from, _msgSender()),\n \"ERC1155: transfer caller is not owner nor approved\"\n );\n\n address operator = _msgSender();\n\n _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n for (uint256 i = 0; i < ids.length; ++i) {\n uint256 id = ids[i];\n\n uint256 amount = amounts[i];\n\n uint256 fromBalance = _balances[id][from];\n\n require(\n fromBalance >= amount,\n \"ERC1155: insufficient balance for transfer\"\n );\n\n _balances[id][from] = fromBalance - amount;\n\n _balances[id][to] += amount;\n }\n\n emit TransferBatch(operator, from, to, ids, amounts);\n\n _doSafeBatchTransferAcceptanceCheck(\n operator,\n from,\n to,\n ids,\n amounts,\n data\n );\n }"
+            }
+        ],
+        "ExitedERC7212": [
+            {
+                "exitTokens": "function exitTokens(\n address,\n address rootToken,\n bytes memory log\n ) public override only(MANAGER_ROLE) {\n RLPReader.RLPItem[] memory logRLPList = log.toRlpItem().toList();\n\n RLPReader.RLPItem[] memory logTopicRLPList = logRLPList[1].toList(); \n\n address withdrawer = address(logTopicRLPList[1].toUint()); \n\n require(\n bytes32(logTopicRLPList[0].toUint()) == TRANSFER_EVENT_SIG,\n \"ERC721Predicate: INVALID_SIGNATURE\"\n );\n\n require(\n address(logTopicRLPList[2].toUint()) == address(0), \n \"ERC721Predicate: INVALID_RECEIVER\"\n );\n\n uint256 tokenId = logTopicRLPList[3].toUint(); \n\n IERC721(rootToken).safeTransferFrom(address(this), withdrawer, tokenId);\n\n emit ExitedERC721(withdrawer, rootToken, tokenId);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n\n address from,\n\n address to,\n\n uint256 tokenId\n\n ) public virtual override {\n\n safeTransferFrom(from, to, tokenId, \"\");\n\n }"
+            }
+        ]
+    }
+}

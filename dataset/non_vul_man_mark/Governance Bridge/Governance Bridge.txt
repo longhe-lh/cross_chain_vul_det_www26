@@ -1,0 +1,4883 @@
+Folder Structure
+--------------------------------------------------
+contracts/
+    AddressAliasHelper.sol
+    ArbGreeter.sol
+    ArbitrumBridgeExecutor.sol
+    ArbRetryableTx.sol
+    BridgeExecutorBase.sol
+    CustomPolygonMapping.sol
+    FxChild.sol
+    FxRoot.sol
+    Greeter.sol
+    GreeterPayload.sol
+    IBridge.sol
+    ICrossDomainMessenger.sol
+    IDelayedMessageProvider.sol
+    IExecutorBase.sol
+    IFxMessageProcessor.sol
+    IGasRefunder.sol
+    IInbox.sol
+    IL2BridgeExecutor.sol
+    IL2CrossDomainMessenger.sol
+    IOwnable.sol
+    ISequencerInbox.sol
+    L2BridgeExecutor.sol
+    MockInbox.sol
+    MockOvmL1CrossDomainMessenger.sol
+    MockOvmL2CrossDomainMessenger.sol
+    OptimismBridgeExecutor.sol
+    PolygonBridgeExecutor.sol
+    PolygonMarketUpdate.sol
+    Selfdestructor.sol
+    SimpleBridgeExecutor.sol
+    SimpleL2BridgeExecutor.sol
+
+
+File Contents
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\AddressAliasHelper.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+pragma solidity ^0.8.0;
+
+
+
+library AddressAliasHelper {
+
+    uint160 internal constant OFFSET = uint160(0x1111000000000000000000000000000000001111);
+
+
+
+    /// @notice Utility function that converts the address in the L1 that submitted a tx to
+
+    /// the inbox to the msg.sender viewed in the L2
+
+    /// @param l1Address the address in the L1 that triggered the tx to L2
+
+    /// @return l2Address L2 address as viewed in msg.sender
+
+    function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Address) {
+
+        unchecked {
+
+            l2Address = address(uint160(l1Address) + OFFSET);
+
+        }
+
+    }
+
+
+
+    /// @notice Utility function that converts the msg.sender viewed in the L2 to the
+
+    /// address in the L1 that submitted a tx to the inbox
+
+    /// @param l2Address L2 address as viewed in msg.sender
+
+    /// @return l1Address the address in the L1 that triggered the tx to L2
+
+    function undoL1ToL2Alias(address l2Address) internal pure returns (address l1Address) {
+
+        unchecked {
+
+            l1Address = address(uint160(l2Address) - OFFSET);
+
+        }
+
+    }
+
+}
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\ArbGreeter.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+import {AddressAliasHelper} from './../dependencies/arbitrum/AddressAliasHelper.sol';
+
+
+
+contract ArbGreeter {
+
+  event Senders(address msgSender, address applyAlias, address undoAlias);
+
+
+
+  event MessageUpdated(string newMessage);
+
+  string public message;
+
+
+
+  constructor() {}
+
+
+
+  function setMessage(string calldata newMessage) public {
+
+    message = newMessage;
+
+    emit MessageUpdated(newMessage);
+
+  }
+
+
+
+  function sender() public {
+
+    emit Senders(
+
+      msg.sender,
+
+      AddressAliasHelper.applyL1ToL2Alias(msg.sender),
+
+      AddressAliasHelper.undoL1ToL2Alias(msg.sender)
+
+    );
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\ArbitrumBridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {AddressAliasHelper} from '../dependencies/arbitrum/AddressAliasHelper.sol';
+
+import {L2BridgeExecutor} from './L2BridgeExecutor.sol';
+
+
+
+/**
+
+ * @title ArbitrumBridgeExecutor
+
+ * @author Aave
+
+ * @notice Implementation of the Arbitrum Bridge Executor, able to receive cross-chain transactions from Ethereum
+
+ * @dev Queuing an ActionsSet into this Executor can only be done by the L2 Address Alias of the L1 EthereumGovernanceExecutor
+
+ */
+
+contract ArbitrumBridgeExecutor is L2BridgeExecutor {
+
+  /// @inheritdoc L2BridgeExecutor
+
+  modifier onlyEthereumGovernanceExecutor() override {
+
+    if (AddressAliasHelper.undoL1ToL2Alias(msg.sender) != _ethereumGovernanceExecutor)
+
+      revert UnauthorizedEthereumExecutor();
+
+    _;
+
+  }
+
+
+
+  /**
+
+   * @dev Constructor
+
+   *
+
+   * @param ethereumGovernanceExecutor The address of the EthereumGovernanceExecutor
+
+   * @param delay The delay before which an actions set can be executed
+
+   * @param gracePeriod The time period after a delay during which an actions set can be executed
+
+   * @param minimumDelay The minimum bound a delay can be set to
+
+   * @param maximumDelay The maximum bound a delay can be set to
+
+   * @param guardian The address of the guardian, which can cancel queued proposals (can be zero)
+
+   */
+
+  constructor(
+
+    address ethereumGovernanceExecutor,
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  )
+
+    L2BridgeExecutor(
+
+      ethereumGovernanceExecutor,
+
+      delay,
+
+      gracePeriod,
+
+      minimumDelay,
+
+      maximumDelay,
+
+      guardian
+
+    )
+
+  {
+
+    // Intentionally left blank
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\ArbRetryableTx.sol
+File type: .sol
+pragma solidity >=0.4.21 <0.9.0;
+
+
+
+/**
+
+ * @title precompiled contract in every Arbitrum chain for retryable transaction related data retrieval and interactions. Exists at 0x000000000000000000000000000000000000006E
+
+ */
+
+interface ArbRetryableTx {
+
+  /**
+
+   * @notice Redeem a redeemable tx.
+
+   * Revert if called by an L2 contract, or if userTxHash does not exist, or if userTxHash reverts.
+
+   * If this returns, userTxHash has been completed and is no longer available for redemption.
+
+   * If this reverts, userTxHash is still available for redemption (until it times out or is canceled).
+
+   * @param userTxHash unique identifier of retryable message: keccak256(keccak256(ArbchainId, inbox-sequence-number), uint(0) )
+
+   */
+
+  function redeem(bytes32 userTxHash) external;
+
+
+
+  /**
+
+   * @notice Return the minimum lifetime of redeemable txn.
+
+   * @return lifetime in seconds
+
+   */
+
+  function getLifetime() external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Return the timestamp when userTxHash will age out, or zero if userTxHash does not exist.
+
+   * The timestamp could be in the past, because aged-out tickets might not be discarded immediately.
+
+   * @param userTxHash unique ticket identifier
+
+   * @return timestamp for ticket's deadline
+
+   */
+
+  function getTimeout(bytes32 userTxHash) external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Return the price, in wei, of submitting a new retryable tx with a given calldata size.
+
+   * @param calldataSize call data size to get price of (in wei)
+
+   * @return (price, nextUpdateTimestamp). Price is guaranteed not to change until nextUpdateTimestamp.
+
+   */
+
+  function getSubmissionPrice(uint256 calldataSize) external view returns (uint256, uint256);
+
+
+
+  /**
+
+   * @notice Return the price, in wei, of extending the lifetime of userTxHash by an additional lifetime period. Revert if userTxHash doesn't exist.
+
+   * @param userTxHash unique ticket identifier
+
+   * @return (price, nextUpdateTimestamp). Price is guaranteed not to change until nextUpdateTimestamp.
+
+   */
+
+  function getKeepalivePrice(bytes32 userTxHash) external view returns (uint256, uint256);
+
+
+
+  /** 
+
+    @notice Deposits callvalue into the sender's L2 account, then adds one lifetime period to the life of userTxHash.
+
+    * If successful, emits LifetimeExtended event.
+
+    * Revert if userTxHash does not exist, or if the timeout of userTxHash is already at least one lifetime period in the future, or if the sender has insufficient funds (after the deposit).
+
+    * @param userTxHash unique ticket identifier
+
+    * @return New timeout of userTxHash.
+
+    */
+
+  function keepalive(bytes32 userTxHash) external payable returns (uint256);
+
+
+
+  /**
+
+   * @notice Return the beneficiary of userTxHash.
+
+   * Revert if userTxHash doesn't exist.
+
+   * @param userTxHash unique ticket identifier
+
+   * @return address of beneficiary for ticket
+
+   */
+
+  function getBeneficiary(bytes32 userTxHash) external view returns (address);
+
+
+
+  /**
+
+   * @notice Cancel userTxHash and refund its callvalue to its beneficiary.
+
+   * Revert if userTxHash doesn't exist, or if called by anyone other than userTxHash's beneficiary.
+
+   * @param userTxHash unique ticket identifier
+
+   */
+
+  function cancel(bytes32 userTxHash) external;
+
+
+
+  event TicketCreated(bytes32 indexed userTxHash);
+
+  event LifetimeExtended(bytes32 indexed userTxHash, uint256 newTimeout);
+
+  event Redeemed(bytes32 indexed userTxHash);
+
+  event Canceled(bytes32 indexed userTxHash);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\BridgeExecutorBase.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {IExecutorBase} from '../interfaces/IExecutorBase.sol';
+
+
+
+/**
+
+ * @title BridgeExecutorBase
+
+ * @author Aave
+
+ * @notice Abstract contract that implements basic executor functionality
+
+ * @dev It does not implement an external `queue` function. This should instead be done in the inheriting
+
+ * contract with proper access control
+
+ */
+
+abstract contract BridgeExecutorBase is IExecutorBase {
+
+  // Minimum allowed grace period, which reduces the risk of having an actions set expire due to network congestion
+
+  uint256 constant MINIMUM_GRACE_PERIOD = 10 minutes;
+
+
+
+  // Time between queuing and execution
+
+  uint256 private _delay;
+
+  // Time after the execution time during which the actions set can be executed
+
+  uint256 private _gracePeriod;
+
+  // Minimum allowed delay
+
+  uint256 private _minimumDelay;
+
+  // Maximum allowed delay
+
+  uint256 private _maximumDelay;
+
+  // Address with the ability of canceling actions sets
+
+  address private _guardian;
+
+
+
+  // Number of actions sets
+
+  uint256 private _actionsSetCounter;
+
+  // Map of registered actions sets (id => ActionsSet)
+
+  mapping(uint256 => ActionsSet) private _actionsSets;
+
+  // Map of queued actions (actionHash => isQueued)
+
+  mapping(bytes32 => bool) private _queuedActions;
+
+
+
+  /**
+
+   * @dev Only guardian can call functions marked by this modifier.
+
+   **/
+
+  modifier onlyGuardian() {
+
+    if (msg.sender != _guardian) revert NotGuardian();
+
+    _;
+
+  }
+
+
+
+  /**
+
+   * @dev Only this contract can call functions marked by this modifier.
+
+   **/
+
+  modifier onlyThis() {
+
+    if (msg.sender != address(this)) revert OnlyCallableByThis();
+
+    _;
+
+  }
+
+
+
+  /**
+
+   * @dev Constructor
+
+   *
+
+   * @param delay The delay before which an actions set can be executed
+
+   * @param gracePeriod The time period after a delay during which an actions set can be executed
+
+   * @param minimumDelay The minimum bound a delay can be set to
+
+   * @param maximumDelay The maximum bound a delay can be set to
+
+   * @param guardian The address of the guardian, which can cancel queued proposals (can be zero)
+
+   */
+
+  constructor(
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  ) {
+
+    if (
+
+      gracePeriod < MINIMUM_GRACE_PERIOD ||
+
+      minimumDelay >= maximumDelay ||
+
+      delay < minimumDelay ||
+
+      delay > maximumDelay
+
+    ) revert InvalidInitParams();
+
+
+
+    _updateDelay(delay);
+
+    _updateGracePeriod(gracePeriod);
+
+    _updateMinimumDelay(minimumDelay);
+
+    _updateMaximumDelay(maximumDelay);
+
+    _updateGuardian(guardian);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function execute(uint256 actionsSetId) external payable override {
+
+    if (getCurrentState(actionsSetId) != ActionsSetState.Queued) revert OnlyQueuedActions();
+
+
+
+    ActionsSet storage actionsSet = _actionsSets[actionsSetId];
+
+    if (block.timestamp < actionsSet.executionTime) revert TimelockNotFinished();
+
+
+
+    actionsSet.executed = true;
+
+    uint256 actionCount = actionsSet.targets.length;
+
+
+
+    bytes[] memory returnedData = new bytes[](actionCount);
+
+    for (uint256 i = 0; i < actionCount; ) {
+
+      returnedData[i] = _executeTransaction(
+
+        actionsSet.targets[i],
+
+        actionsSet.values[i],
+
+        actionsSet.signatures[i],
+
+        actionsSet.calldatas[i],
+
+        actionsSet.executionTime,
+
+        actionsSet.withDelegatecalls[i]
+
+      );
+
+      unchecked {
+
+        ++i;
+
+      }
+
+    }
+
+
+
+    emit ActionsSetExecuted(actionsSetId, msg.sender, returnedData);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function cancel(uint256 actionsSetId) external override onlyGuardian {
+
+    if (getCurrentState(actionsSetId) != ActionsSetState.Queued) revert OnlyQueuedActions();
+
+
+
+    ActionsSet storage actionsSet = _actionsSets[actionsSetId];
+
+    actionsSet.canceled = true;
+
+
+
+    uint256 targetsLength = actionsSet.targets.length;
+
+    for (uint256 i = 0; i < targetsLength; ) {
+
+      _cancelTransaction(
+
+        actionsSet.targets[i],
+
+        actionsSet.values[i],
+
+        actionsSet.signatures[i],
+
+        actionsSet.calldatas[i],
+
+        actionsSet.executionTime,
+
+        actionsSet.withDelegatecalls[i]
+
+      );
+
+      unchecked {
+
+        ++i;
+
+      }
+
+    }
+
+
+
+    emit ActionsSetCanceled(actionsSetId);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function updateGuardian(address guardian) external override onlyThis {
+
+    _updateGuardian(guardian);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function updateDelay(uint256 delay) external override onlyThis {
+
+    _validateDelay(delay);
+
+    _updateDelay(delay);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function updateGracePeriod(uint256 gracePeriod) external override onlyThis {
+
+    if (gracePeriod < MINIMUM_GRACE_PERIOD) revert GracePeriodTooShort();
+
+    _updateGracePeriod(gracePeriod);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function updateMinimumDelay(uint256 minimumDelay) external override onlyThis {
+
+    if (minimumDelay >= _maximumDelay) revert MinimumDelayTooLong();
+
+    _updateMinimumDelay(minimumDelay);
+
+    _validateDelay(_delay);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function updateMaximumDelay(uint256 maximumDelay) external override onlyThis {
+
+    if (maximumDelay <= _minimumDelay) revert MaximumDelayTooShort();
+
+    _updateMaximumDelay(maximumDelay);
+
+    _validateDelay(_delay);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function executeDelegateCall(address target, bytes calldata data)
+
+    external
+
+    payable
+
+    override
+
+    onlyThis
+
+    returns (bool, bytes memory)
+
+  {
+
+    bool success;
+
+    bytes memory resultData;
+
+    // solium-disable-next-line security/no-call-value
+
+    (success, resultData) = target.delegatecall(data);
+
+    return (success, resultData);
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function receiveFunds() external payable override {}
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getDelay() external view override returns (uint256) {
+
+    return _delay;
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getGracePeriod() external view override returns (uint256) {
+
+    return _gracePeriod;
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getMinimumDelay() external view override returns (uint256) {
+
+    return _minimumDelay;
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getMaximumDelay() external view override returns (uint256) {
+
+    return _maximumDelay;
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getGuardian() external view override returns (address) {
+
+    return _guardian;
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getActionsSetCount() external view override returns (uint256) {
+
+    return _actionsSetCounter;
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getActionsSetById(uint256 actionsSetId)
+
+    external
+
+    view
+
+    override
+
+    returns (ActionsSet memory)
+
+  {
+
+    return _actionsSets[actionsSetId];
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function getCurrentState(uint256 actionsSetId) public view override returns (ActionsSetState) {
+
+    if (_actionsSetCounter <= actionsSetId) revert InvalidActionsSetId();
+
+    ActionsSet storage actionsSet = _actionsSets[actionsSetId];
+
+    if (actionsSet.canceled) {
+
+      return ActionsSetState.Canceled;
+
+    } else if (actionsSet.executed) {
+
+      return ActionsSetState.Executed;
+
+    } else if (block.timestamp > actionsSet.executionTime + _gracePeriod) {
+
+      return ActionsSetState.Expired;
+
+    } else {
+
+      return ActionsSetState.Queued;
+
+    }
+
+  }
+
+
+
+  /// @inheritdoc IExecutorBase
+
+  function isActionQueued(bytes32 actionHash) public view override returns (bool) {
+
+    return _queuedActions[actionHash];
+
+  }
+
+
+
+  function _updateGuardian(address guardian) internal {
+
+    emit GuardianUpdate(_guardian, guardian);
+
+    _guardian = guardian;
+
+  }
+
+
+
+  function _updateDelay(uint256 delay) internal {
+
+    emit DelayUpdate(_delay, delay);
+
+    _delay = delay;
+
+  }
+
+
+
+  function _updateGracePeriod(uint256 gracePeriod) internal {
+
+    emit GracePeriodUpdate(_gracePeriod, gracePeriod);
+
+    _gracePeriod = gracePeriod;
+
+  }
+
+
+
+  function _updateMinimumDelay(uint256 minimumDelay) internal {
+
+    emit MinimumDelayUpdate(_minimumDelay, minimumDelay);
+
+    _minimumDelay = minimumDelay;
+
+  }
+
+
+
+  function _updateMaximumDelay(uint256 maximumDelay) internal {
+
+    emit MaximumDelayUpdate(_maximumDelay, maximumDelay);
+
+    _maximumDelay = maximumDelay;
+
+  }
+
+
+
+  /**
+
+   * @notice Queue an ActionsSet
+
+   * @dev If a signature is empty, calldata is used for the execution, calldata is appended to signature otherwise
+
+   * @param targets Array of targets to be called by the actions set
+
+   * @param values Array of values to pass in each call by the actions set
+
+   * @param signatures Array of function signatures to encode in each call (can be empty)
+
+   * @param calldatas Array of calldata to pass in each call (can be empty)
+
+   * @param withDelegatecalls Array of whether to delegatecall for each call
+
+   **/
+
+  function _queue(
+
+    address[] memory targets,
+
+    uint256[] memory values,
+
+    string[] memory signatures,
+
+    bytes[] memory calldatas,
+
+    bool[] memory withDelegatecalls
+
+  ) internal {
+
+    if (targets.length == 0) revert EmptyTargets();
+
+    uint256 targetsLength = targets.length;
+
+    if (
+
+      targetsLength != values.length ||
+
+      targetsLength != signatures.length ||
+
+      targetsLength != calldatas.length ||
+
+      targetsLength != withDelegatecalls.length
+
+    ) revert InconsistentParamsLength();
+
+
+
+    uint256 actionsSetId = _actionsSetCounter;
+
+    uint256 executionTime = block.timestamp + _delay;
+
+    unchecked {
+
+      ++_actionsSetCounter;
+
+    }
+
+
+
+    for (uint256 i = 0; i < targetsLength; ) {
+
+      bytes32 actionHash = keccak256(
+
+        abi.encode(
+
+          targets[i],
+
+          values[i],
+
+          signatures[i],
+
+          calldatas[i],
+
+          executionTime,
+
+          withDelegatecalls[i]
+
+        )
+
+      );
+
+      if (isActionQueued(actionHash)) revert DuplicateAction();
+
+      _queuedActions[actionHash] = true;
+
+      unchecked {
+
+        ++i;
+
+      }
+
+    }
+
+
+
+    ActionsSet storage actionsSet = _actionsSets[actionsSetId];
+
+    actionsSet.targets = targets;
+
+    actionsSet.values = values;
+
+    actionsSet.signatures = signatures;
+
+    actionsSet.calldatas = calldatas;
+
+    actionsSet.withDelegatecalls = withDelegatecalls;
+
+    actionsSet.executionTime = executionTime;
+
+
+
+    emit ActionsSetQueued(
+
+      actionsSetId,
+
+      targets,
+
+      values,
+
+      signatures,
+
+      calldatas,
+
+      withDelegatecalls,
+
+      executionTime
+
+    );
+
+  }
+
+
+
+  function _executeTransaction(
+
+    address target,
+
+    uint256 value,
+
+    string memory signature,
+
+    bytes memory data,
+
+    uint256 executionTime,
+
+    bool withDelegatecall
+
+  ) internal returns (bytes memory) {
+
+    if (address(this).balance < value) revert InsufficientBalance();
+
+
+
+    bytes32 actionHash = keccak256(
+
+      abi.encode(target, value, signature, data, executionTime, withDelegatecall)
+
+    );
+
+    _queuedActions[actionHash] = false;
+
+
+
+    bytes memory callData;
+
+    if (bytes(signature).length == 0) {
+
+      callData = data;
+
+    } else {
+
+      callData = abi.encodePacked(bytes4(keccak256(bytes(signature))), data);
+
+    }
+
+
+
+    bool success;
+
+    bytes memory resultData;
+
+    if (withDelegatecall) {
+
+      (success, resultData) = this.executeDelegateCall{value: value}(target, callData);
+
+    } else {
+
+      // solium-disable-next-line security/no-call-value
+
+      (success, resultData) = target.call{value: value}(callData);
+
+    }
+
+    return _verifyCallResult(success, resultData);
+
+  }
+
+
+
+  function _cancelTransaction(
+
+    address target,
+
+    uint256 value,
+
+    string memory signature,
+
+    bytes memory data,
+
+    uint256 executionTime,
+
+    bool withDelegatecall
+
+  ) internal {
+
+    bytes32 actionHash = keccak256(
+
+      abi.encode(target, value, signature, data, executionTime, withDelegatecall)
+
+    );
+
+    _queuedActions[actionHash] = false;
+
+  }
+
+
+
+  function _validateDelay(uint256 delay) internal view {
+
+    if (delay < _minimumDelay) revert DelayShorterThanMin();
+
+    if (delay > _maximumDelay) revert DelayLongerThanMax();
+
+  }
+
+
+
+  function _verifyCallResult(bool success, bytes memory returnData)
+
+    private
+
+    pure
+
+    returns (bytes memory)
+
+  {
+
+    if (success) {
+
+      return returnData;
+
+    } else {
+
+      // Look for revert reason and bubble it up if present
+
+      if (returnData.length > 0) {
+
+        // The easiest way to bubble the revert reason is using memory via assembly
+
+
+
+        // solhint-disable-next-line no-inline-assembly
+
+        assembly {
+
+          let returndata_size := mload(returnData)
+
+          revert(add(32, returnData), returndata_size)
+
+        }
+
+      } else {
+
+        revert FailedActionExecution();
+
+      }
+
+    }
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\CustomPolygonMapping.sol
+File type: .sol
+/**
+
+ *Submitted for verification at Etherscan.io on 2020-05-30
+
+ */
+
+
+
+/**
+
+Matic network contracts
+
+*/
+
+
+
+pragma solidity ^0.5.2;
+
+
+
+contract Ownable {
+
+  address private _owner;
+
+
+
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+
+
+  /**
+
+   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+
+   * account.
+
+   */
+
+  constructor() internal {
+
+    _owner = msg.sender;
+
+    emit OwnershipTransferred(address(0), _owner);
+
+  }
+
+
+
+  /**
+
+   * @return the address of the owner.
+
+   */
+
+  function owner() public view returns (address) {
+
+    return _owner;
+
+  }
+
+
+
+  /**
+
+   * @dev Throws if called by any account other than the owner.
+
+   */
+
+  modifier onlyOwner() {
+
+    require(isOwner());
+
+    _;
+
+  }
+
+
+
+  /**
+
+   * @return true if `msg.sender` is the owner of the contract.
+
+   */
+
+  function isOwner() public view returns (bool) {
+
+    return msg.sender == _owner;
+
+  }
+
+
+
+  /**
+
+   * @dev Allows the current owner to relinquish control of the contract.
+
+   * It will not be possible to call the functions with the `onlyOwner`
+
+   * modifier anymore.
+
+   * @notice Renouncing ownership will leave the contract without an owner,
+
+   * thereby removing any functionality that is only available to the owner.
+
+   */
+
+  function renounceOwnership() public onlyOwner {
+
+    emit OwnershipTransferred(_owner, address(0));
+
+    _owner = address(0);
+
+  }
+
+
+
+  /**
+
+   * @dev Allows the current owner to transfer control of the contract to a newOwner.
+
+   * @param newOwner The address to transfer ownership to.
+
+   */
+
+  function transferOwnership(address newOwner) public onlyOwner {
+
+    _transferOwnership(newOwner);
+
+  }
+
+
+
+  /**
+
+   * @dev Transfers control of the contract to a newOwner.
+
+   * @param newOwner The address to transfer ownership to.
+
+   */
+
+  function _transferOwnership(address newOwner) internal {
+
+    require(newOwner != address(0));
+
+    emit OwnershipTransferred(_owner, newOwner);
+
+    _owner = newOwner;
+
+  }
+
+}
+
+
+
+library SafeMath {
+
+  /**
+
+   * @dev Multiplies two unsigned integers, reverts on overflow.
+
+   */
+
+  function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+
+    // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+
+    // benefit is lost if 'b' is also tested.
+
+    // See: https://github.com/OpenZeppelin/openzeppelin-solidity/pull/522
+
+    if (a == 0) {
+
+      return 0;
+
+    }
+
+
+
+    uint256 c = a * b;
+
+    require(c / a == b);
+
+
+
+    return c;
+
+  }
+
+
+
+  /**
+
+   * @dev Integer division of two unsigned integers truncating the quotient, reverts on division by zero.
+
+   */
+
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+
+    // Solidity only automatically asserts when dividing by 0
+
+    require(b > 0);
+
+    uint256 c = a / b;
+
+    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+
+
+    return c;
+
+  }
+
+
+
+  /**
+
+   * @dev Subtracts two unsigned integers, reverts on overflow (i.e. if subtrahend is greater than minuend).
+
+   */
+
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+
+    require(b <= a);
+
+    uint256 c = a - b;
+
+
+
+    return c;
+
+  }
+
+
+
+  /**
+
+   * @dev Adds two unsigned integers, reverts on overflow.
+
+   */
+
+  function add(uint256 a, uint256 b) internal pure returns (uint256) {
+
+    uint256 c = a + b;
+
+    require(c >= a);
+
+
+
+    return c;
+
+  }
+
+
+
+  /**
+
+   * @dev Divides two unsigned integers and returns the remainder (unsigned integer modulo),
+
+   * reverts when dividing by zero.
+
+   */
+
+  function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+
+    require(b != 0);
+
+    return a % b;
+
+  }
+
+}
+
+
+
+contract CustomPolygonMapping is Ownable {
+
+  using SafeMath for uint256;
+
+
+
+  uint256 public counter;
+
+  mapping(address => address) public registrations;
+
+
+
+  event NewRegistration(address indexed user, address indexed sender, address indexed receiver);
+
+  event RegistrationUpdated(address indexed user, address indexed sender, address indexed receiver);
+
+  event StateSynced(uint256 indexed id, address indexed contractAddress, bytes data);
+
+
+
+  modifier onlyRegistered(address receiver) {
+
+    require(registrations[receiver] == msg.sender, 'Invalid sender');
+
+    _;
+
+  }
+
+
+
+  function syncState(address receiver, bytes calldata data) external onlyRegistered(receiver) {
+
+    counter = counter.add(1);
+
+    emit StateSynced(counter, receiver, data);
+
+    // THIS IS THE ONLY CUSTOM PART
+
+    bool success;
+
+    bytes memory resultData;
+
+    (success, resultData) = receiver.call(
+
+      abi.encodeWithSignature('onStateReceive(uint256,bytes)', counter, data)
+
+    );
+
+    require(success, 'FAILED_ACTION_EXECUTION_CUSTOM_MAPPING');
+
+    // END THE CUSTOM PART
+
+  }
+
+
+
+  // register new contract for state sync
+
+  function register(address sender, address receiver) public {
+
+    require(
+
+      isOwner() || registrations[receiver] == msg.sender,
+
+      'StateSender.register: Not authorized to register'
+
+    );
+
+    registrations[receiver] = sender;
+
+    if (registrations[receiver] == address(0)) {
+
+      emit NewRegistration(msg.sender, sender, receiver);
+
+    } else {
+
+      emit RegistrationUpdated(msg.sender, sender, receiver);
+
+    }
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\FxChild.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.10;
+
+
+
+// IStateReceiver represents interface to receive state
+
+interface IStateReceiver {
+
+  function onStateReceive(uint256 stateId, bytes calldata data) external;
+
+}
+
+
+
+// IFxMessageProcessor represents interface to process message
+
+interface IFxMessageProcessor {
+
+  function processMessageFromRoot(
+
+    uint256 stateId,
+
+    address rootMessageSender,
+
+    bytes calldata data
+
+  ) external;
+
+}
+
+
+
+/**
+
+ * @title FxChild child contract for state receiver
+
+ */
+
+contract FxChild is IStateReceiver {
+
+  address public fxRoot;
+
+
+
+  event NewFxMessage(address rootMessageSender, address receiver, bytes data);
+
+
+
+  function setFxRoot(address _fxRoot) public {
+
+    require(fxRoot == address(0x0));
+
+    fxRoot = _fxRoot;
+
+  }
+
+
+
+  function onStateReceive(uint256 stateId, bytes calldata _data) external override {
+
+    // require(msg.sender == address(0x0000000000000000000000000000000000001001), 'Invalid sender');
+
+    (address rootMessageSender, address receiver, bytes memory data) = abi.decode(
+
+      _data,
+
+      (address, address, bytes)
+
+    );
+
+    emit NewFxMessage(rootMessageSender, receiver, data);
+
+    IFxMessageProcessor(receiver).processMessageFromRoot(stateId, rootMessageSender, data);
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\FxRoot.sol
+File type: .sol
+/**
+
+ *Submitted for verification at Etherscan.io on 2021-01-17
+
+ */
+
+
+
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.10;
+
+
+
+interface IStateSender {
+
+  function syncState(address receiver, bytes calldata data) external;
+
+}
+
+
+
+interface IFxStateSender {
+
+  function sendMessageToChild(address _receiver, bytes calldata _data) external;
+
+}
+
+
+
+/**
+
+ * @title FxRoot root contract for fx-portal
+
+ */
+
+contract FxRoot is IFxStateSender {
+
+  IStateSender public stateSender;
+
+  address public fxChild;
+
+
+
+  constructor(address _stateSender) {
+
+    stateSender = IStateSender(_stateSender);
+
+  }
+
+
+
+  function setFxChild(address _fxChild) public {
+
+    require(fxChild == address(0x0));
+
+    fxChild = _fxChild;
+
+  }
+
+
+
+  function sendMessageToChild(address _receiver, bytes calldata _data) public override {
+
+    bytes memory data = abi.encode(msg.sender, _receiver, _data);
+
+    stateSender.syncState(fxChild, data);
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\Greeter.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+contract Greeter {
+
+  event MessageUpdated(string newMessage);
+
+  string public message;
+
+
+
+  constructor() {}
+
+
+
+  function setMessage(string memory newMessage) public {
+
+    message = newMessage;
+
+    emit MessageUpdated(newMessage);
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\GreeterPayload.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+import {Greeter} from './Greeter.sol';
+
+
+
+contract GreeterPayload {
+
+  event PayloadExecuted(address sender);
+
+
+
+  function execute(address greeter, string memory newMessage) external {
+
+    Greeter(greeter).setMessage(newMessage);
+
+    emit PayloadExecuted(msg.sender);
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IBridge.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+// solhint-disable-next-line compiler-version
+
+pragma solidity >=0.6.9 <0.9.0;
+
+
+
+import './IOwnable.sol';
+
+
+
+interface IBridge {
+
+  event MessageDelivered(
+
+    uint256 indexed messageIndex,
+
+    bytes32 indexed beforeInboxAcc,
+
+    address inbox,
+
+    uint8 kind,
+
+    address sender,
+
+    bytes32 messageDataHash,
+
+    uint256 baseFeeL1,
+
+    uint64 timestamp
+
+  );
+
+
+
+  event BridgeCallTriggered(address indexed outbox, address indexed to, uint256 value, bytes data);
+
+
+
+  event InboxToggle(address indexed inbox, bool enabled);
+
+
+
+  event OutboxToggle(address indexed outbox, bool enabled);
+
+
+
+  event SequencerInboxUpdated(address newSequencerInbox);
+
+
+
+  function allowedDelayedInboxList(uint256) external returns (address);
+
+
+
+  function allowedOutboxList(uint256) external returns (address);
+
+
+
+  /// @dev Accumulator for delayed inbox messages; tail represents hash of the current state; each element represents the inclusion of a new message.
+
+  function delayedInboxAccs(uint256) external view returns (bytes32);
+
+
+
+  /// @dev Accumulator for sequencer inbox messages; tail represents hash of the current state; each element represents the inclusion of a new message.
+
+  function sequencerInboxAccs(uint256) external view returns (bytes32);
+
+
+
+  function rollup() external view returns (IOwnable);
+
+
+
+  function sequencerInbox() external view returns (address);
+
+
+
+  function activeOutbox() external view returns (address);
+
+
+
+  function allowedDelayedInboxes(address inbox) external view returns (bool);
+
+
+
+  function allowedOutboxes(address outbox) external view returns (bool);
+
+
+
+  /**
+
+   * @dev Enqueue a message in the delayed inbox accumulator.
+
+   *      These messages are later sequenced in the SequencerInbox, either
+
+   *      by the sequencer as part of a normal batch, or by force inclusion.
+
+   */
+
+  function enqueueDelayedMessage(
+
+    uint8 kind,
+
+    address sender,
+
+    bytes32 messageDataHash
+
+  ) external payable returns (uint256);
+
+
+
+  function executeCall(
+
+    address to,
+
+    uint256 value,
+
+    bytes calldata data
+
+  ) external returns (bool success, bytes memory returnData);
+
+
+
+  function delayedMessageCount() external view returns (uint256);
+
+
+
+  function sequencerMessageCount() external view returns (uint256);
+
+
+
+  // ---------- onlySequencerInbox functions ----------
+
+
+
+  function enqueueSequencerMessage(bytes32 dataHash, uint256 afterDelayedMessagesRead)
+
+    external
+
+    returns (
+
+      uint256 seqMessageIndex,
+
+      bytes32 beforeAcc,
+
+      bytes32 delayedAcc,
+
+      bytes32 acc
+
+    );
+
+
+
+  /**
+
+   * @dev Allows the sequencer inbox to submit a delayed message of the batchPostingReport type
+
+   *      This is done through a separate function entrypoint instead of allowing the sequencer inbox
+
+   *      to call `enqueueDelayedMessage` to avoid the gas overhead of an extra SLOAD in either
+
+   *      every delayed inbox or every sequencer inbox call.
+
+   */
+
+  function submitBatchSpendingReport(address batchPoster, bytes32 dataHash)
+
+    external
+
+    returns (uint256 msgNum);
+
+
+
+  // ---------- onlyRollupOrOwner functions ----------
+
+
+
+  function setSequencerInbox(address _sequencerInbox) external;
+
+
+
+  function setDelayedInbox(address inbox, bool enabled) external;
+
+
+
+  function setOutbox(address inbox, bool enabled) external;
+
+
+
+  // ---------- initializer ----------
+
+
+
+  function initialize(IOwnable rollup_) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\ICrossDomainMessenger.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity >0.5.0 <0.9.0;
+
+
+
+/**
+
+ * @title ICrossDomainMessenger
+
+ */
+
+interface ICrossDomainMessenger {
+
+  /**********
+
+   * Events *
+
+   **********/
+
+
+
+  event SentMessage(
+
+    address indexed target,
+
+    address sender,
+
+    bytes message,
+
+    uint256 messageNonce,
+
+    uint256 gasLimit
+
+  );
+
+  event RelayedMessage(bytes32 indexed msgHash);
+
+  event FailedRelayedMessage(bytes32 indexed msgHash);
+
+
+
+  /*************
+
+   * Variables *
+
+   *************/
+
+
+
+  function xDomainMessageSender() external view returns (address);
+
+
+
+  /********************
+
+   * Public Functions *
+
+   ********************/
+
+
+
+  /**
+
+   * Sends a cross domain message to the target messenger.
+
+   * @param _target Target contract address.
+
+   * @param _message Message to send to the target.
+
+   * @param _gasLimit Gas limit for the provided message.
+
+   */
+
+  function sendMessage(
+
+    address _target,
+
+    bytes calldata _message,
+
+    uint32 _gasLimit
+
+  ) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IDelayedMessageProvider.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+// solhint-disable-next-line compiler-version
+
+pragma solidity >=0.6.9 <0.9.0;
+
+
+
+interface IDelayedMessageProvider {
+
+  /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+
+  event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
+
+
+
+  /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+
+  /// same as InboxMessageDelivered but the batch data is available in tx.input
+
+  event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IExecutorBase.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+/**
+
+ * @title IExecutorBase
+
+ * @author Aave
+
+ * @notice Defines the basic interface for the ExecutorBase abstract contract
+
+ */
+
+interface IExecutorBase {
+
+  error InvalidInitParams();
+
+  error NotGuardian();
+
+  error OnlyCallableByThis();
+
+  error MinimumDelayTooLong();
+
+  error MaximumDelayTooShort();
+
+  error GracePeriodTooShort();
+
+  error DelayShorterThanMin();
+
+  error DelayLongerThanMax();
+
+  error OnlyQueuedActions();
+
+  error TimelockNotFinished();
+
+  error InvalidActionsSetId();
+
+  error EmptyTargets();
+
+  error InconsistentParamsLength();
+
+  error DuplicateAction();
+
+  error InsufficientBalance();
+
+  error FailedActionExecution();
+
+
+
+  /**
+
+   * @notice This enum contains all possible actions set states
+
+   */
+
+  enum ActionsSetState {
+
+    Queued,
+
+    Executed,
+
+    Canceled,
+
+    Expired
+
+  }
+
+
+
+  /**
+
+   * @notice This struct contains the data needed to execute a specified set of actions
+
+   * @param targets Array of targets to call
+
+   * @param values Array of values to pass in each call
+
+   * @param signatures Array of function signatures to encode in each call (can be empty)
+
+   * @param calldatas Array of calldatas to pass in each call, appended to the signature at the same array index if not empty
+
+   * @param withDelegateCalls Array of whether to delegatecall for each call
+
+   * @param executionTime Timestamp starting from which the actions set can be executed
+
+   * @param executed True if the actions set has been executed, false otherwise
+
+   * @param canceled True if the actions set has been canceled, false otherwise
+
+   */
+
+  struct ActionsSet {
+
+    address[] targets;
+
+    uint256[] values;
+
+    string[] signatures;
+
+    bytes[] calldatas;
+
+    bool[] withDelegatecalls;
+
+    uint256 executionTime;
+
+    bool executed;
+
+    bool canceled;
+
+  }
+
+
+
+  /**
+
+   * @dev Emitted when an ActionsSet is queued
+
+   * @param id Id of the ActionsSet
+
+   * @param targets Array of targets to be called by the actions set
+
+   * @param values Array of values to pass in each call by the actions set
+
+   * @param signatures Array of function signatures to encode in each call by the actions set
+
+   * @param calldatas Array of calldata to pass in each call by the actions set
+
+   * @param withDelegatecalls Array of whether to delegatecall for each call of the actions set
+
+   * @param executionTime The timestamp at which this actions set can be executed
+
+   **/
+
+  event ActionsSetQueued(
+
+    uint256 indexed id,
+
+    address[] targets,
+
+    uint256[] values,
+
+    string[] signatures,
+
+    bytes[] calldatas,
+
+    bool[] withDelegatecalls,
+
+    uint256 executionTime
+
+  );
+
+
+
+  /**
+
+   * @dev Emitted when an ActionsSet is successfully executed
+
+   * @param id Id of the ActionsSet
+
+   * @param initiatorExecution The address that triggered the ActionsSet execution
+
+   * @param returnedData The returned data from the ActionsSet execution
+
+   **/
+
+  event ActionsSetExecuted(
+
+    uint256 indexed id,
+
+    address indexed initiatorExecution,
+
+    bytes[] returnedData
+
+  );
+
+
+
+  /**
+
+   * @dev Emitted when an ActionsSet is cancelled by the guardian
+
+   * @param id Id of the ActionsSet
+
+   **/
+
+  event ActionsSetCanceled(uint256 indexed id);
+
+
+
+  /**
+
+   * @dev Emitted when a new guardian is set
+
+   * @param oldGuardian The address of the old guardian
+
+   * @param newGuardian The address of the new guardian
+
+   **/
+
+  event GuardianUpdate(address oldGuardian, address newGuardian);
+
+
+
+  /**
+
+   * @dev Emitted when the delay (between queueing and execution) is updated
+
+   * @param oldDelay The value of the old delay
+
+   * @param newDelay The value of the new delay
+
+   **/
+
+  event DelayUpdate(uint256 oldDelay, uint256 newDelay);
+
+
+
+  /**
+
+   * @dev Emitted when the grace period (between executionTime and expiration) is updated
+
+   * @param oldGracePeriod The value of the old grace period
+
+   * @param newGracePeriod The value of the new grace period
+
+   **/
+
+  event GracePeriodUpdate(uint256 oldGracePeriod, uint256 newGracePeriod);
+
+
+
+  /**
+
+   * @dev Emitted when the minimum delay (lower bound of delay) is updated
+
+   * @param oldMinimumDelay The value of the old minimum delay
+
+   * @param newMinimumDelay The value of the new minimum delay
+
+   **/
+
+  event MinimumDelayUpdate(uint256 oldMinimumDelay, uint256 newMinimumDelay);
+
+
+
+  /**
+
+   * @dev Emitted when the maximum delay (upper bound of delay)is updated
+
+   * @param oldMaximumDelay The value of the old maximum delay
+
+   * @param newMaximumDelay The value of the new maximum delay
+
+   **/
+
+  event MaximumDelayUpdate(uint256 oldMaximumDelay, uint256 newMaximumDelay);
+
+
+
+  /**
+
+   * @notice Execute the ActionsSet
+
+   * @param actionsSetId The id of the ActionsSet to execute
+
+   **/
+
+  function execute(uint256 actionsSetId) external payable;
+
+
+
+  /**
+
+   * @notice Cancel the ActionsSet
+
+   * @param actionsSetId The id of the ActionsSet to cancel
+
+   **/
+
+  function cancel(uint256 actionsSetId) external;
+
+
+
+  /**
+
+   * @notice Update guardian
+
+   * @param guardian The address of the new guardian
+
+   **/
+
+  function updateGuardian(address guardian) external;
+
+
+
+  /**
+
+   * @notice Update the delay, time between queueing and execution of ActionsSet
+
+   * @dev It does not affect to actions set that are already queued
+
+   * @param delay The value of the delay (in seconds)
+
+   **/
+
+  function updateDelay(uint256 delay) external;
+
+
+
+  /**
+
+   * @notice Update the grace period, the period after the execution time during which an actions set can be executed
+
+   * @param gracePeriod The value of the grace period (in seconds)
+
+   **/
+
+  function updateGracePeriod(uint256 gracePeriod) external;
+
+
+
+  /**
+
+   * @notice Update the minimum allowed delay
+
+   * @param minimumDelay The value of the minimum delay (in seconds)
+
+   **/
+
+  function updateMinimumDelay(uint256 minimumDelay) external;
+
+
+
+  /**
+
+   * @notice Update the maximum allowed delay
+
+   * @param maximumDelay The maximum delay (in seconds)
+
+   **/
+
+  function updateMaximumDelay(uint256 maximumDelay) external;
+
+
+
+  /**
+
+   * @notice Allows to delegatecall a given target with an specific amount of value
+
+   * @dev This function is external so it allows to specify a defined msg.value for the delegate call, reducing
+
+   * the risk that a delegatecall gets executed with more value than intended
+
+   * @return True if the delegate call was successful, false otherwise
+
+   * @return The bytes returned by the delegate call
+
+   **/
+
+  function executeDelegateCall(address target, bytes calldata data)
+
+    external
+
+    payable
+
+    returns (bool, bytes memory);
+
+
+
+  /**
+
+   * @notice Allows to receive funds into the executor
+
+   * @dev Useful for actionsSet that needs funds to gets executed
+
+   */
+
+  function receiveFunds() external payable;
+
+
+
+  /**
+
+   * @notice Returns the delay (between queuing and execution)
+
+   * @return The value of the delay (in seconds)
+
+   **/
+
+  function getDelay() external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Returns the grace period
+
+   * @return The value of the grace period (in seconds)
+
+   **/
+
+  function getGracePeriod() external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Returns the minimum delay
+
+   * @return The value of the minimum delay (in seconds)
+
+   **/
+
+  function getMinimumDelay() external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Returns the maximum delay
+
+   * @return The value of the maximum delay (in seconds)
+
+   **/
+
+  function getMaximumDelay() external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Returns the address of the guardian
+
+   * @return The address of the guardian
+
+   **/
+
+  function getGuardian() external view returns (address);
+
+
+
+  /**
+
+   * @notice Returns the total number of actions sets of the executor
+
+   * @return The number of actions sets
+
+   **/
+
+  function getActionsSetCount() external view returns (uint256);
+
+
+
+  /**
+
+   * @notice Returns the data of an actions set
+
+   * @param actionsSetId The id of the ActionsSet
+
+   * @return The data of the ActionsSet
+
+   **/
+
+  function getActionsSetById(uint256 actionsSetId) external view returns (ActionsSet memory);
+
+
+
+  /**
+
+   * @notice Returns the current state of an actions set
+
+   * @param actionsSetId The id of the ActionsSet
+
+   * @return The current state of theI ActionsSet
+
+   **/
+
+  function getCurrentState(uint256 actionsSetId) external view returns (ActionsSetState);
+
+
+
+  /**
+
+   * @notice Returns whether an actions set (by actionHash) is queued
+
+   * @dev actionHash = keccak256(abi.encode(target, value, signature, data, executionTime, withDelegatecall))
+
+   * @param actionHash hash of the action to be checked
+
+   * @return True if the underlying action of actionHash is queued, false otherwise
+
+   **/
+
+  function isActionQueued(bytes32 actionHash) external view returns (bool);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IFxMessageProcessor.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.10;
+
+
+
+/**
+
+ * @title IFxMessageProcessor
+
+ * @notice Defines the interface to process message
+
+ */
+
+interface IFxMessageProcessor {
+
+  /**
+
+   * @notice Process the cross-chain message from a FxChild contract through the Ethereum/Polygon StateSender
+
+   * @param stateId The id of the cross-chain message created in the Ethereum/Polygon StateSender
+
+   * @param rootMessageSender The address that initially sent this message on Ethereum
+
+   * @param data The data from the abi-encoded cross-chain message
+
+   **/
+
+  function processMessageFromRoot(
+
+    uint256 stateId,
+
+    address rootMessageSender,
+
+    bytes calldata data
+
+  ) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IGasRefunder.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+// solhint-disable-next-line compiler-version
+
+pragma solidity >=0.6.9 <0.9.0;
+
+
+
+interface IGasRefunder {
+
+  function onGasSpent(
+
+    address payable spender,
+
+    uint256 gasUsed,
+
+    uint256 calldataSize
+
+  ) external returns (bool success);
+
+}
+
+
+
+abstract contract GasRefundEnabled {
+
+  /// @dev this refunds the sender for execution costs of the tx
+
+  /// calldata costs are only refunded if `msg.sender == tx.origin` to guarantee the value refunded relates to charging
+
+  /// for the `tx.input`. this avoids a possible attack where you generate large calldata from a contract and get over-refunded
+
+  modifier refundsGas(IGasRefunder gasRefunder) {
+
+    uint256 startGasLeft = gasleft();
+
+    _;
+
+    if (address(gasRefunder) != address(0)) {
+
+      uint256 calldataSize = 0;
+
+      // if triggered in a contract call, the spender may be overrefunded by appending dummy data to the call
+
+      // so we check if it is a top level call, which would mean the sender paid calldata as part of tx.input
+
+      // solhint-disable-next-line avoid-tx-origin
+
+      if (msg.sender == tx.origin) {
+
+        assembly {
+
+          calldataSize := calldatasize()
+
+        }
+
+      }
+
+      gasRefunder.onGasSpent(payable(msg.sender), startGasLeft - gasleft(), calldataSize);
+
+    }
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IInbox.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+// solhint-disable-next-line compiler-version
+
+pragma solidity >=0.6.9 <0.9.0;
+
+
+
+import './IBridge.sol';
+
+import './IDelayedMessageProvider.sol';
+
+import './ISequencerInbox.sol';
+
+
+
+interface IInbox is IDelayedMessageProvider {
+
+  function bridge() external view returns (IBridge);
+
+
+
+  function sequencerInbox() external view returns (ISequencerInbox);
+
+
+
+  /**
+
+   * @notice Send a generic L2 message to the chain
+
+   * @dev This method is an optimization to avoid having to emit the entirety of the messageData in a log. Instead validators are expected to be able to parse the data from the transaction's input
+
+   * @param messageData Data of the message being sent
+
+   */
+
+  function sendL2MessageFromOrigin(bytes calldata messageData) external returns (uint256);
+
+
+
+  /**
+
+   * @notice Send a generic L2 message to the chain
+
+   * @dev This method can be used to send any type of message that doesn't require L1 validation
+
+   * @param messageData Data of the message being sent
+
+   */
+
+  function sendL2Message(bytes calldata messageData) external returns (uint256);
+
+
+
+  function sendL1FundedUnsignedTransaction(
+
+    uint256 gasLimit,
+
+    uint256 maxFeePerGas,
+
+    uint256 nonce,
+
+    address to,
+
+    bytes calldata data
+
+  ) external payable returns (uint256);
+
+
+
+  function sendL1FundedContractTransaction(
+
+    uint256 gasLimit,
+
+    uint256 maxFeePerGas,
+
+    address to,
+
+    bytes calldata data
+
+  ) external payable returns (uint256);
+
+
+
+  function sendUnsignedTransaction(
+
+    uint256 gasLimit,
+
+    uint256 maxFeePerGas,
+
+    uint256 nonce,
+
+    address to,
+
+    uint256 value,
+
+    bytes calldata data
+
+  ) external returns (uint256);
+
+
+
+  function sendContractTransaction(
+
+    uint256 gasLimit,
+
+    uint256 maxFeePerGas,
+
+    address to,
+
+    uint256 value,
+
+    bytes calldata data
+
+  ) external returns (uint256);
+
+
+
+  /**
+
+   * @notice Get the L1 fee for submitting a retryable
+
+   * @dev This fee can be paid by funds already in the L2 aliased address or by the current message value
+
+   * @dev This formula may change in the future, to future proof your code query this method instead of inlining!!
+
+   * @param dataLength The length of the retryable's calldata, in bytes
+
+   * @param baseFee The block basefee when the retryable is included in the chain, if 0 current block.basefee will be used
+
+   */
+
+  function calculateRetryableSubmissionFee(uint256 dataLength, uint256 baseFee)
+
+    external
+
+    view
+
+    returns (uint256);
+
+
+
+  /**
+
+   * @notice Deposit eth from L1 to L2
+
+   * @dev This does not trigger the fallback function when receiving in the L2 side.
+
+   *      Look into retryable tickets if you are interested in this functionality.
+
+   * @dev This function should not be called inside contract constructors
+
+   */
+
+  function depositEth() external payable returns (uint256);
+
+
+
+  /**
+
+   * @notice Put a message in the L2 inbox that can be reexecuted for some fixed amount of time if it reverts
+
+   * @dev all msg.value will deposited to callValueRefundAddress on L2
+
+   * @dev Gas limit and maxFeePerGas should not be set to 1 as that is used to trigger the RetryableData error
+
+   * @param to destination L2 contract address
+
+   * @param l2CallValue call value for retryable L2 message
+
+   * @param maxSubmissionCost Max gas deducted from user's L2 balance to cover base submission fee
+
+   * @param excessFeeRefundAddress gasLimit x maxFeePerGas - execution cost gets credited here on L2 balance
+
+   * @param callValueRefundAddress l2Callvalue gets credited here on L2 if retryable txn times out or gets cancelled
+
+   * @param gasLimit Max gas deducted from user's L2 balance to cover L2 execution. Should not be set to 1 (magic value used to trigger the RetryableData error)
+
+   * @param maxFeePerGas price bid for L2 execution. Should not be set to 1 (magic value used to trigger the RetryableData error)
+
+   * @param data ABI encoded data of L2 message
+
+   * @return unique message number of the retryable transaction
+
+   */
+
+  function createRetryableTicket(
+
+    address to,
+
+    uint256 l2CallValue,
+
+    uint256 maxSubmissionCost,
+
+    address excessFeeRefundAddress,
+
+    address callValueRefundAddress,
+
+    uint256 gasLimit,
+
+    uint256 maxFeePerGas,
+
+    bytes calldata data
+
+  ) external payable returns (uint256);
+
+
+
+  /**
+
+   * @notice Put a message in the L2 inbox that can be reexecuted for some fixed amount of time if it reverts
+
+   * @dev Same as createRetryableTicket, but does not guarantee that submission will succeed by requiring the needed funds
+
+   * come from the deposit alone, rather than falling back on the user's L2 balance
+
+   * @dev Advanced usage only (does not rewrite aliases for excessFeeRefundAddress and callValueRefundAddress).
+
+   * createRetryableTicket method is the recommended standard.
+
+   * @dev Gas limit and maxFeePerGas should not be set to 1 as that is used to trigger the RetryableData error
+
+   * @param to destination L2 contract address
+
+   * @param l2CallValue call value for retryable L2 message
+
+   * @param maxSubmissionCost Max gas deducted from user's L2 balance to cover base submission fee
+
+   * @param excessFeeRefundAddress gasLimit x maxFeePerGas - execution cost gets credited here on L2 balance
+
+   * @param callValueRefundAddress l2Callvalue gets credited here on L2 if retryable txn times out or gets cancelled
+
+   * @param gasLimit Max gas deducted from user's L2 balance to cover L2 execution. Should not be set to 1 (magic value used to trigger the RetryableData error)
+
+   * @param maxFeePerGas price bid for L2 execution. Should not be set to 1 (magic value used to trigger the RetryableData error)
+
+   * @param data ABI encoded data of L2 message
+
+   * @return unique message number of the retryable transaction
+
+   */
+
+  function unsafeCreateRetryableTicket(
+
+    address to,
+
+    uint256 l2CallValue,
+
+    uint256 maxSubmissionCost,
+
+    address excessFeeRefundAddress,
+
+    address callValueRefundAddress,
+
+    uint256 gasLimit,
+
+    uint256 maxFeePerGas,
+
+    bytes calldata data
+
+  ) external payable returns (uint256);
+
+
+
+  // ---------- onlyRollupOrOwner functions ----------
+
+
+
+  /// @notice pauses all inbox functionality
+
+  function pause() external;
+
+
+
+  /// @notice unpauses all inbox functionality
+
+  function unpause() external;
+
+
+
+  // ---------- initializer ----------
+
+
+
+  /**
+
+   * @dev function to be called one time during the inbox upgrade process
+
+   *      this is used to fix the storage slots
+
+   */
+
+  function postUpgradeInit(IBridge _bridge) external;
+
+
+
+  function initialize(IBridge _bridge, ISequencerInbox _sequencerInbox) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IL2BridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {IExecutorBase} from './IExecutorBase.sol';
+
+
+
+/**
+
+ * @title IL2BridgeExecutorBase
+
+ * @author Aave
+
+ * @notice Defines the basic interface for the L2BridgeExecutor abstract contract
+
+ */
+
+interface IL2BridgeExecutor is IExecutorBase {
+
+  error UnauthorizedEthereumExecutor();
+
+
+
+  /**
+
+   * @dev Emitted when the Ethereum Governance Executor is updated
+
+   * @param oldEthereumGovernanceExecutor The address of the old EthereumGovernanceExecutor
+
+   * @param newEthereumGovernanceExecutor The address of the new EthereumGovernanceExecutor
+
+   **/
+
+  event EthereumGovernanceExecutorUpdate(
+
+    address oldEthereumGovernanceExecutor,
+
+    address newEthereumGovernanceExecutor
+
+  );
+
+
+
+  /**
+
+   * @notice Queue an ActionsSet
+
+   * @dev If a signature is empty, calldata is used for the execution, calldata is appended to signature otherwise
+
+   * @param targets Array of targets to be called by the actions set
+
+   * @param values Array of values to pass in each call by the actions set
+
+   * @param signatures Array of function signatures to encode in each call by the actions (can be empty)
+
+   * @param calldatas Array of calldata to pass in each call by the actions set
+
+   * @param withDelegatecalls Array of whether to delegatecall for each call of the actions set
+
+   **/
+
+  function queue(
+
+    address[] memory targets,
+
+    uint256[] memory values,
+
+    string[] memory signatures,
+
+    bytes[] memory calldatas,
+
+    bool[] memory withDelegatecalls
+
+  ) external;
+
+
+
+  /**
+
+   * @notice Update the address of the Ethereum Governance Executor
+
+   * @param ethereumGovernanceExecutor The address of the new EthereumGovernanceExecutor
+
+   **/
+
+  function updateEthereumGovernanceExecutor(address ethereumGovernanceExecutor) external;
+
+
+
+  /**
+
+   * @notice Returns the address of the Ethereum Governance Executor
+
+   * @return The address of the EthereumGovernanceExecutor
+
+   **/
+
+  function getEthereumGovernanceExecutor() external view returns (address);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IL2CrossDomainMessenger.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+
+
+/* Interface Imports */
+
+import { ICrossDomainMessenger } from "./ICrossDomainMessenger.sol";
+
+
+
+/**
+
+ * @title IL2CrossDomainMessenger
+
+ */
+
+interface IL2CrossDomainMessenger is ICrossDomainMessenger {
+
+    /********************
+
+     * Public Functions *
+
+     ********************/
+
+
+
+    /**
+
+     * Relays a cross domain message to a contract.
+
+     * @param _target Target contract address.
+
+     * @param _sender Message sender address.
+
+     * @param _message Message to send to the target.
+
+     * @param _messageNonce Nonce for the provided message.
+
+     */
+
+    function relayMessage(
+
+        address _target,
+
+        address _sender,
+
+        bytes memory _message,
+
+        uint256 _messageNonce
+
+    ) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\IOwnable.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+// solhint-disable-next-line compiler-version
+
+pragma solidity >=0.4.21 <0.9.0;
+
+
+
+interface IOwnable {
+
+  function owner() external view returns (address);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\ISequencerInbox.sol
+File type: .sol
+// Copyright 2021-2022, Offchain Labs, Inc.
+
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+
+// SPDX-License-Identifier: BUSL-1.1
+
+
+
+// solhint-disable-next-line compiler-version
+
+pragma solidity >=0.6.9 <0.9.0;
+
+pragma experimental ABIEncoderV2;
+
+
+
+import '../libraries/IGasRefunder.sol';
+
+import './IDelayedMessageProvider.sol';
+
+import './IBridge.sol';
+
+
+
+interface ISequencerInbox is IDelayedMessageProvider {
+
+  struct MaxTimeVariation {
+
+    uint256 delayBlocks;
+
+    uint256 futureBlocks;
+
+    uint256 delaySeconds;
+
+    uint256 futureSeconds;
+
+  }
+
+
+
+  struct TimeBounds {
+
+    uint64 minTimestamp;
+
+    uint64 maxTimestamp;
+
+    uint64 minBlockNumber;
+
+    uint64 maxBlockNumber;
+
+  }
+
+
+
+  enum BatchDataLocation {
+
+    TxInput,
+
+    SeparateBatchEvent,
+
+    NoData
+
+  }
+
+
+
+  event SequencerBatchDelivered(
+
+    uint256 indexed batchSequenceNumber,
+
+    bytes32 indexed beforeAcc,
+
+    bytes32 indexed afterAcc,
+
+    bytes32 delayedAcc,
+
+    uint256 afterDelayedMessagesRead,
+
+    TimeBounds timeBounds,
+
+    BatchDataLocation dataLocation
+
+  );
+
+
+
+  event OwnerFunctionCalled(uint256 indexed id);
+
+
+
+  /// @dev a separate event that emits batch data when this isn't easily accessible in the tx.input
+
+  event SequencerBatchData(uint256 indexed batchSequenceNumber, bytes data);
+
+
+
+  /// @dev a valid keyset was added
+
+  event SetValidKeyset(bytes32 indexed keysetHash, bytes keysetBytes);
+
+
+
+  /// @dev a keyset was invalidated
+
+  event InvalidateKeyset(bytes32 indexed keysetHash);
+
+
+
+  function totalDelayedMessagesRead() external view returns (uint256);
+
+
+
+  function bridge() external view returns (IBridge);
+
+
+
+  /// @dev The size of the batch header
+
+  // solhint-disable-next-line func-name-mixedcase
+
+  function HEADER_LENGTH() external view returns (uint256);
+
+
+
+  /// @dev If the first batch data byte after the header has this bit set,
+
+  ///      the sequencer inbox has authenticated the data. Currently not used.
+
+  // solhint-disable-next-line func-name-mixedcase
+
+  function DATA_AUTHENTICATED_FLAG() external view returns (bytes1);
+
+
+
+  function rollup() external view returns (IOwnable);
+
+
+
+  function isBatchPoster(address) external view returns (bool);
+
+
+
+  struct DasKeySetInfo {
+
+    bool isValidKeyset;
+
+    uint64 creationBlock;
+
+  }
+
+
+
+  // https://github.com/ethereum/solidity/issues/11826
+
+  // function maxTimeVariation() external view returns (MaxTimeVariation calldata);
+
+  // function dasKeySetInfo(bytes32) external view returns (DasKeySetInfo calldata);
+
+
+
+  /// @notice Force messages from the delayed inbox to be included in the chain
+
+  ///         Callable by any address, but message can only be force-included after maxTimeVariation.delayBlocks and
+
+  ///         maxTimeVariation.delaySeconds has elapsed. As part of normal behaviour the sequencer will include these
+
+  ///         messages so it's only necessary to call this if the sequencer is down, or not including any delayed messages.
+
+  /// @param _totalDelayedMessagesRead The total number of messages to read up to
+
+  /// @param kind The kind of the last message to be included
+
+  /// @param l1BlockAndTime The l1 block and the l1 timestamp of the last message to be included
+
+  /// @param baseFeeL1 The l1 gas price of the last message to be included
+
+  /// @param sender The sender of the last message to be included
+
+  /// @param messageDataHash The messageDataHash of the last message to be included
+
+  function forceInclusion(
+
+    uint256 _totalDelayedMessagesRead,
+
+    uint8 kind,
+
+    uint64[2] calldata l1BlockAndTime,
+
+    uint256 baseFeeL1,
+
+    address sender,
+
+    bytes32 messageDataHash
+
+  ) external;
+
+
+
+  function inboxAccs(uint256 index) external view returns (bytes32);
+
+
+
+  function batchCount() external view returns (uint256);
+
+
+
+  function isValidKeysetHash(bytes32 ksHash) external view returns (bool);
+
+
+
+  /// @notice the creation block is intended to still be available after a keyset is deleted
+
+  function getKeysetCreationBlock(bytes32 ksHash) external view returns (uint256);
+
+
+
+  // ---------- BatchPoster functions ----------
+
+
+
+  function addSequencerL2BatchFromOrigin(
+
+    uint256 sequenceNumber,
+
+    bytes calldata data,
+
+    uint256 afterDelayedMessagesRead,
+
+    IGasRefunder gasRefunder
+
+  ) external;
+
+
+
+  function addSequencerL2Batch(
+
+    uint256 sequenceNumber,
+
+    bytes calldata data,
+
+    uint256 afterDelayedMessagesRead,
+
+    IGasRefunder gasRefunder
+
+  ) external;
+
+
+
+  // ---------- onlyRollupOrOwner functions ----------
+
+
+
+  /**
+
+   * @notice Set max delay for sequencer inbox
+
+   * @param maxTimeVariation_ the maximum time variation parameters
+
+   */
+
+  function setMaxTimeVariation(MaxTimeVariation memory maxTimeVariation_) external;
+
+
+
+  /**
+
+   * @notice Updates whether an address is authorized to be a batch poster at the sequencer inbox
+
+   * @param addr the address
+
+   * @param isBatchPoster_ if the specified address should be authorized as a batch poster
+
+   */
+
+  function setIsBatchPoster(address addr, bool isBatchPoster_) external;
+
+
+
+  /**
+
+   * @notice Makes Data Availability Service keyset valid
+
+   * @param keysetBytes bytes of the serialized keyset
+
+   */
+
+  function setValidKeyset(bytes calldata keysetBytes) external;
+
+
+
+  /**
+
+   * @notice Invalidates a Data Availability Service keyset
+
+   * @param ksHash hash of the keyset
+
+   */
+
+  function invalidateKeysetHash(bytes32 ksHash) external;
+
+
+
+  // ---------- initializer ----------
+
+
+
+  function initialize(IBridge bridge_, MaxTimeVariation calldata maxTimeVariation_) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\L2BridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {IL2BridgeExecutor} from '../interfaces/IL2BridgeExecutor.sol';
+
+import {BridgeExecutorBase} from './BridgeExecutorBase.sol';
+
+
+
+/**
+
+ * @title L2BridgeExecutor
+
+ * @author Aave
+
+ * @notice Abstract contract that implements bridge executor functionality for L2
+
+ * @dev It does not implement the `onlyEthereumGovernanceExecutor` modifier. This should instead be done in the inheriting
+
+ * contract with proper configuration and adjustments depending on the L2
+
+ */
+
+abstract contract L2BridgeExecutor is BridgeExecutorBase, IL2BridgeExecutor {
+
+  // Address of the Ethereum Governance Executor, which should be able to queue actions sets
+
+  address internal _ethereumGovernanceExecutor;
+
+
+
+  /**
+
+   * @dev Only the Ethereum Governance Executor should be able to call functions marked by this modifier.
+
+   **/
+
+  modifier onlyEthereumGovernanceExecutor() virtual;
+
+
+
+  /**
+
+   * @dev Constructor
+
+   *
+
+   * @param ethereumGovernanceExecutor The address of the EthereumGovernanceExecutor
+
+   * @param delay The delay before which an actions set can be executed
+
+   * @param gracePeriod The time period after a delay during which an actions set can be executed
+
+   * @param minimumDelay The minimum bound a delay can be set to
+
+   * @param maximumDelay The maximum bound a delay can be set to
+
+   * @param guardian The address of the guardian, which can cancel queued proposals (can be zero)
+
+   */
+
+  constructor(
+
+    address ethereumGovernanceExecutor,
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  ) BridgeExecutorBase(delay, gracePeriod, minimumDelay, maximumDelay, guardian) {
+
+    _ethereumGovernanceExecutor = ethereumGovernanceExecutor;
+
+  }
+
+
+
+  /// @inheritdoc IL2BridgeExecutor
+
+  function queue(
+
+    address[] memory targets,
+
+    uint256[] memory values,
+
+    string[] memory signatures,
+
+    bytes[] memory calldatas,
+
+    bool[] memory withDelegatecalls
+
+  ) external onlyEthereumGovernanceExecutor {
+
+    _queue(targets, values, signatures, calldatas, withDelegatecalls);
+
+  }
+
+
+
+  /// @inheritdoc IL2BridgeExecutor
+
+  function updateEthereumGovernanceExecutor(address ethereumGovernanceExecutor) external onlyThis {
+
+    emit EthereumGovernanceExecutorUpdate(_ethereumGovernanceExecutor, ethereumGovernanceExecutor);
+
+    _ethereumGovernanceExecutor = ethereumGovernanceExecutor;
+
+  }
+
+
+
+  /// @inheritdoc IL2BridgeExecutor
+
+  function getEthereumGovernanceExecutor() external view returns (address) {
+
+    return _ethereumGovernanceExecutor;
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\MockInbox.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+import {IInbox} from '../dependencies/arbitrum/interfaces/IInbox.sol';
+
+import {IBridge} from '../dependencies/arbitrum/interfaces/IBridge.sol';
+
+import {ISequencerInbox} from '../dependencies/arbitrum/interfaces/ISequencerInbox.sol';
+
+
+
+contract MockInbox is IInbox {
+
+  uint256 public messageNum;
+
+
+
+  function setMessageNum(uint256 msgNum) external {
+
+    messageNum = msgNum;
+
+  }
+
+
+
+  function bridge() external view override returns (IBridge) {
+
+    return IBridge(address(1));
+
+  }
+
+
+
+  function sequencerInbox() external view override returns (ISequencerInbox) {
+
+    return ISequencerInbox(address(1));
+
+  }
+
+
+
+  function sendL2MessageFromOrigin(
+
+    bytes calldata // messageData
+
+  ) external override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function sendL2Message(
+
+    bytes calldata // messageData
+
+  ) external override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function sendL1FundedUnsignedTransaction(
+
+    uint256, // gasLimit
+
+    uint256, // maxFeePerGas
+
+    uint256, // nonce
+
+    address, // to
+
+    bytes calldata // data
+
+  ) external payable override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function sendL1FundedContractTransaction(
+
+    uint256, // gasLimit
+
+    uint256, // maxFeePerGas
+
+    address, // to
+
+    bytes calldata // data
+
+  ) external payable override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function sendUnsignedTransaction(
+
+    uint256, // gasLimit
+
+    uint256, // maxFeePerGas
+
+    uint256, // nonce
+
+    address, // to
+
+    uint256, // value
+
+    bytes calldata // data
+
+  ) external override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function sendContractTransaction(
+
+    uint256, // gasLimit
+
+    uint256, // maxFeePerGas
+
+    address, // to
+
+    uint256, // value
+
+    bytes calldata // data
+
+  ) external override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function calculateRetryableSubmissionFee(
+
+    uint256 dataLength,
+
+    uint256 // baseFee
+
+  ) external view override returns (uint256) {
+
+    return 1_000_000;
+
+  }
+
+
+
+  function depositEth() external payable override returns (uint256) {
+
+    return messageNum;
+
+  }
+
+
+
+  function createRetryableTicket(
+
+    address to, // to
+
+    uint256, // l2CallValue
+
+    uint256, // maxSubmissionCost
+
+    address, // excessFeeRefundAddress
+
+    address, // callValueRefundAddress
+
+    uint256 gasLimit,
+
+    uint256, // maxFeePerGas
+
+    bytes calldata data
+
+  ) external payable override returns (uint256) {
+
+    bool success;
+
+    (success, ) = to.call{gas: gasLimit}(data);
+
+    return messageNum;
+
+  }
+
+
+
+  function unsafeCreateRetryableTicket(
+
+    address, // to
+
+    uint256, // l2CallValue
+
+    uint256, // maxSubmissionCost
+
+    address, // excessFeeRefundAddress
+
+    address, // callValueRefundAddress
+
+    uint256, // gasLimit
+
+    uint256, // maxFeePerGas
+
+    bytes calldata // data
+
+  ) external payable override returns (uint256) {}
+
+
+
+  function pause() external override {}
+
+
+
+  function unpause() external override {}
+
+
+
+  function postUpgradeInit(IBridge _bridge) external override {}
+
+
+
+  function initialize(IBridge _bridge, ISequencerInbox _sequencerInbox) external override {}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\MockOvmL1CrossDomainMessenger.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+import {ICrossDomainMessenger} from '../dependencies/optimism/interfaces/ICrossDomainMessenger.sol';
+
+import {MockOvmL2CrossDomainMessenger} from './MockOvmL2CrossDomainMessenger.sol';
+
+
+
+contract MockOvmL1CrossDomainMessenger is ICrossDomainMessenger {
+
+  address private sender;
+
+  address private l2Messenger;
+
+
+
+  function setSender(address _sender) external {
+
+    sender = _sender;
+
+  }
+
+
+
+  function setL2Messenger(address _l2Messenger) external {
+
+    l2Messenger = _l2Messenger;
+
+  }
+
+
+
+  function xDomainMessageSender() external view override returns (address) {
+
+    return sender;
+
+  }
+
+
+
+  function sendMessage(
+
+    address _target,
+
+    bytes calldata _message,
+
+    uint32 _gasLimit
+
+  ) external override {
+
+    MockOvmL2CrossDomainMessenger(l2Messenger).redirect(msg.sender, _target, _message, _gasLimit);
+
+  }
+
+
+
+  function redirect(
+
+    address _target,
+
+    bytes calldata _message,
+
+    uint32 _gasLimit
+
+  ) external {
+
+    bool success;
+
+    (success, ) = _target.call{gas: _gasLimit}(_message);
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\MockOvmL2CrossDomainMessenger.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+import {ICrossDomainMessenger} from '../dependencies/optimism/interfaces/ICrossDomainMessenger.sol';
+
+import {MockOvmL1CrossDomainMessenger} from './MockOvmL1CrossDomainMessenger.sol';
+
+
+
+contract MockOvmL2CrossDomainMessenger is ICrossDomainMessenger {
+
+  address private sender;
+
+  address private l1Messenger;
+
+
+
+  function setSender(address _sender) external {
+
+    sender = _sender;
+
+  }
+
+
+
+  function setL1Messenger(address _l1Messenger) external {
+
+    l1Messenger = _l1Messenger;
+
+  }
+
+
+
+  function xDomainMessageSender() external view override returns (address) {
+
+    return sender;
+
+  }
+
+
+
+  function sendMessage(
+
+    address _target,
+
+    bytes calldata _message,
+
+    uint32 _gasLimit
+
+  ) external override {
+
+    MockOvmL1CrossDomainMessenger(l1Messenger).redirect(_target, _message, _gasLimit);
+
+  }
+
+
+
+  // This error must be defined here or else Hardhat will not recognize the selector
+
+  error UnauthorizedEthereumExecutor();
+
+
+
+  function redirect(
+
+    address _xDomainMessageSender,
+
+    address _target,
+
+    bytes calldata _message,
+
+    uint32 _gasLimit
+
+  ) external {
+
+    sender = _xDomainMessageSender;
+
+    (bool success, bytes memory data) = _target.call{gas: _gasLimit}(_message);
+
+    if (!success) {
+
+      assembly {
+
+        revert(add(data, 32), mload(data))
+
+      }
+
+    }
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\OptimismBridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {ICrossDomainMessenger} from '../dependencies/optimism/interfaces/ICrossDomainMessenger.sol';
+
+import {L2BridgeExecutor} from './L2BridgeExecutor.sol';
+
+
+
+/**
+
+ * @title OptimismBridgeExecutor
+
+ * @author Aave
+
+ * @notice Implementation of the Optimism Bridge Executor, able to receive cross-chain transactions from Ethereum
+
+ * @dev Queuing an ActionsSet into this Executor can only be done by the Optimism L2 Cross Domain Messenger and having
+
+ * the EthereumGovernanceExecutor as xDomainMessageSender
+
+ */
+
+contract OptimismBridgeExecutor is L2BridgeExecutor {
+
+  // Address of the Optimism L2 Cross Domain Messenger, in charge of redirecting cross-chain transactions in L2
+
+  address public immutable OVM_L2_CROSS_DOMAIN_MESSENGER;
+
+
+
+  /// @inheritdoc L2BridgeExecutor
+
+  modifier onlyEthereumGovernanceExecutor() override {
+
+    if (
+
+      msg.sender != OVM_L2_CROSS_DOMAIN_MESSENGER ||
+
+      ICrossDomainMessenger(OVM_L2_CROSS_DOMAIN_MESSENGER).xDomainMessageSender() !=
+
+      _ethereumGovernanceExecutor
+
+    ) revert UnauthorizedEthereumExecutor();
+
+    _;
+
+  }
+
+
+
+  /**
+
+   * @dev Constructor
+
+   *
+
+   * @param ovmL2CrossDomainMessenger The address of the Optimism L2CrossDomainMessenger
+
+   * @param ethereumGovernanceExecutor The address of the EthereumGovernanceExecutor
+
+   * @param delay The delay before which an actions set can be executed
+
+   * @param gracePeriod The time period after a delay during which an actions set can be executed
+
+   * @param minimumDelay The minimum bound a delay can be set to
+
+   * @param maximumDelay The maximum bound a delay can be set to
+
+   * @param guardian The address of the guardian, which can cancel queued proposals (can be zero)
+
+   */
+
+  constructor(
+
+    address ovmL2CrossDomainMessenger,
+
+    address ethereumGovernanceExecutor,
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  )
+
+    L2BridgeExecutor(
+
+      ethereumGovernanceExecutor,
+
+      delay,
+
+      gracePeriod,
+
+      minimumDelay,
+
+      maximumDelay,
+
+      guardian
+
+    )
+
+  {
+
+    OVM_L2_CROSS_DOMAIN_MESSENGER = ovmL2CrossDomainMessenger;
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\PolygonBridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {IFxMessageProcessor} from '../dependencies/polygon/fxportal/interfaces/IFxMessageProcessor.sol';
+
+import {BridgeExecutorBase} from './BridgeExecutorBase.sol';
+
+
+
+/**
+
+ * @title PolygonBridgeExecutor
+
+ * @author Aave
+
+ * @notice Implementation of the Polygon Bridge Executor, able to receive cross-chain transactions from Ethereum
+
+ * @dev Queuing an ActionsSet into this Executor can only be done by the FxChild and after passing the EthereumGovernanceExecutor check
+
+ * as the FxRoot sender
+
+ */
+
+contract PolygonBridgeExecutor is BridgeExecutorBase, IFxMessageProcessor {
+
+  error UnauthorizedChildOrigin();
+
+  error UnauthorizedRootOrigin();
+
+
+
+  /**
+
+   * @dev Emitted when the FxRoot Sender is updated
+
+   * @param oldFxRootSender The address of the old FxRootSender
+
+   * @param newFxRootSender The address of the new FxRootSender
+
+   **/
+
+  event FxRootSenderUpdate(address oldFxRootSender, address newFxRootSender);
+
+
+
+  /**
+
+   * @dev Emitted when the FxChild is updated
+
+   * @param oldFxChild The address of the old FxChild
+
+   * @param newFxChild The address of the new FxChild
+
+   **/
+
+  event FxChildUpdate(address oldFxChild, address newFxChild);
+
+
+
+  // Address of the FxRoot Sender, sending the cross-chain transaction from Ethereum
+
+  address private _fxRootSender;
+
+  // Address of the FxChild, in charge of redirecting cross-chain transactions in Polygon
+
+  address private _fxChild;
+
+
+
+  /**
+
+   * @dev Only FxChild can call functions marked by this modifier.
+
+   **/
+
+  modifier onlyFxChild() {
+
+    if (msg.sender != _fxChild) revert UnauthorizedChildOrigin();
+
+    _;
+
+  }
+
+
+
+  /**
+
+   * @dev Constructor
+
+   *
+
+   * @param fxRootSender The address of the transaction sender in FxRoot
+
+   * @param fxChild The address of the FxChild
+
+   * @param delay The delay before which an actions set can be executed
+
+   * @param gracePeriod The time period after a delay during which an actions set can be executed
+
+   * @param minimumDelay The minimum bound a delay can be set to
+
+   * @param maximumDelay The maximum bound a delay can be set to
+
+   * @param guardian The address of the guardian, which can cancel queued proposals (can be zero)
+
+   */
+
+  constructor(
+
+    address fxRootSender,
+
+    address fxChild,
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  ) BridgeExecutorBase(delay, gracePeriod, minimumDelay, maximumDelay, guardian) {
+
+    _fxRootSender = fxRootSender;
+
+    _fxChild = fxChild;
+
+  }
+
+
+
+  /// @inheritdoc IFxMessageProcessor
+
+  function processMessageFromRoot(
+
+    uint256 stateId,
+
+    address rootMessageSender,
+
+    bytes calldata data
+
+  ) external override onlyFxChild {
+
+    if (rootMessageSender != _fxRootSender) revert UnauthorizedRootOrigin();
+
+
+
+    address[] memory targets;
+
+    uint256[] memory values;
+
+    string[] memory signatures;
+
+    bytes[] memory calldatas;
+
+    bool[] memory withDelegatecalls;
+
+
+
+    (targets, values, signatures, calldatas, withDelegatecalls) = abi.decode(
+
+      data,
+
+      (address[], uint256[], string[], bytes[], bool[])
+
+    );
+
+
+
+    _queue(targets, values, signatures, calldatas, withDelegatecalls);
+
+  }
+
+
+
+  /**
+
+   * @notice Update the address of the FxRoot Sender
+
+   * @param fxRootSender The address of the new FxRootSender
+
+   **/
+
+  function updateFxRootSender(address fxRootSender) external onlyThis {
+
+    emit FxRootSenderUpdate(_fxRootSender, fxRootSender);
+
+    _fxRootSender = fxRootSender;
+
+  }
+
+
+
+  /**
+
+   * @notice Update the address of the FxChild
+
+   * @param fxChild The address of the new FxChild
+
+   **/
+
+  function updateFxChild(address fxChild) external onlyThis {
+
+    emit FxChildUpdate(_fxChild, fxChild);
+
+    _fxChild = fxChild;
+
+  }
+
+
+
+  /**
+
+   * @notice Returns the address of the FxRoot Sender
+
+   * @return The address of the FxRootSender
+
+   **/
+
+  function getFxRootSender() external view returns (address) {
+
+    return _fxRootSender;
+
+  }
+
+
+
+  /**
+
+   * @notice Returns the address of the FxChild
+
+   * @return fxChild The address of FxChild
+
+   **/
+
+  function getFxChild() external view returns (address) {
+
+    return _fxChild;
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\PolygonMarketUpdate.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+contract PolygonMarketUpdate {
+
+  event UpdateExecuted(uint256 counter, uint256 testInt, address testAddress, uint256 fee);
+
+  event DelegateUpdateExecuted(bytes32 testBytes, address sender);
+
+  address constant UPDATED_ADDRESS = 0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9;
+
+
+
+  uint256 private _counter;
+
+  uint256 private _testInt;
+
+
+
+  function execute(uint256 testInt) external payable returns (uint256) {
+
+    _counter = _counter + 1;
+
+    _testInt = testInt;
+
+    emit UpdateExecuted(_counter, _testInt, UPDATED_ADDRESS, msg.value);
+
+    return testInt;
+
+  }
+
+
+
+  function executeWithDelegate(bytes32 testBytes) external payable {
+
+    emit DelegateUpdateExecuted(testBytes, msg.sender);
+
+  }
+
+
+
+  function alwaysFails() public {
+
+    _counter = _counter + 1;
+
+    require(1 < 0, 'THIS_ALWAYS_FAILS');
+
+  }
+
+
+
+  function getCounter() public view returns (uint256) {
+
+    return _counter;
+
+  }
+
+
+
+  function getTestInt() public view returns (uint256) {
+
+    return _testInt;
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\Selfdestructor.sol
+File type: .sol
+//SPDX-License-Identifier: Unlicense
+
+pragma solidity ^0.8.10;
+
+
+
+contract Selfdestructor {
+
+  function oops() external {
+
+    selfdestruct(payable(msg.sender));
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\SimpleBridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {BridgeExecutorBase} from '../bridges/BridgeExecutorBase.sol';
+
+
+
+contract SimpleBridgeExecutor is BridgeExecutorBase {
+
+  constructor(
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  ) BridgeExecutorBase(delay, gracePeriod, minimumDelay, maximumDelay, guardian) {}
+
+
+
+  function queue(
+
+    address[] memory targets,
+
+    uint256[] memory values,
+
+    string[] memory signatures,
+
+    bytes[] memory calldatas,
+
+    bool[] memory withDelegatecalls
+
+  ) external {
+
+    _queue(targets, values, signatures, calldatas, withDelegatecalls);
+
+  }
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges\dedup_non_vul_bridges_output_aliyun_718\Governance Bridge\contracts\SimpleL2BridgeExecutor.sol
+File type: .sol
+// SPDX-License-Identifier: AGPL-3.0
+
+pragma solidity ^0.8.10;
+
+
+
+import {L2BridgeExecutor} from '../bridges/L2BridgeExecutor.sol';
+
+
+
+contract SimpleL2BridgeExecutor is L2BridgeExecutor {
+
+  modifier onlyEthereumGovernanceExecutor() override {
+
+    if (msg.sender != _ethereumGovernanceExecutor) revert UnauthorizedEthereumExecutor();
+
+    _;
+
+  }
+
+
+
+  constructor(
+
+    address ethereumGovernanceExecutor,
+
+    uint256 delay,
+
+    uint256 gracePeriod,
+
+    uint256 minimumDelay,
+
+    uint256 maximumDelay,
+
+    address guardian
+
+  )
+
+    L2BridgeExecutor(
+
+      ethereumGovernanceExecutor,
+
+      delay,
+
+      gracePeriod,
+
+      minimumDelay,
+
+      maximumDelay,
+
+      guardian
+
+    )
+
+  {}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------

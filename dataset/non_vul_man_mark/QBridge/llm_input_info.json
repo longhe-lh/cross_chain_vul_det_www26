@@ -1,0 +1,31 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(bytes32 resourceID, address depositer, bytes calldata data) external override onlyBridge {\n uint option;\n uint amount;\n (option, amount) = abi.decode(data, (uint, uint));\n address tokenAddress = resourceIDToTokenContractAddress[resourceID];\n require(contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (burnList[tokenAddress]) {\n require(amount >= withdrawalFees[resourceID], \"less than withdrawal fee\");\n QBridgeToken(tokenAddress).burnFrom(depositer, amount);\n } else {\n require(amount >= minAmounts[resourceID][option], \"less than minimum amount\");\n tokenAddress.safeTransferFrom(depositer, address(this), amount);\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ProposalVote": [
+            {
+                "voteProposal": "function voteProposal(uint8 originDomainID, uint64 depositNonce, bytes32 resourceID, bytes calldata data) external onlyRelayers notPaused {\n address handlerAddress = resourceIDToHandlerAddress[resourceID];\n require(handlerAddress != address(0), \"QBridge: invalid handler\");\n uint72 proposalID = combinedProposalId(originDomainID, depositNonce);\n bytes32 dataHash = keccak256(abi.encodePacked(handlerAddress, data));\n Proposal memory proposal = _proposals[proposalID][dataHash];\n if (proposal._status == ProposalStatus.Passed) {\n executeProposal(originDomainID, depositNonce, resourceID, data, true);\n return;\n }\n require(uint(proposal._status) <= 1, \"QBridge: proposal already executed/cancelled\");\n function _hasVoted(...) {...}\nrequire(!_hasVoted(proposal, msg.sender), \"QBridge: relayer already voted\");\n if (proposal._status == ProposalStatus.Inactive) {\n proposal = Proposal({_status : ProposalStatus.Active, _yesVotes : 0, _yesVotesTotal : 0, _proposedBlock : uint40(block.number)});\n emit ProposalEvent(originDomainID, depositNonce, ProposalStatus.Active, dataHash);\n } else if (uint40(block.number.sub(proposal._proposedBlock)) > expiry) {\n proposal._status = ProposalStatus.Cancelled;\n emit ProposalEvent(originDomainID, depositNonce, ProposalStatus.Cancelled, dataHash);\n }\n if (proposal._status != ProposalStatus.Cancelled) {\n proposal._yesVotes = _bitmap(proposal._yesVotes, _relayerBit(msg.sender));\n proposal._yesVotesTotal++;\n emit ProposalVote(originDomainID, depositNonce, proposal._status, dataHash);\n if (proposal._yesVotesTotal >= relayerThreshold) {\n proposal._status = ProposalStatus.Passed;\n emit ProposalEvent(originDomainID, depositNonce, ProposalStatus.Passed, dataHash);\n }\n }\n _proposals[proposalID][dataHash] = proposal;\n if (proposal._status == ProposalStatus.Passed) {\n executeProposal(originDomainID, depositNonce, resourceID, data, false);\n }\n }"
+            }
+        ],
+        "ProposalEvent": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint option;\n uint amount;\n address recipientAddress;\n (option, amount, recipientAddress) = abi.decode(data, (uint, uint, address));\n address tokenAddress = resourceIDToTokenContractAddress[resourceID];\n require(contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (burnList[tokenAddress]) {\n address delegatorAddress = delegators[option];\n if (delegatorAddress == address(0)) {\n QBridgeToken(tokenAddress).mint(recipientAddress, amount);\n } else {\n QBridgeToken(tokenAddress).mint(delegatorAddress, amount);\n IQBridgeDelegator(delegatorAddress).delegate(tokenAddress, recipientAddress, option, amount);\n }\n } else {\n tokenAddress.safeTransfer(recipientAddress, amount.sub(withdrawalFees[resourceID]));\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address _to, uint _amount) public onlyMinter {\n _mint(_to, _amount);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint amount) internal {\n require(account != address(0), \"BEP20: mint to the zero address\");\n _totalSupply = _totalSupply.add(amount);\n _balances[account] = _balances[account].add(amount);\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,165 @@
+{
+    "contract": "Nomad",
+    "source_code_path": "../vul_src_code/nomad/",
+    "type": "Cross-chain message authentication bypass",
+    "vulnerable_entry_function": {
+        "file": "Replica.sol",
+        "name": "process",
+        "signature": "function process(bytes memory _message)",
+        "lines": "179-204",
+        "attack_type": "Zero-root authentication bypass",
+        "vul_reason": "Initialization set confirmAt[bytes32(0)] = 1, allowing unproven (zero-root) messages to bypass acceptableRoot check",
+        "code_snippet": "require(acceptableRoot(messages[_messageHash]), \"!proven\");"
+    },
+    "detail": "Because confirmAt[bytes32(0)] was initialized to 1, acceptableRoot(bytes32(0)) always returns true, so attackers can submit arbitrary messages without proof and drain funds by calling process()",
+    "blg": {
+        "Nomad": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "Send1"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "Process0",
+                    "Receive1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "Send1": {
+                        "0": {
+                            "func_name": "send",
+                            "file_name": "BridgeRouter.sol",
+                            "key_ops": [
+                                "require(_recipient != bytes32(0), \"!recip\");",
+                                "require(_destination == _tokenId.domain(),\"sends temporarily disabled\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_takeTokens",
+                                    "file_name": "BridgeRouter.sol",
+                                    "key_ops": [
+                                        "require(_amount > 0, \"!amnt\");",
+                                        "IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);",
+                                        "_t.burn(msg.sender, _amount);"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "func_name": "_sendTransferMessage",
+                                    "file_name": "BridgeRouter.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "Send",
+                                    "file_name": "BridgeRouter.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "Nomad Bridge",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "avalanche",
+                "events": {
+                    "Process0":{
+                        "0":{
+                            "func_name":"process",
+                            "file_name":"Replica.sol",
+                            "key_ops":[
+                                "require(_m.destination() == localDomain, \"!destination\");",
+                                "require(acceptableRoot(messages[_messageHash]), \"!proven\");",
+                                "require(entered == 1, \"!reentrant\");"
+                            ],
+                            "child":{
+                                "0":{
+                                    "func_name":"acceptableRoot",
+                                    "file_name":"Replica.sol",
+                                    "key_ops":[],
+                                    "child":{}
+                                },
+                                "1":{
+                                    "event_name":"Process",
+                                    "file_name":"Replica.sol",
+                                    "key_ops":[],
+                                    "child":{}
+                                }
+                            }
+                        }
+                    },
+                    "Receive1": {
+                        "0": {
+                            "func_name": "handle",
+                            "file_name": "BridgeRouter.sol",
+                            "key_ops": [
+                                "require(false, \"!valid action\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_handleTransfer",
+                                    "file_name": "BridgeRouter.sol",
+                                    "key_ops": [
+                                        "_giveTokens(_origin, _nonce, _tokenId, _action, _recipient);",
+                                        "_dust(_recipient);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_giveTokens",
+                                            "file_name": "BridgeRouter.sol",
+                                            "key_ops": [
+                                                "_token = tokenRegistry.ensureLocalToken(_tokenId.domain(),_tokenId.id());"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_giveLocal",
+                                                    "file_name": "BridgeRouter.sol",
+                                                    "key_ops": [
+                                                        "IERC20(_token).safeTransfer(_recipient, _amount);"
+                                                    ],
+                                                    "child": {}
+                                                },
+                                                "1":{
+                                                    "func_name":"_giveRepr",
+                                                    "file_name": "BridgeRouter.sol",
+                                                    "key_ops": [
+                                                        "IBridgeToken(_token).mint(_recipient, _amount);",
+                                                        "IBridgeToken(_token).setDetailsHash(_detailsHash);"
+                                                    ],
+                                                    "child": {}
+                                                },
+                                                "2":{
+                                                    "event_name":"Receive",
+                                                    "file_name":"BridgeRouter.sol",
+                                                    "key_ops":[],
+                                                    "child":{}
+                                                }
+                                            }
+                                        },
+                                        "1": {
+                                            "func_name": "_dust",
+                                            "file_name": "BridgeRouter.sol",
+                                            "key_ops": [
+                                                "payable(_recipient).send(DUST_AMOUNT);"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

@@ -1,0 +1,102 @@
+{
+  "contract": "Bridge_8",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_8": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "RetryableTicketCreated1",
+          "L2ToL1TxSubmitted1"
+        ],
+        "rel_chain": [
+          "InboxMessageDelivered",
+          "OutBoxTransactionExecuted"
+        ],
+        "det_chain": [
+          "SentMessage1",
+          "RelayedMessage1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Arbitrum L1",
+        "events": {
+          "RetryableTicketCreated1": {
+            "0": {
+              "func_name": "_sendCrossChainMessage",
+              "file_name": "CrossChainEnabledArbitrumL1.sol",
+              "key_ops": [
+                "uint256 ticketId = LibArbitrumL1.sendCrossChainMessage(_bridge, destination, data, crossChainTxParams);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendCrossChainMessage",
+                  "file_name": "LibArbitrumL1.sol",
+                  "key_ops": [
+                    "if (BRIDGE_ID != params.bridgeId) revert InvalidTargetBridge(params.bridgeId, BRIDGE_ID);",
+                    "ticketId = ArbitrumL1_Inbox(delayedInbox).createRetryableTicket{value: params.depositValue}(destination, params.l2CallValue, params.maxSubmissionCost, params.excessFeeRefundAddress, params.callValueRefundAddress, params.maxGas, params.gasPriceBid, data);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Arbitrum Relay",
+        "events": {
+          "InboxMessageDelivered": {
+            "0": {
+              "func_name": "deliverMessageToInbox",
+              "file_name": "IBridge.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "OutBoxTransactionExecuted": {
+            "0": {
+              "func_name": "executeCall",
+              "file_name": "IBridge.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Optimism L2",
+        "events": {
+          "SentMessage1": {
+            "0": {
+              "func_name": "sendMessage",
+              "file_name": "ICrossDomainMessenger.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "RelayedMessage1": {
+            "0": {
+              "func_name": "relayMessage",
+              "file_name": "ICrossDomainMessenger.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

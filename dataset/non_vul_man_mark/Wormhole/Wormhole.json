@@ -1,0 +1,203 @@
+{
+  "contract": "Wormhole",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Wormhole": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "transferTokens1",
+          "wrapAndTransferETH2",
+          "attestToken3"
+        ],
+        "rel_chain": [
+          "parseAndVerifyVM"
+        ],
+        "det_chain": [
+          "completeTransfer1",
+          "completeTransferAndUnwrapETH2",
+          "updateWrapped3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "transferTokens1": {
+            "0": {
+              "func_name": "transferTokens",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_transferTokens",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "SafeERC20.safeTransferFrom(IERC20(token),msg.sender,address(this),amount);"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "logTransfer",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(fee <= amount, \"fee exceeds amount\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "wrapAndTransferETH2": {
+            "0": {
+              "func_name": "wrapAndTransferETH",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_wrapAndTransferETH",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(wormholeFee < msg.value, \"value is smaller than wormhole fee\")",
+                    "require(arbiterFee <= amount, \"fee is bigger than amount minus wormhole fee\")"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "logTransfer",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(fee <= amount, \"fee exceeds amount\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "attestToken3": {
+            "0": {
+              "func_name": "attestToken",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "bytes memory encoded = encodeAssetMeta(meta);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "encodeAssetMeta",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "parseAndVerifyVM": {
+            "0": {
+              "func_name": "parseAndVerifyVM",
+              "file_name": "Messages.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "verifyVM",
+                  "file_name": "Messages.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "verifySignatures",
+                      "file_name": "Messages.sol",
+                      "key_ops": [
+                        "require(sig.guardianIndex < guardianCount, \"guardian index out of bounds\")"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "completeTransfer1": {
+            "0": {
+              "func_name": "completeTransfer",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_completeTransfer",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(valid, reason)",
+                    "require(verifyBridgeVM(vm), \"invalid emitter\")",
+                    "require(!isTransferCompleted(vm.hash), \"transfer already completed\")",
+                    "require(transfer.toChain == chainId(), \"invalid target chain\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "completeTransferAndUnwrapETH2": {
+            "0": {
+              "func_name": "completeTransferAndUnwrapETH",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_completeTransfer",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(valid, reason)",
+                    "require(verifyBridgeVM(vm), \"invalid emitter\")",
+                    "require(!isTransferCompleted(vm.hash), \"transfer already completed\")",
+                    "require(transfer.toChain == chainId(), \"invalid target chain\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "updateWrapped3": {
+            "0": {
+              "func_name": "updateWrapped",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(valid, reason)",
+                "require(verifyBridgeVM(vm), \"invalid emitter\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_updateWrapped",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(wrapped != address(0), \"wrapped asset does not exists\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

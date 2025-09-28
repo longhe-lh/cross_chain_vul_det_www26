@@ -1,0 +1,87 @@
+{
+  "contract": "SafeBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "SafeBridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenWithdraw1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "Safecoin.sol",
+              "key_ops": [
+                "_mint(to, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "Safecoin.sol",
+                  "key_ops": [
+                    "require(account != address(0), \"ERC20: mint to the zero address\");",
+                    "_beforeTokenTransfer(address(0), account, amount);",
+                    "_afterTokenTransfer(address(0), account, amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "Safecoin.sol",
+              "key_ops": [
+                "_burn(_msgSender(), amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "Safecoin.sol",
+                  "key_ops": [
+                    "require(account != address(0), \"ERC20: burn from the zero address\");",
+                    "require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");",
+                    "_beforeTokenTransfer(account, address(0), amount);",
+                    "_afterTokenTransfer(account, address(0), amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

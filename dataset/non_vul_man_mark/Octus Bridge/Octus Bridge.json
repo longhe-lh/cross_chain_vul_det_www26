@@ -1,0 +1,177 @@
+{
+  "contract": "Octus Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Octus Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenWithdraw2"
+        ],
+        "rel_chain": [
+          "NewRound",
+          "RoundRelay",
+          "BanRelay"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenDeposit2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "EVM",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "MultiVaultFacetDeposit.sol",
+              "key_ops": [
+                "IERC20(token).safeTransferFrom(msg.sender, address(this), amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "MultiVaultFacetDeposit.sol",
+                  "key_ops": [
+                    "_transferToEverscaleAlien(token, recipient, amount - fee)",
+                    "_increaseTokenFee(token, fee)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenWithdraw2": {
+            "0": {
+              "func_name": "saveWithdrawAlien",
+              "file_name": "MultiVaultFacetWithdraw.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_withdraw",
+                  "file_name": "MultiVaultHelperWithdraw.sol",
+                  "key_ops": [
+                    "emit Withdraw(tokenType, payloadId, token, recipient, amount, fee)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Everscale",
+        "events": {
+          "NewRound": {
+            "0": {
+              "func_name": "_setRound",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "relays[round][relay] = true",
+                "emit NewRound(round, rounds[round])",
+                "emit RoundRelay(round, relay)"
+              ],
+              "child": {}
+            }
+          },
+          "RoundRelay": {
+            "0": {
+              "func_name": "setRoundRelays",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(verifySignedEverscaleEvent(payload, signatures) == 0)",
+                "require(round == lastRound + 1)",
+                "_setRound(round, _relays, roundEnd)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_setRound",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "relays[round][relay] = true",
+                    "emit NewRound(round, rounds[round])",
+                    "emit RoundRelay(round, relay)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BanRelay": {
+            "0": {
+              "func_name": "banRelays",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "blacklist[_relays[i]] = true",
+                "emit BanRelay(_relays[i], true)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "EVM",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "saveWithdrawAlien",
+              "file_name": "MultiVaultFacetWithdraw.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_withdraw",
+                  "file_name": "MultiVaultHelperWithdraw.sol",
+                  "key_ops": [
+                    "emit Withdraw(tokenType, payloadId, token, recipient, amount, fee)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenDeposit2": {
+            "0": {
+              "func_name": "depositByNativeToken",
+              "file_name": "MultiVaultFacetDeposit.sol",
+              "key_ops": [
+                "IWETH(s.weth).deposit{value: d.amount}()"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "MultiVaultFacetDeposit.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_transferToEverscaleNative",
+                      "file_name": "MultiVaultHelperEverscale.sol",
+                      "key_ops": [
+                        "emit NativeTransfer(native.wid, native.addr, uint128(amount), recipient.wid, recipient.addr, value, deposit.expected_evers, deposit.payload)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

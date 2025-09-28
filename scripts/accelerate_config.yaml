@@ -1,0 +1,12 @@
+compute_environment: LOCAL_MACHINE
+distributed_type: DEEPSPEED
+num_processes: 2
+mixed_precision: bf16
+use_cpu: false
+deepspeed_config:
+  deepspeed_multinode_launcher: standard
+  zero_stage: 3
+  offload_param_device: cpu
+  offload_optimizer_device: cpu
+  zero3_init_flag: true
+  zero3_save_16bit_model: true

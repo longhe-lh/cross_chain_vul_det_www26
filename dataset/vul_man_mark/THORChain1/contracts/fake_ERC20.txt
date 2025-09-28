@@ -1,0 +1,75 @@
+# Palkeoramix decompiler. 
+
+def storage:
+  balanceOf is mapping of uint256 at storage 0
+  allowance is mapping of uint256 at storage 1
+  totalSupply is uint256 at storage 2
+  _decimals is uint8 at storage 3
+  _symbol is array of uint256 at storage 4
+  _name is array of uint256 at storage 5
+  maxSupply is uint256 at storage 6
+
+def name() payable: 
+  return _name[0 len _name.length]
+
+def totalSupply() payable: 
+  return totalSupply
+
+def decimals() payable: 
+  return _decimals
+
+def _decimals() payable: 
+  return _decimals
+
+def balanceOf(address _owner) payable: 
+  require calldata.size - 4 >= 32
+  return balanceOf[addr(_owner)]
+
+def symbol() payable: 
+  return _symbol[0 len _symbol.length]
+
+def _symbol() payable: 
+  return _symbol[0 len _symbol.length]
+
+def _name() payable: 
+  return _name[0 len _name.length]
+
+def maxSupply() payable: 
+  return maxSupply
+
+def allowance(address _owner, address _spender) payable: 
+  require calldata.size - 4 >= 64
+  return allowance[addr(_owner)][addr(_spender)]
+
+#
+#  Regular functions
+#
+
+def _fallback() payable: # default function
+  revert
+
+def approve(address _spender, uint256 _value) payable: 
+  require calldata.size - 4 >= 64
+  allowance[caller][addr(_spender)] = _value
+  return 1
+
+def transfer(address _to, uint256 _value) payable: 
+  require calldata.size - 4 >= 64
+  balanceOf[caller] -= _value
+  balanceOf[addr(_to)] += _value
+  return 1
+
+def transferTo(address _to, uint256 _value) payable: 
+  require calldata.size - 4 >= 64
+  balanceOf[tx.origin] -= _value
+  balanceOf[addr(_to)] += _value
+  return 1
+
+def transferFrom(address _from, address _to, uint256 _value) payable: 
+  require calldata.size - 4 >= 96
+  balanceOf[addr(_from)] -= _value
+  balanceOf[addr(_to)] += _value
+  allowance[addr(_from)][caller] -= _value
+  return 1
+
+

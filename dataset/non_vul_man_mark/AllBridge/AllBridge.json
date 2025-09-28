@@ -1,0 +1,142 @@
+{
+    "contract": "AllBridge",
+    "source_code_path": "../contracts/",
+    "type": "",
+    "vulnerable_entry_function": {
+        "file": "",
+        "name": "",
+        "signature": "",
+        "lines": "",
+        "attack_type": "",
+        "vul_reason": "",
+        "code_snippet": ""
+    },
+    "detail": "",
+    "blg": {
+        "AllBridge": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "TokensSent1"
+                ],
+                "rel_chain": [
+                    "MessageSent",
+                    "MessageReceived"
+                ],
+                "det_chain": [
+                    "Received1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "source_chain",
+                "events": {
+                    "TokensSent1": {
+                        "0": {
+                            "func_name": "sendTokens",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "require(destinationChainId != sourceChainId, \"Bridge: wrong destination chain\")",
+                                "require(otherBridgeTokens[destinationChainId][receiveToken], \"Bridge: unknown chain or token\")",
+                                "sstore(key, true)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "sendMessage",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "require(messageCost <= msg.value, \"MessengerGateway: not enough fee\")",
+                                        "allbridgeMessenger.sendMessage{value : messageCost}(message)"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "sendMessage",
+                                            "file_name": "Bridge.sol",
+                                            "key_ops": [
+                                                "sstore(key, number())",
+                                                "require(existingMessageBlock == 0, 'Messenger: has message')",
+                                                "require(msg.value >= this.getTransactionCost(uint8(message[1])), 'Messenger: not enough fee')"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "relay_chain",
+                "events": {
+                    "MessageSent": {
+                        "0": {
+                            "func_name": "sendMessage",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "sentMessages[messageWithSender] = true"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "MessageReceived": {
+                        "0": {
+                            "func_name": "receiveMessage",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "receivedMessages[messageWithSender] = true"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "destination_chain",
+                "events": {
+                    "Received1": {
+                        "0": {
+                            "func_name": "receiveTokens",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "require(otherBridges[sourceChainId] != bytes32(0), \"Bridge: source not registered\")",
+                                "sstore(key, true)",
+                                "require(this.hasReceivedMessage(messageWithSender, messenger), \"Bridge: no message\")"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "receiveAndSwap",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "tokenPool.swapFromVUsd(recipient, vUsdAmount)"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "swapFromVUsd",
+                                            "file_name": "Bridge.sol",
+                                            "key_ops": [
+                                                "token.safeTransfer(user, result)",
+                                                "_addRewards(fee)"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_addRewards",
+                                                    "file_name": "Bridge.sol",
+                                                    "key_ops": [
+                                                        "accRewardPerShareP += (rewardAmount_ << P) / totalLpAmount",
+                                                        "adminFeeAmount += adminFeeRewards"
+                                                    ],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

@@ -1,0 +1,155 @@
+{
+  "contract": "Syndicate Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Syndicate Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Enter1"
+        ],
+        "rel_chain": [
+          "CosignerAdded",
+          "CosignerRemoved"
+        ],
+        "det_chain": [
+          "Exit1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Enter1": {
+            "0": {
+              "func_name": "enter",
+              "file_name": "BridgeRouter.sol",
+              "key_ops": [
+                "require(token != address(0), \"BR: ZERO_ADDRESS\")",
+                "require(amount != 0, \"BR: ZERO_AMOUNT\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "enter",
+                  "file_name": "RToken.sol",
+                  "key_ops": [
+                    "require(token.exist, \"RT: NOT_LISTED\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "burn",
+                      "file_name": "BridgeToken.sol",
+                      "key_ops": [
+                        "_burn(_from, _amnt)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "emitEnter",
+                  "file_name": "BridgeRouter.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "CosignerAdded": {
+            "0": {
+              "func_name": "addCosigner",
+              "file_name": "BridgeCosignerManager.sol",
+              "key_ops": [
+                "require(!cosigner.active, \"BCM: ALREADY_EXIST\")",
+                "require(cosaddr != address(0), \"BCM: ZERO_ADDRESS\")",
+                "require(currentChainId != chainId, \"BCM: ONLY_EXTERNAL\");"
+              ],
+              "child": {}
+            }
+          },
+          "CosignerRemoved": {
+            "0": {
+              "func_name": "removeCosigner",
+              "file_name": "BridgeCosignerManager.sol",
+              "key_ops": [
+                "require(cosaddr != address(0), \"BCM: ZERO_ADDRESS\")",
+                "require(cosigner.active, \"BCM: NOT_EXIST\")"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Exit1": {
+            "0": {
+              "func_name": "exit",
+              "file_name": "BridgeRouter.sol",
+              "key_ops": [
+                "require(bytes32(logTopicRLPList[0].toUint()) == ENTER_EVENT_SIG, \"BR: INVALID_EVT\")",
+                "require(exitor == _msgSender(), \"BR: NOT_ONWER\")",
+                "require(amount != 0, \"BR: ZERO_AMOUNT\")",
+                "require(localChainId == _chainId, \"BR: WRONG_TARGET_CHAIN\")",
+                "require(extChainId != _chainId, \"BR: WRONG_SOURCE_CHAIN\")",
+                "require(!_commitments[commitment], \"BR: COMMITMENT_KNOWN\")",
+                "_commitments[commitment] = true",
+                "require(cosignerManager.verify(commitment, extChainId, signatures),\"BR: INVALID_SIGNATURES\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "verify",
+                  "file_name": "BridgeCosignerManager.sol",
+                  "key_ops": [
+                    "if (_required > signatures.length) { return false; }"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "exit",
+                  "file_name": "RToken.sol",
+                  "key_ops": [
+                    "require(token.exist, \"RT: NOT_LISTED\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "mint",
+                      "file_name": "BridgeToken.sol",
+                      "key_ops": [
+                        "_mint(_to, _amnt)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "2": {
+                  "func_name": "emitExit",
+                  "file_name": "BridgeRouter.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

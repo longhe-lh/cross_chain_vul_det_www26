@@ -1,0 +1,155 @@
+{
+    "contract": "BridgeQANX",
+    "source_code_path": "../vul_src_code/QANX/",
+    "type": "Lack of access control constraints",
+    "vulnerable_entry_function": {
+        "file": "BridgeQANX.sol",
+        "name": "verifySignature",
+        "signature": "function verifySignature(bytes32 txid, bytes memory signature, uint256 amount) internal view returns (bool)",
+        "lines": "27-46",
+        "attack_type": "Insufficient Parameter Validation",
+        "vul_reason": "The `verifySignature` function does not enforce strict validation of the `tx.to` field (destination contract address). As a result, malicious actors can create forged transactions (e.g., through fake contracts) and generate valid-looking `txids` for deposits that do not originate from legitimate bridge contracts. This issue arises from a lack of critical access control and parameter constraints in the signing process.",
+        "code_snippet": "return amount < signers[ecrecover(txid, v, r, s)];"
+    },
+    "detail": "The attacker cloned the original QANX Bridge contract, modified specific behaviors, and deployed it onto the BSC chain as a 'fake contract.' This fake contract's deposit behavior made it accept any input QANX amount as a parameter while only transferring 1 QANX internally. The fake contract created a transaction hash (`txid`) that looked legitimate and submitted this hash to the real QANX Bridge's signing nodes for authorization. Because the `verifySignature` function did not validate the transaction's `to` field (`tx.to`), the signing nodes failed to differentiate between the fake contract and the legitimate bridge contract, signing the malicious transaction. This allowed the attacker to withdraw 4.5 million QANX tokens from Ethereum, even though only 1 QANX token was legitimately bridged to the BSC chain.",
+    "blg": {
+        "BridgeQANX": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "verifySignature0",
+                    "Transfer1"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "Transfer1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "verifySignature0": {
+                        "0": {
+                            "func_name": "verifySignature",
+                            "file_name": "BridgeQANX.sol",
+                            "key_ops": [
+                                "return amount < signers[ecrecover(txid, v, r, s)];"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "bridgeSend1": {
+                        "0": {
+                            "func_name": "bridgeSend",
+                            "file_name": "BridgeQANX.sol",
+                            "key_ops": [
+                                "require(_qanx.transferFrom(msg.sender, address(this), amount));"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "transferFrom",
+                                    "file_name": "QANX.sol",
+                                    "key_ops": [
+                                        "require(currentAllowance >= amount, \"ERC20: transfer amount exceeds allowance\");"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_transfer",
+                                            "file_name": "QANX.sol",
+                                            "key_ops": [
+                                                "require(sender != address(0), \"ERC20: transfer from the zero address\");",
+                                                "require(recipient != address(0), \"ERC20: transfer to the zero address\");",
+                                                "require(senderBalance >= amount, \"ERC20: transfer amount exceeds balance\");",
+                                                "_balances[sender] = senderBalance - amount;",
+                                                "_balances[recipient] += amount;"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "event_name": "Transfer",
+                                                    "file_name": "QANX.sol",
+                                                    "key_ops": [],
+                                                    "child": {}
+                                                }
+                                            }
+                                        },
+                                        "1": {
+                                            "func_name": "_approve",
+                                            "file_name": "QANX.sol",
+                                            "key_ops": [
+                                                "require(owner != address(0), \"ERC20: approve from the zero address\");",
+                                                "require(spender != address(0), \"ERC20: approve to the zero address\");",
+                                                "_allowances[owner][spender] = amount;"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "event_name": "Approval",
+                                                    "file_name": "QANX.sol",
+                                                    "key_ops": [],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "BridgeQANX",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "Transfer1": {
+                        "0": {
+                            "func_name": "bridgeWithdraw",
+                            "file_name": "eth_BridgeQANX.sol",
+                            "key_ops": [
+                                "require(verifySignature(txid, signature, amount), \"ERR_SIG\");",
+                                "require(_qanx.transfer(beneficiary, amount - fee), \"ERR_TXN\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "verifySignature",
+                                    "file_name": "eth_BridgeQANX.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "func_name": "transfer",
+                                    "file_name": "QANX.sol",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_transfer",
+                                            "file_name": "QANX.sol",
+                                            "key_ops": [
+                                                "require(sender != address(0), \"ERC20: transfer from the zero address\");",
+                                                "require(recipient != address(0), \"ERC20: transfer to the zero address\");",
+                                                "require(senderBalance >= amount, \"ERC20: transfer amount exceeds balance\");",
+                                                "_balances[sender] = senderBalance - amount;",
+                                                "_balances[recipient] += amount;"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "event_name": "Transfer",
+                                                    "file_name": "QANX.sol",
+                                                    "key_ops": [],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

@@ -1,0 +1,113 @@
+{
+  "contract": "iotube",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "iotube": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Receipt1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenAdded1",
+          "TokenRemoved2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Receipt1": {
+            "0": {
+              "func_name": "depositTo",
+              "file_name": "TokenCashier.sol",
+              "key_ops": [
+                "require(_to != address(0), \"invalid destination\")",
+                "require(msg.value >= _amount, \"insufficient msg.value\");}",
+                "require(fee >= depositFee, \"insufficient fee\")",
+                "for (uint256 i = 0; i < tokenLists.length; i++) { if (tokenLists[i].isAllowed(_token)) { require(_amount >= tokenLists[i].minAmount(_token), \"amount too low\"); require(_amount <= tokenLists[i].maxAmount(_token), \"amount too high\"); } }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "TokenCashier.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0x23b872dd, _from, _to, _amount));"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TokenCashier.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _amount));"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenAdded1": {
+            "0": {
+              "func_name": "addToken",
+              "file_name": "TokenList.sol",
+              "key_ops": [
+                "require(_min > 0 && _max > _min, \"invalid parameters\");",
+                "settings[_token] = Setting(_min, _max);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "activateItem",
+                  "file_name": "TokenList.sol",
+                  "key_ops": [
+                    "if (!existAndActives[_item].exist) { items.push(_item); }",
+                    "existAndActives[_item] = ExistAndActive(true, true);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenRemoved2": {
+            "0": {
+              "func_name": "removeToken",
+              "file_name": "TokenList.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "deactivateItem",
+                  "file_name": "TokenList.sol",
+                  "key_ops": [
+                    "if (existAndActives[_item].exist && existAndActives[_item].active)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

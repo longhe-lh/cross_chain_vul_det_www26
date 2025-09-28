@@ -1,0 +1,35 @@
+{
+    "src_chain": {
+        "SwapInitialized1": [
+            {
+                "swap": "function swap(\n address recepient,\n uint256 amount,\n address erc20from,\n uint256 chainIdto,\n address erc20to\n ) external isBridgeValid(erc20from, chainIdto, erc20to) {\n IExampleToken(erc20from).burn(msg.sender, amount);\n nonce += 1;\n emit SwapInitialized(\n msg.sender,\n recepient,\n amount,\n getChainID(),\n erc20from,\n chainIdto,\n erc20to,\n nonce\n );\n }"
+            },
+            {
+                "burn": "function burn(\n address account,\n uint256 amount\n ) public onlyRole(BURNER_ROLE) enoughTokens(account, amount) {\n balances[account] -= amount;\n totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n }"
+            },
+            {
+                "isBridgeValid": "modifier isBridgeValid(\n address erc20from,\n uint256 chainIdto,\n address erc20to\n ) {\n require(\n isERC20valid[getChainID()][erc20from],\n \"ERC20 address from is not valid\"\n );\n require(\n isERC20valid[chainIdto][erc20to],\n \"Chain id or ERC20 address to is not valid\"\n );\n _;\n }"
+            },
+            {
+                "getChainID": "function getChainID() public view returns (uint256) {\n uint256 id;\n assembly {\n id := chainid()\n }\n return id;\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "RedeemInitialized1": [
+            {
+                "redeem": "function redeem(\n address recepient,\n uint256 amount,\n uint256 chainIdfrom,\n address erc20from,\n address erc20to,\n uint256 nonce,\n uint8 v,\n bytes32 r,\n bytes32 s\n ) external {\n require(\n isERC20valid[chainIdfrom][erc20from],\n \"Chain id or ERC20 address from is not valid\"\n );\n require(\n isERC20valid[getChainID()][erc20to],\n \"ERC20 on this chain is not valid\"\n );\n require(\n checkSign(\n recepient,\n amount,\n chainIdfrom,\n erc20from,\n nonce,\n v,\n r,\n s\n ),\n \"Input is not valid\"\n );\n bytes32 redeemHash = keccak256(\n abi.encodePacked(\n recepient,\n amount,\n chainIdfrom,\n erc20from,\n nonce,\n v,\n r,\n s\n )\n );\n redeemStatus[redeemHash] = Status.Undone;\n require(redeemStatus[redeemHash] == Status.Undone, \"Hash is not valid\");\n redeemStatus[redeemHash] = Status.Done;\n IExampleToken(erc20to).mint(recepient, amount);\n emit RedeemInitialized(\n recepient,\n amount,\n erc20to,\n chainIdfrom,\n erc20from,\n nonce\n );\n }"
+            },
+            {
+                "checkSign": "function checkSign(\n address recepient,\n uint256 amount,\n uint256 chainIdfrom,\n address erc20from,\n uint256 nonce,\n uint8 v,\n bytes32 r,\n bytes32 s\n ) public view returns (bool) {\n bytes32 message = keccak256(\n abi.encodePacked(recepient, amount, chainIdfrom, erc20from, nonce)\n );\n address function hashMessage(...) {...}\naddr = ecrecover(hashMessage(message), v, r, s);\n if (addr == validator) {\n return true;\n } else {\n return false;\n }\n }"
+            },
+            {
+                "hashMessage": "function hashMessage(bytes32 message) private pure returns (bytes32) {\n bytes memory prefix = \"\\x19Ethereum Signed Message:\\n32\";\n return keccak256(abi.encodePacked(prefix, message));\n }"
+            },
+            {
+                "mint": "function mint(\n address account,\n uint256 amount\n ) public onlyRole(MINTER_ROLE) {\n balances[account] += amount;\n totalSupply += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ]
+    }
+}

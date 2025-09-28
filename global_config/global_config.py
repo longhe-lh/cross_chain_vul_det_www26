@@ -1,0 +1,1 @@
+LLM_MODEL_NAME = "Qwen/QwQ-32B"

@@ -1,0 +1,94 @@
+{
+  "contract": "Time Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Time Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Locked1"
+        ],
+        "rel_chain": [
+          "unlock"
+        ],
+        "det_chain": [
+          "Unlocked1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Locked1": {
+            "0": {
+              "func_name": "lock",
+              "file_name": "ETHTimeLocker.sol",
+              "key_ops": [
+                "require(_amount > 0, \"The amount of the lock must not be zero\")",
+                "(bool found,) = indexOfChainId(_toChainId)",
+                "require(found, \"ChainId not allowed\")",
+                "require(erc20Time.allowance(_msgSender(), address(this)) >= _amount, \"Not enough allowance\")",
+                "erc20Time.safeTransferFrom(_msgSender(), address(this), _amount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "unlock": {
+            "0": {
+              "func_name": "unlock",
+              "file_name": "ETHTimeLocker.sol",
+              "key_ops": [
+                "require(!burnIdsUsed[_fromChainId][_burnId], \"Burn id already used\")",
+                "bytes32 messageHash = keccak256(abi.encodePacked(_msgSender(), _fromChainId, block.chainid, _burnId, _amount))",
+                "require(checkSignatures(messageHash, _signatures), \"Incorrect signature(s)\")",
+                "burnIdsUsed[_fromChainId][_burnId] = true"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "checkSignatures",
+                  "file_name": "Validators.sol",
+                  "key_ops": [
+                    "require(bridgeValidators.length > 0, 'Validators not added')",
+                    "require(_signatures.length == bridgeValidators.length, 'The number of signatures does not match the number of validators')"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Unlocked1": {
+            "0": {
+              "func_name": "unlock",
+              "file_name": "ETHTimeLocker.sol",
+              "key_ops": [
+                "erc20Time.safeTransfer(_msgSender(), _amount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

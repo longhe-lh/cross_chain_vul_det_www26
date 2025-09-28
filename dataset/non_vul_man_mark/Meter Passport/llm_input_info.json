@@ -1,0 +1,130 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(\n bytes32 resourceID,\n uint8 destinationChainID,\n uint64 depositNonce,\n address depositer,\n bytes calldata data\n ) external override onlyBridge {\n bytes memory recipientAddress;\n uint256 amount;\n uint256 lenRecipientAddress;\n assembly {\n amount := calldataload(0xC4)\n recipientAddress := mload(0x40)\n lenRecipientAddress := calldataload(0xE4)\n mstore(0x40, add(0x20, add(recipientAddress, lenRecipientAddress)))\n calldatacopy(\n recipientAddress, \n 0xE4, \n sub(calldatasize(), 0xE) \n )\n }\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n \n if (tokenAddress != _wtokenAddress) {\n if (_burnList[tokenAddress]) {\n burnERC20(tokenAddress, depositer, amount);\n } else {\n lockERC20(tokenAddress, depositer, address(this), amount);\n }\n }\n _depositRecords[destinationChainID][depositNonce] = DepositRecord(\n tokenAddress,\n uint8(lenRecipientAddress),\n destinationChainID,\n resourceID,\n recipientAddress,\n depositer,\n amount\n );\n }"
+            },
+            {
+                "burnERC20": "function burnERC20(address tokenAddress, address owner, uint256 amount) internal {\n ERC20Burnable erc20 = ERC20Burnable(tokenAddress);\n function burnFrom(...) {...}\nerc20.burnFrom(owner, amount);\n }"
+            },
+            {
+                "lockERC20": "function lockERC20(address tokenAddress, address owner, address recipient, uint256 amount) internal {\n IERC20 erc20 = IERC20(tokenAddress);\n function _safeTransferFrom(...) {...}\n_safeTransferFrom(erc20, owner, recipient, amount);\n }"
+            },
+            {
+                "_safeTransferFrom": "function _safeTransferFrom(IERC20 token, address from, address to, uint256 value) private {\n function _safeCall(...) {...}\n_safeCall(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));\n }"
+            },
+            {
+                "_safeCall": "function _safeCall(IERC20 token, bytes memory data) private { \n (bool success, bytes memory returndata) = address(token).call(data);\n require(success, \"ERC20: call failed\");\n if (returndata.length > 0) {\n require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");\n }\n }"
+            }
+        ],
+        "ProposalVote2": [
+            {
+                "voteProposal": "function voteProposal(uint8 chainID, uint64 depositNonce, bytes32 resourceID, bytes32 dataHash) external onlyRelayers whenNotPaused {\n uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(chainID);\n Proposal storage proposal = _proposals[nonceAndID][dataHash];\n require(_resourceIDToHandlerAddress[resourceID] != address(0), \"no handler for resourceID\");\n require(uint(proposal._status) <= 1, \"proposal already passed/executed/cancelled\");\n require(!_hasVotedOnProposal[nonceAndID][dataHash][msg.sender], \"relayer already voted\");\n if (uint(proposal._status) == 0) {\n ++_totalProposals;\n _proposals[nonceAndID][dataHash] = Proposal({\n _resourceID : resourceID,\n _dataHash : dataHash,\n _yesVotes : new address[](1),\n _noVotes : new address[](0),\n _status : ProposalStatus.Active,\n _proposedBlock : block.number\n });\n proposal._yesVotes[0] = msg.sender;\n emit ProposalEvent(chainID, depositNonce, ProposalStatus.Active, resourceID, dataHash);\n } else {\n if (sub(block.number, proposal._proposedBlock) > _expiry) {\n \n \n proposal._status = ProposalStatus.Cancelled;\n emit ProposalEvent(chainID, depositNonce, ProposalStatus.Cancelled, resourceID, dataHash);\n } else {\n require(dataHash == proposal._dataHash, \"datahash mismatch\");\n proposal._yesVotes.push(msg.sender);\n }\n }\n if (proposal._status != ProposalStatus.Cancelled) {\n _hasVotedOnProposal[nonceAndID][dataHash][msg.sender] = true;\n emit ProposalVote(chainID, depositNonce, proposal._status, resourceID);\n \n \n if (_relayerThreshold <= 1 || proposal._yesVotes.length >= _relayerThreshold) {\n proposal._status = ProposalStatus.Passed;\n emit ProposalEvent(chainID, depositNonce, ProposalStatus.Passed, resourceID, dataHash);\n }\n }\n }"
+            }
+        ],
+        "ProposalEvent3": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint256 amount;\n bytes memory destinationRecipientAddress;\n assembly {\n amount := calldataload(0x64)\n destinationRecipientAddress := mload(0x40)\n let lenDestinationRecipientAddress := calldataload(0x84)\n mstore(0x40, add(0x20, add(destinationRecipientAddress, lenDestinationRecipientAddress)))\n \n calldatacopy(\n destinationRecipientAddress, \n 0x84, \n sub(calldatasize(), 0x84) \n )\n }\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n \n if (tokenAddress == _wtokenAddress) {\n IWETH(_wtokenAddress).withdraw(amount);\n \n TransferHelper.safeTransferETH(address(recipientAddress), amount);\n return;\n }\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            },
+            {
+                "mintERC20": "function mintERC20(address tokenAddress, address recipient, uint256 amount) internal {\n ERC20PresetMinterPauser erc20 = ERC20PresetMinterPauser(tokenAddress);\n function mint(...) {...}\nerc20.mint(recipient, amount);\n }"
+            },
+            {
+                "releaseERC20": "function releaseERC20(address tokenAddress, address recipient, uint256 amount) internal {\n IERC20 erc20 = IERC20(tokenAddress);\n function _safeTransfer(...) {...}\n_safeTransfer(erc20, recipient, amount);\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(IERC20 token, address to, uint256 value) private {\n function _safeCall(...) {...}\n_safeCall(token, abi.encodeWithSelector(token.transfer.selector, to, value));\n }"
+            },
+            {
+                "_safeCall": "function _safeCall(IERC20 token, bytes memory data) private { \n (bool success, bytes memory returndata) = address(token).call(data);\n require(success, \"ERC20: call failed\");\n if (returndata.length > 0) {\n require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "RoleGranted": [
+            {
+                "grantRole": "function grantRole(bytes32 role, address account) public virtual {\n function hasRole(...) {...}\nfunction _msgSender(...) {...}\nrequire(hasRole(_roles[role].adminRole, _msgSender()), \"AccessControl: sender must be an admin to grant\");\n _grantRole(role, account);\n }"
+            }
+        ],
+        "RoleRevoked": [
+            {
+                "revokeRole": "function revokeRole(bytes32 role, address account) public virtual {\n function hasRole(...) {...}\nfunction _msgSender(...) {...}\nrequire(hasRole(_roles[role].adminRole, _msgSender()), \"AccessControl: sender must be an admin to revoke\");\n _revokeRole(role, account);\n }"
+            }
+        ],
+        "ProposalVote": [
+            {
+                "voteProposal": "function voteProposal(\n uint8 domainID,\n uint64 depositNonce,\n bytes32 resourceID,\n bytes calldata data\n ) external onlyRelayers whenNotPaused nonReentrant {\n address handler = _resourceIDToHandlerAddress[resourceID];\n uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(domainID);\n bytes32 dataHash = keccak256(\n abi.encodePacked(resourceID, handler, data)\n );\n Proposal memory proposal = _proposals[nonceAndID][dataHash];\n require(\n _resourceIDToHandlerAddress[resourceID] != address(0),\n \"no handler for resourceID\"\n );\n if (proposal._status == ProposalStatus.Passed) {\n _executeProposal(domainID, depositNonce, data, resourceID, true);\n return;\n }\n address sender = _msgSender();\n require(\n uint256(proposal._status) <= 1,\n \"proposal already executed/cancelled\"\n );\n function _hasVoted(...) {...}\nfunction toUint200(...) {...}\nfunction _relayerBit(...) {...}\nrequire(!_hasVoted(proposal, sender), \"relayer already voted\");\n if (proposal._status == ProposalStatus.Inactive) {\n proposal = Proposal({\n _status: ProposalStatus.Active,\n _yesVotes: 0,\n _yesVotesTotal: 0,\n _proposedBlock: uint40(block.number) \n });\n emit ProposalEvent(\n domainID,\n depositNonce,\n ProposalStatus.Active,\n dataHash\n );\n } else if (\n uint40(sub(block.number, proposal._proposedBlock)) > _expiry\n ) {\n \n \n proposal._status = ProposalStatus.Cancelled;\n emit ProposalEvent(\n domainID,\n depositNonce,\n ProposalStatus.Cancelled,\n dataHash\n );\n }\n if (proposal._status != ProposalStatus.Cancelled) {\n proposal._yesVotes = (proposal._yesVotes | _relayerBit(sender))\n .toUint200();\n proposal._yesVotesTotal++; \n emit ProposalVote(\n domainID,\n depositNonce,\n proposal._status,\n dataHash\n );\n \n if (proposal._yesVotesTotal >= _relayerThreshold) {\n proposal._status = ProposalStatus.Passed;\n emit ProposalEvent(\n domainID,\n depositNonce,\n ProposalStatus.Passed,\n dataHash\n );\n }\n }\n _proposals[nonceAndID][dataHash] = proposal;\n if (proposal._status == ProposalStatus.Passed) {\n _executeProposal(domainID, depositNonce, data, resourceID, false);\n }\n }"
+            },
+            {
+                "_relayerBit": "function _relayerBit(address relayer) private view returns (uint256) {\n return\n uint256(1) <<\n sub(AccessControlUpgradeable.getRoleMemberIndex(RELAYER_ROLE, relayer), 1);\n }"
+            },
+            {
+                "_hasVoted": "function _hasVoted(Proposal memory proposal, address relayer)\n private\n view\n returns (bool)\n {\n function _relayerBit(...) {...}\nreturn (_relayerBit(relayer) & uint256(proposal._yesVotes)) > 0;\n }"
+            }
+        ],
+        "ProposalEvent": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data)\n external\n override\n onlyBridge\n {\n uint256 amount;\n uint256 lenDestinationRecipientAddress;\n bytes memory destinationRecipientAddress;\n (amount, lenDestinationRecipientAddress) = abi.decode(\n data,\n (uint256, uint256)\n );\n destinationRecipientAddress = bytes(\n data[64:64 + lenDestinationRecipientAddress]\n );\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(\n _contractWhitelist[tokenAddress],\n \"provided tokenAddress is not whitelisted\"\n );\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else if (isNative[tokenAddress]) {\n withdrawETH(address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            },
+            {
+                "mintERC20": "function mintERC20(\n address tokenAddress,\n address recipient,\n uint256 amount\n ) internal {\n IERCMintBurn erc20 = IERCMintBurn(tokenAddress);\n erc20.mint(recipient, amount);\n }"
+            },
+            {
+                "releaseERC20": "function releaseERC20(\n address tokenAddress,\n address recipient,\n uint256 amount\n ) internal {\n IERC20 erc20 = IERC20(tokenAddress);\n function _safeTransfer(...) {...}\n_safeTransfer(erc20, recipient, amount);\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(\n IERC20 token,\n address to,\n uint256 value\n ) private {\n _safeCall(\n token,\n abi.encodeWithSelector(token.transfer.selector, to, value)\n );\n }"
+            },
+            {
+                "_safeCall": "function _safeCall(IERC20 token, bytes memory data) private { \n (bool success, bytes memory returndata) = address(token).call(data);\n require(success, \"ERC20: call failed\");\n if (returndata.length > 0) {\n require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");\n }\n }"
+            },
+            {
+                "withdrawETH": "function withdrawETH(bytes memory data) external virtual override {}"
+            },
+            {
+                "_safeTransferETH": "function _safeTransferETH(address to, uint256 value) private {\n (bool success, ) = to.call{value: value}(new bytes(0));\n require(\n success,\n \"TransferHelper::safeTransferETH: ETH transfer failed\"\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(\n bytes32 resourceID,\n uint8 destinationChainID,\n uint64 depositNonce,\n address depositer,\n bytes calldata data\n ) external override onlyBridge {\n bytes memory recipientAddress;\n uint256 amount;\n uint256 lenRecipientAddress;\n assembly {\n amount := calldataload(0xC4)\n recipientAddress := mload(0x40)\n lenRecipientAddress := calldataload(0xE4)\n mstore(0x40, add(0x20, add(recipientAddress, lenRecipientAddress)))\n calldatacopy(\n recipientAddress, \n 0xE4, \n sub(calldatasize(), 0xE) \n )\n }\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n \n if (tokenAddress != _wtokenAddress) {\n if (_burnList[tokenAddress]) {\n burnERC20(tokenAddress, depositer, amount);\n } else {\n lockERC20(tokenAddress, depositer, address(this), amount);\n }\n }\n _depositRecords[destinationChainID][depositNonce] = DepositRecord(\n tokenAddress,\n uint8(lenRecipientAddress),\n destinationChainID,\n resourceID,\n recipientAddress,\n depositer,\n amount\n );\n }"
+            },
+            {
+                "burnERC20": "function burnERC20(address tokenAddress, address owner, uint256 amount) internal {\n ERC20Burnable erc20 = ERC20Burnable(tokenAddress);\n function burnFrom(...) {...}\nerc20.burnFrom(owner, amount);\n }"
+            },
+            {
+                "lockERC20": "function lockERC20(address tokenAddress, address owner, address recipient, uint256 amount) internal {\n IERC20 erc20 = IERC20(tokenAddress);\n function _safeTransferFrom(...) {...}\n_safeTransferFrom(erc20, owner, recipient, amount);\n }"
+            },
+            {
+                "_safeTransferFrom": "function _safeTransferFrom(IERC20 token, address from, address to, uint256 value) private {\n function _safeCall(...) {...}\n_safeCall(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));\n }"
+            },
+            {
+                "_safeCall": "function _safeCall(IERC20 token, bytes memory data) private { \n (bool success, bytes memory returndata) = address(token).call(data);\n require(success, \"ERC20: call failed\");\n if (returndata.length > 0) {\n require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");\n }\n }"
+            }
+        ],
+        "ProposalEvent2": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint256 amount;\n bytes memory destinationRecipientAddress;\n assembly {\n amount := calldataload(0x64)\n destinationRecipientAddress := mload(0x40)\n let lenDestinationRecipientAddress := calldataload(0x84)\n mstore(0x40, add(0x20, add(destinationRecipientAddress, lenDestinationRecipientAddress)))\n \n calldatacopy(\n destinationRecipientAddress, \n 0x84, \n sub(calldatasize(), 0x84) \n )\n }\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n \n if (tokenAddress == _wtokenAddress) {\n IWETH(_wtokenAddress).withdraw(amount);\n \n TransferHelper.safeTransferETH(address(recipientAddress), amount);\n return;\n }\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            },
+            {
+                "mintERC20": "function mintERC20(address tokenAddress, address recipient, uint256 amount) internal {\n ERC20PresetMinterPauser erc20 = ERC20PresetMinterPauser(tokenAddress);\n function mint(...) {...}\nerc20.mint(recipient, amount);\n }"
+            },
+            {
+                "releaseERC20": "function releaseERC20(address tokenAddress, address recipient, uint256 amount) internal {\n IERC20 erc20 = IERC20(tokenAddress);\n function _safeTransfer(...) {...}\n_safeTransfer(erc20, recipient, amount);\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(IERC20 token, address to, uint256 value) private {\n function _safeCall(...) {...}\n_safeCall(token, abi.encodeWithSelector(token.transfer.selector, to, value));\n }"
+            },
+            {
+                "_safeCall": "function _safeCall(IERC20 token, bytes memory data) private { \n (bool success, bytes memory returndata) = address(token).call(data);\n require(success, \"ERC20: call failed\");\n if (returndata.length > 0) {\n require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");\n }\n }"
+            }
+        ],
+        "ProposalVote3": [
+            {
+                "voteProposal": "function voteProposal(\n uint8 domainID,\n uint64 depositNonce,\n bytes32 resourceID,\n bytes calldata data\n ) external onlyRelayers whenNotPaused nonReentrant {\n address handler = _resourceIDToHandlerAddress[resourceID];\n uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(domainID);\n bytes32 dataHash = keccak256(\n abi.encodePacked(resourceID, handler, data)\n );\n Proposal memory proposal = _proposals[nonceAndID][dataHash];\n require(\n _resourceIDToHandlerAddress[resourceID] != address(0),\n \"no handler for resourceID\"\n );\n if (proposal._status == ProposalStatus.Passed) {\n _executeProposal(domainID, depositNonce, data, resourceID, true);\n return;\n }\n address sender = _msgSender();\n require(\n uint256(proposal._status) <= 1,\n \"proposal already executed/cancelled\"\n );\n require(!_hasVoted(proposal, sender), \"relayer already voted\");\n if (proposal._status == ProposalStatus.Inactive) {\n proposal = Proposal({\n _status: ProposalStatus.Active,\n _yesVotes: 0,\n _yesVotesTotal: 0,\n _proposedBlock: uint40(block.number) \n });\n emit ProposalEvent(\n domainID,\n depositNonce,\n ProposalStatus.Active,\n dataHash\n );\n } else if (\n uint40(sub(block.number, proposal._proposedBlock)) > _expiry\n ) {\n \n \n proposal._status = ProposalStatus.Cancelled;\n emit ProposalEvent(\n domainID,\n depositNonce,\n ProposalStatus.Cancelled,\n dataHash\n );\n }\n if (proposal._status != ProposalStatus.Cancelled) {\n proposal._yesVotes = (proposal._yesVotes | _relayerBit(sender))\n .toUint200();\n proposal._yesVotesTotal++; \n emit ProposalVote(\n domainID,\n depositNonce,\n proposal._status,\n dataHash\n );\n \n if (proposal._yesVotesTotal >= _relayerThreshold) {\n proposal._status = ProposalStatus.Passed;\n emit ProposalEvent(\n domainID,\n depositNonce,\n ProposalStatus.Passed,\n dataHash\n );\n }\n }\n _proposals[nonceAndID][dataHash] = proposal;\n if (proposal._status == ProposalStatus.Passed) {\n _executeProposal(domainID, depositNonce, data, resourceID, false);\n }\n }"
+            }
+        ]
+    }
+}

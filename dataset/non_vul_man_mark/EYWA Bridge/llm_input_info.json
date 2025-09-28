@@ -1,0 +1,29 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "sendV2": "function sendV2(\n SendParams calldata params,\n address from,\n uint256 nonce\n ) external override onlyRole(GATEKEEPER_ROLE) returns (bool) {\n require(state == State.Active, \"Bridge: state inactive\");\n require(\n previousEpoch.isSet() || currentEpoch.isSet(),\n \"Bridge: epoch not set\"\n );\n function verifyAndUpdateNonce(...) {...}\nverifyAndUpdateNonce(from, nonce);\n emit RequestSent(\n params.requestId,\n params.data,\n params.to,\n uint64(params.chainIdTo)\n );\n return true;\n }"
+            },
+            {
+                "verifyAndUpdateNonce": "function verifyAndUpdateNonce(address from, uint256 nonce) internal {\n require(nonces[from]++ == nonce, \"Bridge: nonce mismatch\");\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "receiveV2": "function receiveV2(\n ReceiveParams[] calldata params\n ) external override onlyRole(VALIDATOR_ROLE) nonReentrant returns (bool) {\n require(state != State.Inactive, \"Bridge: state inactive\");\n for (uint256 i = 0; i < params.length; ++i) {\n bytes32 epochHash = Block.epochHash(params[i].blockHeader);\n \n if (epochHash == currentEpoch.epochHash) {\n require(currentEpoch.isSet(), \"Bridge: epoch not set\");\n verifyEpoch(currentEpoch, params[i]);\n } else if (epochHash == previousEpoch.epochHash) {\n require(previousEpoch.isSet(), \"Bridge: epoch not set\");\n verifyEpoch(previousEpoch, params[i]);\n } else {\n revert(\"Bridge: wrong epoch\");\n }\n \n bytes memory payload = Merkle.prove(\n params[i].merkleProof,\n Block.txRootHash(params[i].blockHeader)\n );\n \n (\n bytes32 requestId,\n bytes memory receivedData,\n address to,\n uint64 chainIdTo\n ) = Block.decodeRequest(payload);\n require(chainIdTo == block.chainid, \"Bridge: wrong chain id\");\n require(to.isContract(), \"Bridge: receiver is not a contract\");\n bool isRequestIdUniq;\n if (epochHash == currentEpoch.epochHash) {\n isRequestIdUniq = currentRequestIdChecker.check(requestId);\n } else {\n isRequestIdUniq = previousRequestIdChecker.check(requestId);\n }\n string memory err;\n if (isRequestIdUniq) {\n (bytes memory data, bytes memory check) = abi.decode(\n receivedData,\n (bytes, bytes)\n );\n bytes memory result = to.functionCall(check);\n require(abi.decode(result, (bool)), \"Bridge: check failed\");\n to.functionCall(data, \"Bridge: receive failed\");\n } else {\n revert(\"Bridge: request id already seen\");\n }\n emit RequestReceived(requestId, err);\n }\n return true;\n }"
+            },
+            {
+                "verifyEpoch": "function verifyEpoch(\n Bls.Epoch storage epoch,\n ReceiveParams calldata params\n ) internal view {\n Block.verify(\n epoch,\n params.blockHeader,\n params.votersPubKey,\n params.votersSignature,\n params.votersMask\n );\n }"
+            },
+            {
+                "check": "function check(bytes32 id) public onlyOwner returns (bool) {\n if (checks[id] == false) {\n checks[id] = true;\n return true;\n }\n return false;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "RelayMessage": []
+    },
+    "det_chain": {
+        "TokenWithdraw1": []
+    }
+}

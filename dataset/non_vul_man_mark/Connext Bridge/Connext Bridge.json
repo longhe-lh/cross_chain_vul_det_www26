@@ -1,0 +1,182 @@
+{
+  "contract": "Connext Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Connext Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenDepositAndSwap2"
+        ],
+        "rel_chain": [
+          "MessageRelay"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMintAndSwap2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "handleIncomingAsset",
+              "file_name": "AssetLogic.sol",
+              "key_ops": [
+                "if (_amount == 0) { return; }",
+                "if (_asset == address(0)) revert AssetLogic__handleIncomingAsset_nativeAssetNotSupported();",
+                "uint256 starting = asset.balanceOf(address(this));",
+                "asset.safeTransferFrom(msg.sender, address(this), _amount);",
+                "if (asset.balanceOf(address(this)) - starting != _amount) revert AssetLogic__handleIncomingAsset_feeOnTransferNotSupported();"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "SafeERC20.sol",
+                  "key_ops": [
+                    "_callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_callOptionalReturn",
+                      "file_name": "SafeERC20.sol",
+                      "key_ops": [
+                        "bytes memory returndata = address(token).functionCall(data, \"SafeERC20: low-level call failed\");",
+                        "require(abi.decode(returndata, (bool)), \"SafeERC20: ERC20 operation did not succeed\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "TokenDepositAndSwap2": {
+            "0": {
+              "func_name": "swapToLocalAssetIfNeeded",
+              "file_name": "AssetLogic.sol",
+              "key_ops": [
+                "if (_amount == 0) { return 0; }",
+                "if (_local == _asset) { return _amount; }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "calculateSlippageBoundary",
+                  "file_name": "AssetLogic.sol",
+                  "key_ops": [
+                    "if (_amountIn == 0) { return 0; }",
+                    "uint256 min = (_amountIn * (Constants.BPS_FEE_DENOMINATOR - _slippage)) / Constants.BPS_FEE_DENOMINATOR;"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "normalizeDecimals",
+                      "file_name": "AssetLogic.sol",
+                      "key_ops": [
+                        "if (_in == _out) { return _amount; }",
+                        "uint256 normalized = _amount * (10**(_out - _in));"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "MessageRelay": {
+            "0": {
+              "func_name": "dispatch",
+              "file_name": "IOutbox.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "handleOutgoingAsset",
+              "file_name": "AssetLogic.sol",
+              "key_ops": [
+                "if (_amount == 0) revert AssetLogic__handleOutgoingAsset_notNative();",
+                "SafeERC20.safeTransfer(IERC20Metadata(_asset), _to, _amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "SafeERC20.sol",
+                  "key_ops": [
+                    "_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_callOptionalReturn",
+                      "file_name": "SafeERC20.sol",
+                      "key_ops": [
+                        "bytes memory returndata = address(token).functionCall(data, \"SafeERC20: low-level call failed\");",
+                        "require(abi.decode(returndata, (bool)), \"SafeERC20: ERC20 operation did not succeed\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "TokenMintAndSwap2": {
+            "0": {
+              "func_name": "swapFromLocalAssetIfNeeded",
+              "file_name": "AssetLogic.sol",
+              "key_ops": [
+                "address adopted = config.adopted;",
+                "if (adopted == _asset) { return (_amount, adopted); }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "calculateSlippageBoundary",
+                  "file_name": "AssetLogic.sol",
+                  "key_ops": [
+                    "if (_normalizedIn == 0) { return 0; }",
+                    "uint256 min = (_normalizedIn * (Constants.BPS_FEE_DENOMINATOR - _slippage)) / Constants.BPS_FEE_DENOMINATOR;"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "normalizeDecimals",
+                      "file_name": "AssetLogic.sol",
+                      "key_ops": [
+                        "if (_in == _out) { return _amount; }",
+                        "uint256 normalized = _amount * (10**(_out - _in));"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

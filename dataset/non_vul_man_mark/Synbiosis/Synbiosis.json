@@ -1,0 +1,125 @@
+{
+  "contract": "Synbiosis",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Synbiosis": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "SynthesizeRequest1",
+          "BurnRequest2"
+        ],
+        "rel_chain": [
+          "transmitRequestV2"
+        ],
+        "det_chain": [
+          "MintSyntheticToken1",
+          "Unsynthesize2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "PortalChain",
+        "events": {
+          "SynthesizeRequest1": {
+            "0": {
+              "func_name": "synthesize",
+              "file_name": "Portal.sol",
+              "key_ops": [
+                "require(tokenWhitelist[_token], \"Symb: unauthorized token\")",
+                "require(_amount >= tokenThreshold[_token], \"Symb: amount under threshold\")",
+                "TransferHelper.safeTransferFrom(_token, _msgSender(), address(this), _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendSynthesizeRequest",
+                  "file_name": "Portal.sol",
+                  "key_ops": [
+                    "balanceOf[_token] = balanceOf[_token] + _amount",
+                    "IBridge(bridge).transmitRequestV2(out, _receiveSide, _oppositeBridge, _chainID)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BurnRequest2": {
+            "0": {
+              "func_name": "burnSyntheticToken",
+              "file_name": "Synthesis.sol",
+              "key_ops": [
+                "require(_amount >= tokenThreshold[_stoken], \"Symb: amount under threshold\")",
+                "ISyntFabric(fabric).unsynthesize(_msgSender(), _amount, _stoken)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transmitRequestV2",
+                  "file_name": "BridgeV2.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "transmitRequestV2": {
+            "0": {
+              "func_name": "transmitRequestV2",
+              "file_name": "BridgeV2.sol",
+              "key_ops": [
+                "emit OracleRequest(address(this), _callData, _receiveSide, _oppositeBridge, _chainId)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "SynthesisChain",
+        "events": {
+          "MintSyntheticToken1": {
+            "0": {
+              "func_name": "mintSyntheticToken",
+              "file_name": "Synthesis.sol",
+              "key_ops": [
+                "require(synthesizeStates[_externalID] == SynthesizeState.Default,\"Symb: revertSynthesizedRequest called or tokens have been already synthesized\");",
+                "require(syntReprAddr != address(0), \"Symb: There is no synt representation for this token\")",
+                "ISyntFabric(fabric).synthesize(_to, _amount - _stableBridgingFee, syntReprAddr)",
+                "ISyntFabric(fabric).synthesize(bridge, _stableBridgingFee, syntReprAddr)"
+              ],
+              "child": {}
+            }
+          },
+          "Unsynthesize2": {
+            "0": {
+              "func_name": "unsynthesize",
+              "file_name": "Portal.sol",
+              "key_ops": [
+                "require(unsynthesizeStates[_externalID] == UnsynthesizeState.Default,\"Symb: synthetic tokens emergencyUnburn\");",
+                "balanceOf[_token] = balanceOf[_token] - _amount",
+                "TransferHelper.safeTransfer(_token, _to, _amount - _stableBridgingFee)",
+                "TransferHelper.safeTransfer(_token, bridge, _stableBridgingFee)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

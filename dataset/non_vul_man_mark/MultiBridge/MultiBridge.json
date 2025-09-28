@@ -1,0 +1,191 @@
+{
+  "contract": "MultiBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "MultiBridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "MessageDispatched1",
+          "MessageDispatched2"
+        ],
+        "rel_chain": [
+          "ContractCall",
+          "executeMessage"
+        ],
+        "det_chain": [
+          "MessageIdExecuted1",
+          "MessageIdExecuted2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "MessageDispatched1": {
+            "0": {
+              "func_name": "dispatchMessage",
+              "file_name": "AxelarSenderAdapter.sol",
+              "key_ops": [
+                "if (receiverAdapter == address(0)) { revert Error.ZERO_RECEIVER_ADAPTER(); }",
+                "msgId = _getNewMessageId(_toChainId, _to);",
+                "bytes memory payload = abi.encode(AdapterPayload(msgId, msg.sender, receiverAdapter, _to, _data));"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_callContract",
+                  "file_name": "AxelarSenderAdapter.sol",
+                  "key_ops": [
+                    "string memory receiverAdapterInString = StringAddressConversion.toString(receiverAdapter);",
+                    "bytes memory payload = abi.encode(AdapterPayload(msgId, address(msg.sender), receiverAdapter, multibridgeReceiver, data));",
+                    "gasService.payNativeGasForContractCall{value: msg.value}(msg.sender, destinationChain, receiverAdapterInString, payload, msg.sender);",
+                    "gateway.callContract(destinationChain, receiverAdapterInString, payload);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "MessageDispatched2": {
+            "0": {
+              "func_name": "dispatchMessage",
+              "file_name": "CelerSenderAdapter.sol",
+              "key_ops": [
+                "if (_toChainId == 0) { revert Error.ZERO_CHAIN_ID(); }",
+                "address receiverAdapter = receiverAdapters[_toChainId];",
+                "if (receiverAdapter == address(0)) { revert Error.ZERO_RECEIVER_ADAPTER(); }",
+                "msgId = _getNewMessageId(_toChainId, _to);",
+                "bytes memory payload = abi.encode(AdapterPayload(msgId, msg.sender, receiverAdapter, _to, _data));",
+                "IMessageBus(msgBus).sendMessage{value: msg.value}(receiverAdapter, _toChainId, payload);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "ContractCall": {
+            "0": {
+              "func_name": "execute",
+              "file_name": "AxelarReceiverAdapter.sol",
+              "key_ops": [
+                "if (keccak256(bytes(sourceChain)) != keccak256(bytes(senderChain))) { revert Error.INVALID_SENDER_CHAIN_ID(); }",
+                "if (!gateway.validateContractCall(commandId, sourceChain, sourceAddress, keccak256(payload))) { revert Error.NOT_APPROVED_BY_GATEWAY(); }",
+                "if (sourceAddress.toAddress() != senderAdapter) { revert Error.INVALID_SENDER_ADAPTER(); }",
+                "if (commandIdStatus[commandId] || isMessageExecuted[msgId]) { revert MessageIdAlreadyExecuted(msgId); }",
+                "if (decodedPayload.finalDestination != gac.getMultiMessageReceiver(block.chainid)) { revert Error.INVALID_FINAL_DESTINATION(); }",
+                "isMessageExecuted[msgId] = true;",
+                "commandIdStatus[commandId] = true;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "receiveMessage",
+                  "file_name": "MultiMessageReceiver.sol",
+                  "key_ops": [
+                    "if (_message.dstChainId != block.chainid) { revert Error.INVALID_DST_CHAIN(); }",
+                    "if (_message.target == address(0)) { revert Error.INVALID_TARGET(); }",
+                    "if (_message.srcChainId != 1) { revert Error.INVALID_SENDER_CHAIN_ID(); }",
+                    "bytes32 msgId = MessageLibrary.computeMsgId(_message);",
+                    "if (isDuplicateAdapter[msgId][msg.sender]) { revert Error.DUPLICATE_MESSAGE_DELIVERY_BY_ADAPTER(); }",
+                    "if (isExecuted[msgId]) { revert Error.MSG_ID_ALREADY_EXECUTED(); }",
+                    "isDuplicateAdapter[msgId][msg.sender] = true;",
+                    "++messageVotes[msgId];"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "executeMessage": {
+            "0": {
+              "func_name": "executeMessage",
+              "file_name": "CelerReceiverAdapter.sol",
+              "key_ops": [
+                "if (_srcChainId != senderChain) { revert Error.INVALID_SENDER_CHAIN_ID(); }",
+                "if (_srcContract != senderAdapter) { revert Error.INVALID_SENDER_ADAPTER(); }",
+                "bytes32 msgId = decodedPayload.msgId;",
+                "if (isMessageExecuted[msgId]) { revert MessageIdAlreadyExecuted(msgId); }",
+                "isMessageExecuted[decodedPayload.msgId] = true;",
+                "if (decodedPayload.finalDestination != gac.getMultiMessageReceiver(block.chainid)) { revert Error.INVALID_FINAL_DESTINATION(); }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "receiveMessage",
+                  "file_name": "MultiMessageReceiver.sol",
+                  "key_ops": [
+                    "if (_message.dstChainId != block.chainid) { revert Error.INVALID_DST_CHAIN(); }",
+                    "if (_message.target == address(0)) { revert Error.INVALID_TARGET(); }",
+                    "if (_message.srcChainId != 1) { revert Error.INVALID_SENDER_CHAIN_ID(); }",
+                    "bytes32 msgId = MessageLibrary.computeMsgId(_message);",
+                    "if (isDuplicateAdapter[msgId][msg.sender]) { revert Error.DUPLICATE_MESSAGE_DELIVERY_BY_ADAPTER(); }",
+                    "if (isExecuted[msgId]) { revert Error.MSG_ID_ALREADY_EXECUTED(); }",
+                    "isDuplicateAdapter[msgId][msg.sender] = true;",
+                    "++messageVotes[msgId];"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "MessageIdExecuted1": {
+            "0": {
+              "func_name": "executeMessage",
+              "file_name": "MultiMessageReceiver.sol",
+              "key_ops": [
+                "if (block.timestamp > _execData.expiration) { revert Error.MSG_EXECUTION_PASSED_DEADLINE(); }",
+                "if (isExecuted[msgId]) { revert Error.MSG_ID_ALREADY_EXECUTED(); }",
+                "isExecuted[msgId] = true;",
+                "if (messageVotes[msgId] < quorum) { revert Error.INVALID_QUORUM_FOR_EXECUTION(); }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "scheduleTransaction",
+                  "file_name": "GovernanceTimelock.sol",
+                  "key_ops": [
+                    "++txCounter;",
+                    "uint256 eta = block.timestamp + delay;",
+                    "scheduledTransaction[txCounter] = keccak256(abi.encodePacked(_target, _value, _data, eta));"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "MessageIdExecuted2": {
+            "0": {
+              "func_name": "executeTransaction",
+              "file_name": "GovernanceTimelock.sol",
+              "key_ops": [
+                "if (_eta > block.timestamp) { revert Error.TX_TIMELOCKED(); }",
+                "if (block.timestamp > _eta + GRACE_PERIOD) { revert Error.TX_EXPIRED(); }",
+                "if (msg.value != _value) { revert Error.INVALID_MSG_VALUE(); }",
+                "isExecuted[_txId] = true;",
+                "(bool status,) = _target.call{value: _value}(_data);",
+                "if (!status) { revert Error.EXECUTION_FAILS_ON_DST(); }"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,104 @@
+{
+  "contract": "Omnisea",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Omnisea": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "CollectionCreated1"
+        ],
+        "rel_chain": [
+          "SendToChain"
+        ],
+        "det_chain": [
+          "Created1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "CollectionCreated1": {
+            "0": {
+              "func_name": "create",
+              "file_name": "CollectionFactory.sol",
+              "key_ops": [
+                "require(bytes(params.name).length >= 2)",
+                "_collectionsRepository.create(params, msg.sender)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "send",
+                  "file_name": "OmnichainRouter.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_route",
+                      "file_name": "OmnichainRouter.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "func_name": "_lzProcess",
+                          "file_name": "OmnichainRouter.sol",
+                          "key_ops": [
+                            "require(trustedRemoteLookup[chainId].length != 0)",
+                            "lzEndpoint.send{value : (msg.value - params.redirectFee)}"
+                          ],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Avalanche",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "Moonbeam",
+        "events": {
+          "Created1": {
+            "0": {
+              "func_name": "omReceive",
+              "file_name": "CollectionFactory.sol",
+              "key_ops": [
+                "require(isOA(srcChain, srcOA))",
+                "_collectionsRepository.create(params, creator)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "create",
+                  "file_name": "CollectionsRepository.sol",
+                  "key_ops": [
+                    "require(msg.sender == collectionFactory)",
+                    "new OmniERC721(_getSymbolByName(params.name), params, creator, tokenFactory)",
+                    "userCollections[creator].push(address(collection))",
+                    "emit Created(address(collection), creator)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

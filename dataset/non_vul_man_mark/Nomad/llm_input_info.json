@@ -1,0 +1,34 @@
+{
+    "src_chain": {
+        "Send1": [
+            {
+                "send": "function send(\n address _token,\n uint256 _amount,\n uint32 _destination,\n bytes32 _recipient,\n bool _enableFast\n ) external {\n require(_amount > 0, \"!amnt\");\n require(_recipient != bytes32(0), \"!recip\");\n \n bytes32 _remote = _mustHaveRemote(_destination);\n \n IBridgeToken _t = IBridgeToken(_token);\n bytes32 _detailsHash;\n \n if (tokenRegistry.isLocalOrigin(_token)) {\n \n \n IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);\n \n _detailsHash = BridgeMessage.getDetailsHash(\n _t.name(),\n _t.symbol(),\n _t.decimals()\n );\n } else {\n \n \n _t.burn(msg.sender, _amount);\n _detailsHash = _t.detailsHash();\n }\n \n bytes29 _action = BridgeMessage.formatTransfer(\n _recipient,\n _amount,\n _detailsHash,\n _enableFast\n );\n \n (uint32 _domain, bytes32 _id) = tokenRegistry.getTokenId(_token);\n bytes29 _tokenId = BridgeMessage.formatTokenId(_domain, _id);\n \n Home(xAppConnectionManager.home()).dispatch(\n _destination,\n _remote,\n BridgeMessage.formatMessage(_tokenId, _action)\n );\n \n emit Send(\n _token,\n msg.sender,\n _destination,\n _recipient,\n _amount,\n _enableFast\n );\n }"
+            },
+            {
+                "dispatch": "function dispatch(\n uint32 _destinationDomain,\n bytes32 _recipientAddress,\n bytes memory _messageBody\n ) external notFailed {\n require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\");\n \n uint32 _nonce = nonces[_destinationDomain];\n nonces[_destinationDomain] = _nonce + 1;\n \n bytes memory _message = Message.formatMessage(\n localDomain,\n bytes32(uint256(uint160(msg.sender))),\n _nonce,\n _destinationDomain,\n _recipientAddress,\n _messageBody\n );\n \n bytes32 _messageHash = keccak256(_message);\n tree.insert(_messageHash);\n \n queue.enqueue(root());\n \n \n emit Dispatch(\n _messageHash,\n count() - 1,\n _destinationAndNonce(_destinationDomain, _nonce),\n committedRoot,\n _message\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Dispatch": [
+            {
+                "dispatch": "function dispatch(\n uint32 _destinationDomain,\n bytes32 _recipientAddress,\n bytes memory _messageBody\n ) external notFailed {\n require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\");\n \n uint32 _nonce = nonces[_destinationDomain];\n nonces[_destinationDomain] = _nonce + 1;\n \n bytes memory _message = Message.formatMessage(\n localDomain,\n bytes32(uint256(uint160(msg.sender))),\n _nonce,\n _destinationDomain,\n _recipientAddress,\n _messageBody\n );\n \n bytes32 _messageHash = keccak256(_message);\n tree.insert(_messageHash);\n \n queue.enqueue(root());\n \n \n emit Dispatch(\n _messageHash,\n count() - 1,\n _destinationAndNonce(_destinationDomain, _nonce),\n committedRoot,\n _message\n );\n }"
+            }
+        ],
+        "Update": [
+            {
+                "update": "function update(\n bytes32 _oldRoot,\n bytes32 _newRoot,\n bytes memory _signature\n ) external notFailed {\n \n require(_oldRoot == committedRoot, \"not current update\");\n \n require(\n _isUpdaterSignature(_oldRoot, _newRoot, _signature),\n \"!updater sig\"\n );\n \n _beforeUpdate();\n \n confirmAt[_newRoot] = block.timestamp + optimisticSeconds;\n \n committedRoot = _newRoot;\n emit Update(remoteDomain, _oldRoot, _newRoot, _signature);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Receive1": [
+            {
+                "_handleTransfer": "function _handleTransfer(\n uint32 _origin,\n uint32 _nonce,\n bytes29 _tokenId,\n bytes29 _action,\n bool _fastEnabled\n ) internal {\n \n \n \n \n address _token = tokenRegistry.ensureLocalToken(\n _tokenId.domain(),\n _tokenId.id()\n );\n \n address _recipient = _action.evmRecipient();\n if (_fastEnabled) {\n \n \n bytes32 _id = BridgeMessage.getPreFillId(\n _origin,\n _nonce,\n _tokenId,\n _action\n );\n address _lp = liquidityProvider[_id];\n if (_lp != address(0)) {\n _recipient = _lp;\n delete liquidityProvider[_id];\n }\n }\n \n uint256 _amount = _action.amnt();\n \n if (tokenRegistry.isLocalOrigin(_token)) {\n \n \n \n \n IERC20(_token).safeTransfer(_recipient, _amount);\n } else {\n \n \n IBridgeToken(_token).mint(_recipient, _amount);\n \n IBridgeToken(_token).setDetailsHash(_action.detailsHash());\n }\n \n emit Receive(\n _originAndNonce(_origin, _nonce),\n _token,\n _recipient,\n address(0),\n _amount\n );\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(IERC20 token, address to, uint256 value) internal {\n function _callOptionalReturn(...) {...}\n_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));\n }"
+            }
+        ]
+    }
+}

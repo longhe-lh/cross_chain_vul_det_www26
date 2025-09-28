@@ -1,0 +1,244 @@
+{
+  "contract": "Celo Optics Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Celo Optics Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Send1"
+        ],
+        "rel_chain": [
+          "Dispatch",
+          "Update",
+          "DoubleUpdate",
+          "ImproperUpdate"
+        ],
+        "det_chain": [
+          "Process1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Send1": {
+            "0": {
+              "func_name": "send",
+              "file_name": "BridgeRouter.sol",
+              "key_ops": [
+                "require(_amount > 0, \"!amnt\")",
+                "require(_recipient != bytes32(0), \"!recip\")",
+                "IERC20 _bridgeToken = IERC20(_token)",
+                "if (_isLocalOrigin(_bridgeToken))",
+                "_bridgeToken.safeTransferFrom(msg.sender, address(this), _amount)",
+                "_downcast(_bridgeToken).burn(msg.sender, _amount)",
+                "Home(xAppConnectionManager.home()).dispatch(_destination, _remote, BridgeMessage.formatMessage(_formatTokenId(_token), _action))"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mustHaveRemote",
+                  "file_name": "Router.sol",
+                  "key_ops": [
+                    "require(_remote != bytes32(0), \"!remote\")"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_formatTokenId",
+                  "file_name": "BridgeRouter.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_tokenIdFor",
+                      "file_name": "TokenRegistry.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                },
+                "2": {
+                  "func_name": "formatTransfer",
+                  "file_name": "BridgeMessage.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "3": {
+                  "func_name": "formatMessage",
+                  "file_name": "BridgeMessage.sol",
+                  "key_ops": [
+                    "require(isValidAction(_action), \"!action\")"
+                  ],
+                  "child": {}
+                },
+                "4": {
+                  "func_name": "dispatch",
+                  "file_name": "Home.sol",
+                  "key_ops": [
+                    "require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\")",
+                    "uint32 _nonce = nonces[_destinationDomain]",
+                    "nonces[_destinationDomain] = _nonce + 1",
+                    "bytes memory _message = Message.formatMessage(localDomain, bytes32(uint256(uint160(msg.sender))), _nonce, _destinationDomain, _recipientAddress, _messageBody)",
+                    "bytes32 _messageHash = keccak256(_message)",
+                    "tree.insert(_messageHash)",
+                    "queue.enqueue(root())"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "formatMessage",
+                      "file_name": "Message.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Dispatch": {
+            "0": {
+              "func_name": "dispatch",
+              "file_name": "Home.sol",
+              "key_ops": [
+                "require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\")",
+                "uint32 _nonce = nonces[_destinationDomain]",
+                "nonces[_destinationDomain] = _nonce + 1",
+                "bytes memory _message = Message.formatMessage(localDomain, bytes32(uint256(uint160(msg.sender))), _nonce, _destinationDomain, _recipientAddress, _messageBody)",
+                "bytes32 _messageHash = keccak256(_message)",
+                "tree.insert(_messageHash)",
+                "queue.enqueue(root())"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "formatMessage",
+                  "file_name": "Message.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Update": {
+            "0": {
+              "func_name": "improperUpdate",
+              "file_name": "Home.sol",
+              "key_ops": [
+                "require(_isUpdaterSignature(_oldRoot, _newRoot, _signature), \"!updater sig\")",
+                "require(_oldRoot == committedRoot, \"not a current update\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_isUpdaterSignature",
+                  "file_name": "Common.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "DoubleUpdate": {
+            "0": {
+              "func_name": "doubleUpdate",
+              "file_name": "Common.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_fail",
+                  "file_name": "Home.sol",
+                  "key_ops": [
+                    "updaterManager.slashUpdater(msg.sender);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ImproperUpdate": {
+            "0": {
+              "func_name": "improperUpdate",
+              "file_name": "Home.sol",
+              "key_ops": [
+                "require(_isUpdaterSignature(_oldRoot, _newRoot, _signature), \"!updater sig\")",
+                "require(_oldRoot == committedRoot, \"not a current update\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_isUpdaterSignature",
+                  "file_name": "Common.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_fail",
+                  "file_name": "Home.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Process1": {
+            "0": {
+              "func_name": "proveAndProcess",
+              "file_name": "Replica.sol",
+              "key_ops": [
+                "require(prove(keccak256(_message), _proof, _index), \"!prove\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prove",
+                  "file_name": "Replica.sol",
+                  "key_ops": [
+                    "require(messages[_leaf] == MessageStatus.None, \"!MessageStatus.None\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "acceptableRoot",
+                      "file_name": "Replica.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "process",
+                  "file_name": "Replica.sol",
+                  "key_ops": [
+                    "require(_m.destination() == localDomain, \"!destination\")",
+                    "require(messages[_messageHash] == MessageStatus.Proven, \"!proven\")",
+                    "require(entered == 1, \"!reentrant\")",
+                    "entered = 0",
+                    "messages[_messageHash] = MessageStatus.Processed",
+                    "require(gasleft() >= PROCESS_GAS + RESERVE_GAS, \"!gas\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,52 @@
+{
+    "src_chain": {
+        "Vault1": [
+            {
+                "receive": "receive() external payable {\n if (msg.sender == OWNER) {\n emit Vault(msg.sender, msg.value / BASE);\n return;\n }\n\n address receiver = bridges[msg.sender];\n require(receiver != address(0), \"no address bound\");\n\n release(receiver, new bytes(0));\n }"
+            }
+        ],
+        "Bound2": [
+            {
+                "bind": "function bind(address receiver) public {\n require(receiver != address(0), \"invalid address\");\n bridges[msg.sender] = receiver;\n emit Bound(msg.sender, receiver);\n }"
+            }
+        ],
+        "Through3": [
+            {
+                "pass": "function pass(address asset, uint256 amount) public {\n address receiver = bridges[msg.sender];\n require(receiver != address(0), \"no address bound\");\n require(amount > 0, \"too small\");\n\n function canonical(...) {...}\nasset = canonical(asset);\n if (asset == XIN) {\n passXIN(receiver, amount);\n } else {\n IERC20(asset).transferFrom(msg.sender, receiver, amount);\n }\n\n emit Through(asset, msg.sender, receiver, amount);\n }"
+            },
+            {
+                "canonical": "function canonical(address asset) internal view returns (address) {\n uint256 id = uint256(uint160(asset));\n address another = Factory(FACTORY).contracts(id);\n if (another != address(0)) {\n return another;\n }\n return asset;\n }"
+            },
+            {
+                "passXIN": "function passXIN(address receiver, uint256 amount) internal {\n IERC20(XIN).transferFrom(msg.sender, address(this), amount);\n payable(receiver).transfer(amount * BASE);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "relay_event": [
+            {
+                "release": "function release(address receiver, bytes memory input) public payable {\n uint256 amount = msg.value / BASE;\n require(amount > 0, \"value too small\");\n\n address bound = bridges[msg.sender];\n require(bound == address(0) || receiver == bound, \"bound not match\");\n\n IERC20(XIN).transferWithExtra(receiver, amount, input);\n emit Through(XIN, msg.sender, receiver, amount);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Through1": [
+            {
+                "release": "function release(address receiver, bytes memory input) public payable {\n uint256 amount = msg.value / BASE;\n require(amount > 0, \"value too small\");\n\n address bound = bridges[msg.sender];\n require(bound == address(0) || receiver == bound, \"bound not match\");\n\n IERC20(XIN).transferWithExtra(receiver, amount, input);\n emit Through(XIN, msg.sender, receiver, amount);\n }"
+            }
+        ],
+        "Bound2": [
+            {
+                "bind": "function bind(address receiver) public {\n require(receiver != address(0), \"invalid address\");\n bridges[msg.sender] = receiver;\n emit Bound(msg.sender, receiver);\n }"
+            }
+        ],
+        "Vault3": [
+            {
+                "vault": "function vault(address asset, uint256 amount) public {\n function canonical(...) {...}\nasset = canonical(asset);\n require(asset == XIN, \"only XIN accepted\");\n IERC20(asset).transferFrom(msg.sender, address(this), amount);\n emit Vault(msg.sender, amount);\n }"
+            },
+            {
+                "canonical": "function canonical(address asset) internal view returns (address) {\n uint256 id = uint256(uint160(asset));\n address another = Factory(FACTORY).contracts(id);\n if (another != address(0)) {\n return another;\n }\n return asset;\n }"
+            }
+        ]
+    }
+}

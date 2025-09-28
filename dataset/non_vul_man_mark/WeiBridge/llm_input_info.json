@@ -1,0 +1,20 @@
+{
+    "src_chain": {
+        "TokenLock1": [
+            {
+                "lockTokensForOptimism": "function lockTokensForOptimism() public payable {\n if (msg.value != 1003 ) { revert msgValueNot1003(); }\n \n function enqueue(...) {...}\nenqueue();\n payable(Owner).transfer(msg.value);\n }"
+            },
+            {
+                "enqueue": "function enqueue() private { \n last += 1;\n queue[last] = msg.sender;\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenUnlock1": [
+            {
+                "ownerUnlockGoerliETH": "function ownerUnlockGoerliETH(address userToBridge) public {\n if (msg.sender != Owner) { revert notOwnerAddress(); }\n \n \n \n payable(userToBridge).transfer(1000);\n }"
+            }
+        ]
+    }
+}

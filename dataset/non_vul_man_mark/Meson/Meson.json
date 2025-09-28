@@ -1,0 +1,196 @@
+{
+  "contract": "Meson",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Meson": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "SwapPosted1",
+          "SwapBonded2"
+        ],
+        "rel_chain": [
+          "RequestSignatureVerified",
+          "ReleaseSignatureVerified"
+        ],
+        "det_chain": [
+          "SwapLocked1",
+          "SwapReleased2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "initial_chain",
+        "events": {
+          "SwapPosted1": {
+            "0": {
+              "func_name": "postSwap",
+              "file_name": "MesonSwap.sol",
+              "key_ops": [
+                "require(_postedSwaps[encodedSwap] == 0, \"Swap already exists\")",
+                "require(delta > MIN_BOND_TIME_PERIOD, \"Expire ts too early\");",
+                "require(delta < MAX_BOND_TIME_PERIOD, \"Expire ts too late\");",
+                "_checkRequestSignature(encodedSwap, r, s, v, initiator)",
+                "_unsafeDepositToken(tokenForIndex[tokenIndex], initiator, amount, tokenIndex)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_checkRequestSignature",
+                  "file_name": "MesonHelpers.sol",
+                  "key_ops": [
+                    "require(signer != address(0), \"Signer cannot be empty address\")",
+                    "require(v == 27 || v == 28, \"Invalid signature\")",
+                    "require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,\"Invalid signature\");"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_unsafeDepositToken",
+                  "file_name": "MesonHelpers.sol",
+                  "key_ops": [
+                    "require(token != address(0), \"Token not supported\")",
+                    "require(amount > 0, \"Amount must be greater than zero\");",
+                    "require(Address.isContract(token), \"The given token address is not a contract\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "SwapBonded2": {
+            "0": {
+              "func_name": "bondSwap",
+              "file_name": "MesonSwap.sol",
+              "key_ops": [
+                "require(postedSwap > 1, \"Swap does not exist\")",
+                "require(_poolIndexFromPosted(postedSwap) == 0, \"Swap bonded to another pool\")",
+                " require(poolOfAuthorizedAddr[_msgSender()] == poolIndex, \"Signer should be an authorized address of the given pool\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "RequestSignatureVerified": {
+            "0": {
+              "func_name": "_checkRequestSignature",
+              "file_name": "MesonHelpers.sol",
+              "key_ops": [
+                "require(signer != address(0), \"Signer cannot be empty address\")",
+                "require(v == 27 || v == 28, \"Invalid signature\")",
+                "require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, \"Invalid signature\");"
+              ],
+              "child": {}
+            }
+          },
+          "ReleaseSignatureVerified": {
+            "0": {
+              "func_name": "_checkReleaseSignature",
+              "file_name": "MesonHelpers.sol",
+              "key_ops": [
+                "require(signer != address(0), \"Signer cannot be empty address\")",
+                "require(v == 27 || v == 28, \"Invalid signature\")",
+                "require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, \"Invalid signature\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "target_chain",
+        "events": {
+          "SwapLocked1": {
+            "0": {
+              "func_name": "lock",
+              "file_name": "MesonPools.sol",
+              "key_ops": [
+                "require(_lockedSwaps[swapId] == 0, \"Swap already exists\")",
+                "_checkRequestSignature(encodedSwap, r, s, v, initiator)",
+                "_balanceOfPoolToken[poolTokenIndex] -= (_amountFrom(encodedSwap) - _feeForLp(encodedSwap))",
+                "require(poolIndex != 0, \"Caller not registered. Call depositAndRegister.\");",
+                "require(until < _expireTsFrom(encodedSwap) - 5 minutes, \"Cannot lock because expireTs is soon.\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_checkRequestSignature",
+                  "file_name": "MesonHelpers.sol",
+                  "key_ops": [
+                    "require(signer != address(0), \"Signer cannot be empty address\")",
+                    "require(v == 27 || v == 28, \"Invalid signature\")",
+                    "require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, \"Invalid signature\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "SwapReleased2": {
+            "0": {
+              "func_name": "release",
+              "file_name": "MesonPools.sol",
+              "key_ops": [
+                "require(lockedSwap != 0, \"Swap does not exist\")",
+                "require(recipient != address(0), \"Recipient cannot be zero address\")",
+                "require(_expireTsFrom(encodedSwap) > block.timestamp, \"Cannot release because expired\");",
+                "_checkReleaseSignature(encodedSwap, recipient, r, s, v, initiator)",
+                "_balanceOfPoolToken[_poolTokenIndexForOutToken(encodedSwap, 0)] += serviceFee"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_checkReleaseSignature",
+                  "file_name": "MesonHelpers.sol",
+                  "key_ops": [
+                    "require(signer != address(0), \"Signer cannot be empty address\")",
+                    "require(v == 27 || v == 28, \"Invalid signature\")",
+                    "require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, \"Invalid signature\");"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_release",
+                  "file_name": "MesonPools.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_transferToContract",
+                      "file_name": "MesonHelpers.sol",
+                      "key_ops": [
+                        "IERC20Minimal(token).approve(contractAddr, amount)",
+                        "ITransferWithBeneficiary(contractAddr).transferWithBeneficiary(token, amount, beneficiary, data)"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_safeTransfer",
+                      "file_name": "MesonHelpers.sol",
+                      "key_ops": [
+                        "require(Address.isContract(token), \"The given token address is not a contract\");",
+                        "require(success && (data.length == 0 || abi.decode(data, (bool))), \"transfer failed\")"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,120 @@
+{
+  "contract": "zkSync Portal Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "zkSync Portal Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "deposit1",
+          "withdrawPendingBalance2"
+        ],
+        "rel_chain": [
+          "proveBlocks"
+        ],
+        "det_chain": [
+          "withdrawl1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "L1",
+        "events": {
+          "deposit1": {
+            "0": {
+              "func_name": "depositERC20",
+              "file_name": "ZkSync.sol",
+              "key_ops": [
+                "require(_zkSyncAddress != SPECIAL_ACCOUNT_ADDRESS, \"P\");",
+                "requireActive();",
+                "registerDeposit(tokenId, depositAmount, _zkSyncAddress);",
+                "require(!governance.pausedTokens(tokenId), \"b\");",
+                "require(depositAmount > 0 && depositAmount <= MAX_DEPOSIT_AMOUNT, \"C\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "registerDeposit",
+                  "file_name": "ZkSync.sol",
+                  "key_ops": [
+                    "Operations.Deposit memory op = Operations.Deposit({ accountId: 0, owner: _owner, tokenId: _tokenId, amount: _amount });",
+                    "bytes memory pubData = Operations.writeDepositPubdataForPriorityQueue(op);",
+                    "addPriorityRequest(Operations.OpType.Deposit, pubData);",
+                    "emit Deposit(_tokenId, _amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "withdrawPendingBalance2": {
+            "0": {
+              "func_name": "withdrawPendingBalance",
+              "file_name": "ZkSync.sol",
+              "key_ops": [
+                "uint16 tokenId = 0;",
+                "if (_token != address(0)) { tokenId = governance.validateTokenAddress(_token); }",
+                "bytes22 packedBalanceKey = packAddressAndTokenId(_owner, tokenId);",
+                "uint128 balance = pendingBalances[packedBalanceKey].balanceToWithdraw;",
+                "uint128 amount = Utils.minU128(balance, _amount);",
+                "require(amount > 0, \"f1\");",
+                "pendingBalances[packedBalanceKey].balanceToWithdraw = balance - amount;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "minU128",
+                  "file_name": "Utils.sol",
+                  "key_ops": [
+                    "return a < b ? a : b;"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "L2",
+        "events": {
+          "proveBlocks": {
+            "0": {
+              "func_name": "proveBlocks",
+              "file_name": "ZkSync.sol",
+              "key_ops": [
+                "requireActive();",
+                "require(success, \"p\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "L1",
+        "events": {
+          "withdraw1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "WagmiTraitsUpgradable.sol",
+              "key_ops": [
+                " payable(msg.sender).transfer(balance);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

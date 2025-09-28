@@ -1,0 +1,35 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "stake": "function stake(uint256 amount) public updateReward(msg.sender) {\n require(amount > 0, \"Cannot stake 0\");\n\n function add(...) {...}\nfunction safeTransferFrom(...) {...}\n_totalSupply = _totalSupply.add(amount);\n\n _balances[msg.sender] = _balances[msg.sender].add(amount);\n\n stakeToken.safeTransferFrom(msg.sender, address(this), amount);\n\n emit Staked(msg.sender, amount);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n IERC20 token,\n address from,\n address to,\n uint256 value\n ) internal {\n _callOptionalReturn(\n token,\n abi.encodeWithSelector(token.transferFrom.selector, from, to, value)\n );\n }"
+            },
+            {
+                "_callOptionalReturn": "function _callOptionalReturn(IERC20 token, bytes memory data) private {\n \n\n \n\n \n\n bytes memory returndata = address(token).functionCall(\n data,\n \"SafeERC20: low-level call failed\"\n );\n\n if (returndata.length > 0) {\n \n\n \n\n require(\n abi.decode(returndata, (bool)),\n \"SafeERC20: ERC20 operation did not succeed\"\n );\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "notifyRewardAmount": "function notifyRewardAmount(\n uint256 reward\n ) external onlyRewardDistribution updateReward(address(0)) {\n if (block.timestamp >= periodFinish) {\n rewardRate = reward.div(DURATION);\n } else {\n uint256 remaining = periodFinish.sub(block.timestamp);\n\n uint256 leftover = remaining.mul(rewardRate);\n\n rewardRate = reward.add(leftover).div(DURATION);\n }\n\n lastUpdateTime = block.timestamp;\n\n function add(...) {...}\nperiodFinish = block.timestamp.add(DURATION);\n\n emit RewardAdded(reward);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "unstake": "function unstake(uint256 amount) public updateReward(msg.sender) {\n require(amount > 0, \"Cannot withdraw 0\");\n\n function sub(...) {...}\nfunction safeTransfer(...) {...}\n_totalSupply = _totalSupply.sub(amount);\n\n _balances[msg.sender] = _balances[msg.sender].sub(amount);\n\n stakeToken.safeTransfer(msg.sender, amount);\n\n emit Unstaked(msg.sender, amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(IERC20 token, address to, uint256 value) internal {\n _callOptionalReturn(\n token,\n abi.encodeWithSelector(token.transfer.selector, to, value)\n );\n }"
+            },
+            {
+                "_callOptionalReturn": "function _callOptionalReturn(IERC20 token, bytes memory data) private {\n \n\n \n\n \n\n bytes memory returndata = address(token).functionCall(\n data,\n \"SafeERC20: low-level call failed\"\n );\n\n if (returndata.length > 0) {\n \n\n \n\n require(\n abi.decode(returndata, (bool)),\n \"SafeERC20: ERC20 operation did not succeed\"\n );\n }\n }"
+            }
+        ]
+    }
+}

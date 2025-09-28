@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(uint value, string memory memo) public {\n require(value > 0, \"user must send assets\");\n iRUNE(RUNE).transferTo(address(this), value);\n emit Deposit(msg.sender, value, memo);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Outbound": [
+            {
+                "transferOut": "function transferOut(address to, uint value, string memory memo) public onlyAdmin {\n iRUNE(RUNE).transfer(to, value);\n emit Outbound(to, value, memo);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TransferOut1": [
+            {
+                "transferOut": "function transferOut(address payable to, address asset, uint amount, string memory memo) public payable {\n uint safeAmount;\n if(asset == address(0)){\n safeAmount = msg.value;\n to.call{value:msg.value}(\"\"); \n } else {\n vaultAllowance[msg.sender][asset] -= amount; \n asset.call(abi.encodeWithSelector(0xa9059cbb, to, amount));\n safeAmount = amount;\n }\n emit TransferOut(msg.sender, to, asset, safeAmount, memo);\n }"
+            }
+        ]
+    }
+}

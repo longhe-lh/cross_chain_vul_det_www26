@@ -1,0 +1,221 @@
+
+
+{
+  "contract": "Ronin Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+  "Ronin Bridge": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [
+        "TokenDeposited1",
+        "TokenWithdrew2"
+      ],
+      "rel_chain": [
+        "ValidatorAdded",
+        "ValidatorRemoved",
+        "ThresholdUpdated"
+      ],
+      "det_chain": [
+        "Claimed1"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "Mainchain",
+      "events": {
+        "TokenDeposited1": {
+          "0": {
+            "func_name": "depositEthFor",
+            "file_name": "MainchainGatewayManager.sol",
+            "key_ops": [
+              "WETH(_weth).deposit.value(msg.value)()"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_createDepositEntry",
+                "file_name": "MainchainGatewayManager.sol",
+                "key_ops": [
+                  "deposits.push(_entry);"
+                ],
+                "child": {}
+              }
+            }
+          },
+          "1": {
+            "func_name": "depositERC20For",
+            "file_name": "MainchainGatewayManager.sol",
+            "key_ops": [
+              "require(IERC20(_token).transferFrom(msg.sender, address(this), _amount),\"MainchainGatewayManager: ERC-20 token transfer failed\");",
+              "return _createDepositEntry(_user, _token, 20, _amount);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_createDepositEntry",
+                "file_name": "MainchainGatewayManager.sol",
+                "key_ops": [
+                  "deposits.push(_entry);",
+                  "require(_standard == _tokenStandard);"
+                ],
+                "child": {}
+              }
+            }
+          },
+          "2": {
+            "func_name": "depositERC721For",
+            "file_name": "MainchainGatewayManager.sol",
+            "key_ops": [
+              "IERC721(_token).transferFrom(msg.sender, address(this), _tokenId);",
+              "return _createDepositEntry(_user, _token, 721, _tokenId);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_createDepositEntry",
+                "file_name": "MainchainGatewayManager.sol",
+                "key_ops": [
+                  "require(_standard == _tokenStandard);",
+                  "deposits.push(_entry);"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "TokenWithdrew2": {
+          "0": {
+            "func_name": "withdrawERC20For",
+            "file_name": "MainchainGatewayManager.sol",
+            "key_ops": [
+              "require(verifySignatures(_hash, _signatures));",
+              "require(IERC20Mintable(_token).mint(address(this), _amount.sub(_gatewayBalance)),\"MainchainGatewayManager: Minting ERC20 token to gateway failed\");",
+              "require(IERC20(_token).transfer(_user, _amount), \"Transfer failed\");"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_insertWithdrawalEntry",
+                "file_name": "MainchainGatewayManager.sol",
+                "key_ops": [],
+                "child": {}
+              }
+            }
+          },
+          "1": {
+            "func_name": "withdrawERC721For",
+            "file_name": "MainchainGatewayManager.sol",
+            "key_ops": [
+              "require(verifySignatures(_hash, _signatures));",
+              "require(IERC721Mintable(_token).mint(_user, _tokenId),\"MainchainGatewayManager: Minting ERC721 token to gateway failed\");"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_insertWithdrawalEntry",
+                "file_name": "MainchainGatewayManager.sol",
+                "key_ops": [
+                  "withdrawals[_withdrawalId] = _entry"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "RelayChain",
+      "events": {
+        "ValidatorAdded": {
+          "0": {
+            "func_name": "addValidators",
+            "file_name": "MainchainValidator.sol",
+            "key_ops": [
+              "_addValidator(nonce++, _validators[_i]);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_addValidator",
+                "file_name": "MainchainValidator.sol",
+                "key_ops": [
+                  "validators.push(_validator);",
+                  "validatorMap[_validator] = true",
+                  "require(!validatorMap[_validator]);"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "ValidatorRemoved": {
+          "0": {
+            "func_name": "removeValidator",
+            "file_name": "MainchainValidator.sol",
+            "key_ops": [
+              "_removeValidator(nonce++, _validator);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_removeValidator",
+                "file_name": "MainchainValidator.sol",
+                "key_ops": [
+                  "require(isValidator(_validator));",
+                  "validatorMap[_validator] = false;"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "ThresholdUpdated": {
+          "0": {
+            "func_name": "updateQuorum",
+            "file_name": "MainchainValidator.sol",
+            "key_ops": [
+              "_updateQuorum(nonce++, _numerator, _denominator);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_updateQuorum",
+                "file_name": "MainchainValidator.sol",
+                "key_ops": [
+                  "num = _numerator",
+                  "denom = _denominator",
+                  "require(_numerator <= _denominator);"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "det_chain": {
+      "chain_name": "Sidechain",
+      "events": {
+        "Claimed1": {
+          "0": {
+            "func_name": "claim",
+            "file_name": "MerkleDistributor.sol",
+            "key_ops": [
+              "require(!claimed[account], 'MerkleDistributor: Already claimed.');",
+              "require(MerkleProof.verify(merkleProof, merkleRoot, node), 'MerkleDistributor: Invalid proof.');",
+              "require(IERC20(token).transfer(account, amount), 'MerkleDistributor: Transfer failed.');"
+            ],
+            "child": {}
+          }
+        }
+      }
+    }
+  }
+}
+,
+  "cag": []
+}

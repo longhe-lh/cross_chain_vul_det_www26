@@ -1,0 +1,72 @@
+{
+    "src_chain": {
+        "LogAnySwapOut1": [
+            {
+                "_anySwapOut": "function _anySwapOut(address from, address token, address to, uint amount, uint toChainID) internal {\n AnyswapV1ERC20(token).burn(from, amount);\n emit LogAnySwapOut(token, from, to, amount, cID(), toChainID);\n }"
+            }
+        ],
+        "LogAnySwapTradeTokensForTokens2": [],
+        "LogAnySwapTradeTokensForNative3": [
+            {
+                "anySwapOutExactTokensForNative": "function anySwapOutExactTokensForNative(\n uint amountIn,\n uint amountOutMin,\n address[] calldata path,\n address to,\n uint deadline,\n uint toChainID\n ) external virtual ensure(deadline) {\n AnyswapV1ERC20(path[0]).burn(msg.sender, amountIn);\n function cID(...) {...}\nemit LogAnySwapTradeTokensForNative(path, msg.sender, to, amountIn, amountOutMin, cID(), toChainID);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "mint": "function mint(address to, uint256 amount) external onlyAuth returns (bool) {\n function _mint(...) {...}\n_mint(to, amount);\n return true;\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: mint to the zero address\");\n\n _totalSupply += amount;\n balanceOf[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "burn": [
+            {
+                "burn": "function burn(address from, uint256 amount) external onlyAuth returns (bool) {\n require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");\n function _burn(...) {...}\n_burn(from, amount);\n return true;\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: burn from the zero address\");\n\n balanceOf[account] -= amount;\n _totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n }"
+            }
+        ],
+        "depositVault": [
+            {
+                "depositVault": "function depositVault(uint amount, address to) external onlyVault returns (uint) {\n return function _deposit(...) {...}\n_deposit(amount, to);\n }"
+            },
+            {
+                "_deposit": "function _deposit(uint amount, address to) internal returns (uint) {\n require(underlying != address(0x0) && underlying != address(this));\n function _mint(...) {...}\n_mint(to, amount);\n return amount;\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: mint to the zero address\");\n\n _totalSupply += amount;\n balanceOf[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "withdrawVault": [
+            {
+                "_withdraw": "function _withdraw(address from, uint amount, address to) internal returns (uint) {\n function _burn(...) {...}\nfunction safeTransfer(...) {...}\n_burn(from, amount);\n IERC20(underlying).safeTransfer(to, amount);\n return amount;\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: burn from the zero address\");\n\n balanceOf[account] -= amount;\n _totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "LogAnySwapIn1": [
+            {
+                "_anySwapIn": "function _anySwapIn(bytes32 txs, address token, address to, uint amount, uint fromChainID) internal {\n AnyswapV1ERC20(token).mint(to, amount);\n function cID(...) {...}\nemit LogAnySwapIn(txs, token, to, amount, fromChainID, cID());\n }"
+            }
+        ],
+        "LogAnySwapInUnderlying2": [
+            {
+                "anySwapInUnderlying": "function anySwapInUnderlying(bytes32 txs, address token, address to, uint amount, uint fromChainID) external onlyMPC {\n _anySwapIn(txs, token, to, amount, fromChainID);\n AnyswapV1ERC20(token).withdrawVault(to, amount, to);\n }"
+            },
+            {
+                "_anySwapIn": "function _anySwapIn(bytes32 txs, address token, address to, uint amount, uint fromChainID) internal {\n AnyswapV1ERC20(token).mint(to, amount);\n function cID(...) {...}\nemit LogAnySwapIn(txs, token, to, amount, fromChainID, cID());\n }"
+            }
+        ],
+        "LogAnySwapInAuto3": [
+            {
+                "_anySwapIn": "function _anySwapIn(bytes32 txs, address token, address to, uint amount, uint fromChainID) internal {\n AnyswapV1ERC20(token).mint(to, amount);\n function cID(...) {...}\nemit LogAnySwapIn(txs, token, to, amount, fromChainID, cID());\n }"
+            }
+        ]
+    }
+}

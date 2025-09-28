@@ -1,0 +1,28 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "_transfer": "function _transfer(address from, address to, uint value) private {\n balanceOf[from] = balanceOf[from].sub(value);\n balanceOf[to] = balanceOf[to].add(value);\n emit Transfer(from, to, value);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Mint": [
+            {
+                "_mint": "function _mint(address to, uint value) internal {\n totalSupply = totalSupply.add(value);\n balanceOf[to] = balanceOf[to].add(value);\n emit Transfer(address(0), to, value);\n }"
+            }
+        ],
+        "Burn": [
+            {
+                "_burn": "function _burn(address from, uint value) internal {\n balanceOf[from] = balanceOf[from].sub(value);\n totalSupply = totalSupply.sub(value);\n emit Transfer(from, address(0), value);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Transfer1": [
+            {
+                "_transfer": "function _transfer(address from, address to, uint value) private {\n balanceOf[from] = balanceOf[from].sub(value);\n balanceOf[to] = balanceOf[to].add(value);\n emit Transfer(from, to, value);\n }"
+            }
+        ]
+    }
+}

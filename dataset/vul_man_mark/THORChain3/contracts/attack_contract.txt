@@ -1,0 +1,212 @@
+# Palkeoramix decompiler. 
+
+def storage:
+  owner is addr at storage 0
+  stor1 is addr at storage 1
+  stor2 is uint256 at storage 2
+  stor3 is array of struct at storage 3
+
+def owner(): # not payable
+  return owner
+
+#
+#  Regular functions
+#
+
+def unknownb9554c59() payable: 
+  require owner != caller
+  revert with 0, 'X:1'
+
+def transferOwnership(address _newOwner): # not payable
+  require calldata.size - 4 >= 32
+  require _newOwner == _newOwner
+  if owner != caller:
+      revert with 0, 'X:1'
+  if not _newOwner:
+      revert with 0, 'X:2'
+  log OwnershipTransferred(
+        address previousOwner=owner,
+        address newOwner=_newOwner)
+  owner = _newOwner
+
+def unknownf9f6318f(uint256 _param1, uint256 _param2, array _param3) payable: 
+  require calldata.size - 4 >= 96
+  require _param1 == addr(_param1)
+  require _param2 == _param2
+  require _param3 <= 18446744073709551615
+  require _param3 + 35 < calldata.size
+  if _param3.length > 18446744073709551615:
+      revert with 'NH{q', 65
+  if ceil32(ceil32(_param3.length)) + 97 > 18446744073709551615 or ceil32(ceil32(_param3.length)) + 97 < 96:
+      revert with 'NH{q', 65
+  require _param3 + _param3.length + 36 <= calldata.size
+  if owner != caller:
+      revert with 0, 'X:1'
+  if _param2:
+      stor1 = addr(_param1)
+      stor2 = _param2
+  else:
+      require ext_code.size(0xc145990e84155416144c532e31f89b840ca8c2ce)
+      static call 0xc145990e84155416144c532e31f89b840ca8c2ce.0x3b6a673 with:
+              gas gas_remaining wei
+             args 0xf56cba49337a624e94042e325ad6bc864436e370, addr(_param1)
+      if not ext_call.success:
+          revert with ext_call.return_data[0 len return_data.size]
+      require return_data.size >= 32
+      require ext_call.return_data == ext_call.return_data[0]
+      if ext_call.return_data and 9 > -1 / ext_call.return_data[0]:
+          revert with 'NH{q', 17
+      stor1 = addr(_param1)
+      stor2 = 9 * ext_call.return_data / 10
+  if bool(stor3.length):
+      if bool(stor3.length) == stor3.length.field_1 < 32:
+          revert with 'NH{q', 34
+      if _param3.length:
+          stor3[].field_0 = Array(len=_param3.length, data=_param3[all])
+      else:
+          stor3.length = 0
+          idx = 0
+          while stor3.length.field_1 + 31 / 32 > idx:
+              stor3[idx].field_0 = 0
+              idx = idx + 1
+              continue 
+  else:
+      if bool(stor3.length) == stor3.length.field_1 < 32:
+          revert with 'NH{q', 34
+      if _param3.length:
+          stor3[].field_0 = Array(len=_param3.length, data=_param3[all])
+      else:
+          stor3.length = 0
+          idx = 0
+          while stor3.length.field_1 + 31 / 32 > idx:
+              stor3[idx].field_0 = 0
+              idx = idx + 1
+              continue 
+
+def _fallback() payable: # default function
+  if bool(stor3.length):
+      if bool(stor3.length) == stor3.length.field_1 < 32:
+          revert with 'NH{q', 34
+      if bool(stor3.length):
+          if bool(stor3.length) == stor3.length.field_1 < 32:
+              revert with 'NH{q', 34
+          if stor3.length.field_1:
+              if 31 >= stor3.length.field_1:
+                  mem[224] = 256 * stor3.length.field_8
+              else:
+                  mem[224] = uint256(stor3.field_0)
+                  idx = 224
+                  s = 0
+                  while stor3.length.field_1 + 192 > idx:
+                      mem[idx + 32] = stor3[s].field_256
+                      idx = idx + 32
+                      s = s + 1
+                      continue 
+      else:
+          if bool(stor3.length) == stor3.length.field_1 < 32:
+              revert with 'NH{q', 34
+          if stor3.length.field_1:
+              if 31 >= stor3.length.field_1:
+                  mem[224] = 256 * stor3.length.field_8
+              else:
+                  mem[224] = uint256(stor3.field_0)
+                  idx = 224
+                  s = 0
+                  while stor3.length.field_1 + 192 > idx:
+                      mem[idx + 32] = stor3[s].field_256
+                      idx = idx + 32
+                      s = s + 1
+                      continue 
+      log 0xef519b7e: stor2, Array(len=2 * Mask(256, -1, stor3.length.field_1), data=mem
+  else:
+      if bool(stor3.length) == stor3.length.field_1 < 32:
+          revert with 'NH{q', 34
+      if bool(stor3.length):
+          if bool(stor3.length) == stor3.length.field_1 < 32:
+              revert with 'NH{q', 34
+          if stor3.length.field_1:
+              if 31 >= stor3.length.field_1:
+                  mem[224] = 256 * stor3.length.field_8
+              else:
+                  mem[224] = uint256(stor3.field_0)
+                  idx = 224
+                  s = 0
+                  while stor3.length.field_1 + 192 > idx:
+                      mem[idx + 32] = stor3[s].field_256
+                      idx = idx + 32
+                      s = s + 1
+                      continue 
+      else:
+          if bool(stor3.length) == stor3.length.field_1 < 32:
+              revert with 'NH{q', 34
+          if stor3.length.field_1:
+              if 31 >= stor3.length.field_1:
+                  mem[224] = 256 * stor3.length.field_8
+              else:
+                  mem[224] = uint256(stor3.field_0)
+                  idx = 224
+                  s = 0
+                  while stor3.length.field_1 + 192 > idx:
+                      mem[idx + 32] = stor3[s].field_256
+                      idx = idx + 32
+                      s = s + 1
+                      continue 
+      log 0xef519b7e: stor2, Array(len=stor3.length % 128, data=mem
+
+def unknownabf7f5eb(uint256 _param1, uint256 _param2, array _param3, array _param4) payable: 
+  require calldata.size - 4 >= 128
+  require _param1 == addr(_param1)
+  require _param2 == _param2
+  require _param3 <= 18446744073709551615
+  require _param3 + 35 < calldata.size
+  if _param3.length > 18446744073709551615:
+      revert with 'NH{q', 65
+  if ceil32(ceil32(_param3.length)) + 97 > 18446744073709551615 or ceil32(ceil32(_param3.length)) + 97 < 96:
+      revert with 'NH{q', 65
+  require _param3 + _param3.length + 36 <= calldata.size
+  mem[128 len _param3.length] = _param3[all]
+  mem[_param3.length + 128] = 0
+  require _param4 <= 18446744073709551615
+  require _param4 + 35 < calldata.size
+  if _param4.length > 18446744073709551615:
+      revert with 'NH{q', 65
+  if ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + 98 > 18446744073709551615 or ceil32(ceil32(_param4.length)) + 98 < 97:
+      revert with 'NH{q', 65
+  mem[ceil32(ceil32(_param3.length)) + 97] = _param4.length
+  require _param4 + _param4.length + 36 <= calldata.size
+  mem[ceil32(ceil32(_param3.length)) + 129 len _param4.length] = _param4[all]
+  mem[ceil32(ceil32(_param3.length)) + _param4.length + 129] = 0
+  if owner != caller:
+      revert with 0, 'X:1'
+  if not _param3.length:
+      mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + 98 len ceil32(_param4.length)] = _param4[all], mem[ceil32(ceil32(_param3.length)) + _param4.length + 129 len ceil32(_param4.length) - _param4.length]
+      if ceil32(_param4.length) > _param4.length:
+          mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + _param4.length + 98] = 0
+      call addr(_param1).mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + 98 len 4] with:
+         value _param2 wei
+           gas gas_remaining wei
+          args mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + 102 len _param4.length - 4]
+  else:
+      mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + 130] = Mask(32, 224, sha3(_param3[all]))
+      mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + 134 len ceil32(_param4.length)] = _param4[all], mem[ceil32(ceil32(_param3.length)) + _param4.length + 129 len ceil32(_param4.length) - _param4.length]
+      if ceil32(_param4.length) > _param4.length:
+          if floor32(_param4.length + 35) > _param4.length + 4:
+              mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + (2 * _param4.length) + 138] = 0
+          call addr(_param1) with:
+             funct Mask(32, -(8 * floor32(_param4.length + 35) + -ceil32(_param4.length) - 4) + 224, Mask(32, 224, sha3(_param3[all])) >> 224, Mask(8 * ceil32(_param4.length), -(8 * ceil32(_param4.length)) + 256, _param4[all], mem[ceil32(ceil32(_param3.length)) + _param4.length + 129 len ceil32(_param4.length) - _param4.length]) << (8 * ceil32(_param4.length)) - 256) << (8 * floor32(_param4.length + 35) + -ceil32(_param4.length) - 4) - 224
+             value _param2 wei
+               gas gas_remaining wei
+              args (Mask(8 * _param4.length, -(8 * _param4.length + 4) + 256, Mask(8 * floor32(_param4.length + 35) + -ceil32(_param4.length) - 4, -(8 * floor32(_param4.length + 35) + -_param4.length - 4) + 256, 0) >> -(8 * floor32(_param4.length + 35) + -_param4.length - 4) + 256) << (8 * _param4.length + 4) - 256)
+      else:
+          mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + _param4.length + 134 len floor32(_param4.length + 35)] = Mask(32, 224, sha3(_param3[all])) >> 224, Mask(8 * ceil32(_param4.length), -(8 * ceil32(_param4.length)) + 256, _param4[all], mem[ceil32(ceil32(_param3.length)) + _param4.length + 129 len ceil32(_param4.length) - _param4.length]) << (8 * ceil32(_param4.length)) - 256, mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + ceil32(_param4.length) + 134 len floor32(_param4.length + 35) + -ceil32(_param4.length) - 4]
+          if floor32(_param4.length + 35) > _param4.length + 4:
+              mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + (2 * _param4.length) + 138] = 0
+          call addr(_param1).mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + _param4.length + 134 len 4] with:
+             value _param2 wei
+               gas gas_remaining wei
+              args mem[ceil32(ceil32(_param3.length)) + ceil32(ceil32(_param4.length)) + _param4.length + 138 len _param4.length]
+  if not ext_call.success:
+      revert with 0, 'X:3'
+  if not return_data.size:
+      return Array(len=_param3.length, data=_param3[all])
+  return Array(len=return_data.size, data=ext_call.return_data)

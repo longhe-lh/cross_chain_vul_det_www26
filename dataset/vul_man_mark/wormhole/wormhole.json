@@ -1,0 +1,167 @@
+{
+    "contract": "wormhole",
+    "source_code_path": "../vul_src_code/wormhole/",
+    "type": "UnauthorizedWithdrawal",
+    "vulnerable_entry_function": {
+        "file": "verify_signature.rs",
+        "name": "verify_signatures",
+        "signature": "pub fn verify_signatures(ctx: &ExecutionContext,accs: &mut VerifySignatures,data: VerifySignaturesData,) -> Result<()> ",
+        "lines": "70-222",
+        "attack_type": "MissingAccessControl",
+        "vul_reason": "The function did not validate whether the sysvar account passed in was the legitimate system sysvar account, allowing the attacker to forge the account and bypass signature verification.",
+        "code_snippet": "let current_instruction = solana_program::sysvar::instructions::load_current_index(&accs.instruction_acc.try_borrow_mut_data()?,);"
+    },
+    "detail": "The attacker used a forged sysvar account to call the \"verify_signatures\" function. The function \"load_current_index\" used inside did not verify whether the provided sysvar account was the legitimate system sysvar. This allowed the attacker to bypass signature verification, create a malicious VAA claiming to mint 120,000 WETH, and ultimately transfer the minted tokens to Ethereum.",
+    "blg": {
+        "wormhole": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "verifysignature0",
+                    "MintWETH1",
+                    "transferWETH2"
+                ],
+                "rel_chain": [
+                    "signvaa"
+                ],
+                "det_chain": [
+                    "completeTransfer2"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "solana",
+                "events": {
+                    "verifysignature0": {
+                        "0": {
+                            "func_name": "verify_signatures",
+                            "file_name": "verify_signature.rs",
+                            "key_ops": [
+                                "let current_instruction = solana_program::sysvar::instructions::load_current_index(&accs.instruction_acc.try_borrow_mut_data()?,);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "load_current_index",
+                                    "file_name": "instructions.rs",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "MintWETH1": {
+                        "0": {
+                            "func_name": "post_vaa",
+                            "file_name": "post_vaa.rs",
+                            "key_ops": [
+                                "accs.message.vaa_version = vaa.version;",
+                                "accs.message.vaa_time = vaa.timestamp;",
+                                "accs.message.vaa_signature_account = *accs.signature_set.info().key;"
+                            ],
+                            "child": {}
+                        },
+                        "1": {
+                            "func_name": "complete_wrapped",
+                            "file_name": "complete_transfer.rs",
+                            "key_ops": [
+                                "accs.chain_registration.verify_derivation(ctx.program_id, &derivation_data)?;",
+                                "accs.wrapped_meta.verify_derivation(ctx.program_id,&WrappedMetaDerivationData {mint_key: *accs.mint.info().key,},)?;",
+                                "if accs.vaa.to_chain != CHAIN_ID_SOLANA {return Err(InvalidChain.into());}",
+                                "if accs.vaa.to != accs.to.info().key.to_bytes() {return Err(InvalidRecipient.into());}",
+                                "if INVALID_VAAS.contains(&&*accs.vaa.info().key.to_string()) {return Err(InvalidVAA.into());}",
+                                "invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;",
+                                "invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "transferWETH2": {
+                        "0": {
+                            "func_name": "transfer_wrapped",
+                            "file_name": "transfer.rs",
+                            "key_ops": [
+                                "if data.target_chain == CHAIN_ID_SOLANA {return Err(InvalidChain.into());}",
+                                "verify_and_execute_wrapped_transfers( ctx,&derivation_data,&accs.payer,&accs.from, &accs.from_owner,&accs.mint,&accs.wrapped_meta,&accs.authority_signer,&accs.bridge,&accs.fee_collector,data.amount,data.fee,)?;"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "verify_and_execute_wrapped_transfers",
+                                    "file_name": "transfer.rs",
+                                    "key_ops": [
+                                        "if &from.owner != from_owner.key {return Err(WrongAccountOwner.into());}",
+                                        "if mint.info().key != &from.mint {return Err(TokenBridgeError::InvalidMint.into());}",
+                                        "if fee > amount {return Err(InvalidFee.into());}",
+                                        "wrapped_meta.verify_derivation(ctx.program_id, derivation_data)?;",
+                                        "let burn_ix = spl_token::instruction::burn(&spl_token::id(),from.info().key,mint.info().key,authority_signer.key,&[],amount,)?;",
+                                        "let transfer_ix = solana_program::system_instruction::transfer(payer.key,fee_collector.key,bridge.config.fee,);",
+                                        "invoke(&transfer_ix, ctx.accounts)?;"
+                                    ],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "wormhole",
+                "events": {
+                    "signvaa": {
+                        "0": {
+                            "func_name": "AddSignature",
+                            "file_name": "structs.go",
+                            "key_ops": [
+                                "sig, err := crypto.Sign(v.SigningDigest().Bytes(), key)"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "completeTransfer2": {
+                        "0": {
+                            "func_name": "completeTransfer",
+                            "key_ops": [],
+                            "file_name": "Bridge.sol",
+                            "child": {
+                                "0": {
+                                    "func_name": "_completeTransfer",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "(IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);",
+                                        "require(valid, reason);",
+                                        "require(verifyBridgeVM(vm), \"invalid emitter\");",
+                                        "require(msg.sender == transferRecipient, \"invalid sender\");",
+                                        "require(!isTransferCompleted(vm.hash), \"transfer already completed\");",
+                                        "require(transfer.toChain == chainId(), \"invalid target chain\");",
+                                        "require(wrapped != address(0), \"no wrapper for this token created yet\");",
+                                        "require(unwrapWETH == false || address(transferToken) == address(WETH()), \"invalid token, can only unwrap WETH\");",
+                                        "require(nativeFee <= nativeAmount, \"fee higher than transferred amount\");",
+                                        "WETH().withdraw(nativeFee);",
+                                        "TokenImplementation(address(transferToken)).mint(msg.sender, nativeFee);",
+                                        "SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);",
+                                        "WETH().withdraw(transferAmount);",
+                                        "payable(transferRecipient).transfer(transferAmount);",
+                                        "TokenImplementation(address(transferToken)).mint(transferRecipient, transferAmount);",
+                                        "SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "TransferRedeemed",
+                                            "file_name": "Bridge.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

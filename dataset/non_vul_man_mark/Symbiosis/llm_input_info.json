@@ -1,0 +1,28 @@
+{
+    "src_chain": {
+        "SynthesizeRequest1": [
+            {
+                "synthesize": "function synthesize(\n uint256 _stableBridgingFee,\n address _token,\n uint256 _amount,\n address _chain2address,\n address _receiveSide,\n address _oppositeBridge,\n address _revertableAddress,\n uint256 _chainID,\n bytes32 _clientID\n ) external whenNotPaused returns (bytes32) {\n require(tokenWhitelist[_token], \"Symb: unauthorized token\");\n require(_amount >= tokenThreshold[_token], \"Symb: amount under threshold\");\n TransferHelper.safeTransferFrom(\n _token,\n _msgSender(),\n address(this),\n _amount\n );\n return\n sendSynthesizeRequest(\n _stableBridgingFee,\n _token,\n _amount,\n _chain2address,\n _receiveSide,\n _oppositeBridge,\n _revertableAddress,\n _chainID,\n _clientID\n );\n }"
+            },
+            {
+                "sendSynthesizeRequest": "function sendSynthesizeRequest(\n uint256 _stableBridgingFee,\n address _token,\n uint256 _amount,\n address _chain2address,\n address _receiveSide,\n address _oppositeBridge,\n address _revertableAddress,\n uint256 _chainID,\n bytes32 _clientID\n ) internal returns (bytes32 internalID) {\n balanceOf[_token] = balanceOf[_token] + _amount;\n if (_revertableAddress == address(0)) {\n _revertableAddress = _chain2address;\n }\n internalID = keccak256(abi.encodePacked(this, requestCount, block.chainid));\n {\n bytes32 externalID = keccak256(abi.encodePacked(internalID, _receiveSide, _revertableAddress, _chainID));\n {\n bytes memory out = abi.encodeWithSelector(\n bytes4(\n keccak256(\n bytes(\n \"mintSyntheticToken(uint256,bytes32,address,uint256,uint256,address)\"\n )\n )\n ),\n _stableBridgingFee,\n externalID,\n _token,\n block.chainid,\n _amount,\n _chain2address\n );\n requests[externalID] = TxState({\n recipient : _msgSender(),\n chain2address : _chain2address,\n rtoken : _token,\n amount : _amount,\n state : RequestState.Sent\n });\n requestCount++;\n IBridge(bridge).transmitRequestV2(\n out,\n _receiveSide,\n _oppositeBridge,\n _chainID\n );\n }\n }\n emit SynthesizeRequest(\n internalID,\n _msgSender(),\n _chainID,\n _revertableAddress,\n _chain2address,\n _amount,\n _token\n );\n emit ClientIdLog(internalID, _clientID);\n }"
+            }
+        ],
+        "RevertBurnRequest2": [
+            {
+                "revertBurnRequest": "function revertBurnRequest(\n uint256 _stableBridgingFee,\n bytes32 _internalID,\n address _receiveSide,\n address _oppositeBridge,\n uint256 _chainId,\n bytes32 _clientID\n ) external whenNotPaused {\n bytes32 externalID = keccak256(abi.encodePacked(_internalID, address(this), _msgSender(), block.chainid));\n require(\n unsynthesizeStates[externalID] != UnsynthesizeState.Unsynthesized,\n \"Symb: Real tokens already transfered\"\n );\n unsynthesizeStates[externalID] = UnsynthesizeState.RevertRequest;\n {\n bytes memory out = abi.encodeWithSelector(\n bytes4(keccak256(bytes(\"revertBurn(uint256,bytes32)\"))),\n _stableBridgingFee,\n externalID\n );\n IBridge(bridge).transmitRequestV2(\n out,\n _receiveSide,\n _oppositeBridge,\n _chainId\n );\n }\n emit RevertBurnRequest(_internalID, _msgSender());\n emit ClientIdLog(_internalID, _clientID);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "transmitRequestV2": [],
+        "receiveRequestV2": []
+    },
+    "det_chain": {
+        "Transfer1": [
+            {
+                "_transfer": "function _transfer(\n address sender,\n address recipient,\n uint256 amount\n ) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n _beforeTokenTransfer(sender, recipient, amount);\n uint256 senderBalance = _balances[sender];\n require(senderBalance >= amount, \"ERC20: transfer amount exceeds balance\");\n unchecked {\n _balances[sender] = senderBalance - amount;\n }\n _balances[recipient] += amount;\n emit Transfer(sender, recipient, amount);\n _afterTokenTransfer(sender, recipient, amount);\n }"
+            }
+        ]
+    }
+}

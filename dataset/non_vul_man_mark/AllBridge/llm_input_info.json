@@ -1,0 +1,40 @@
+{
+    "src_chain": {
+        "TokensSent1": [
+            {
+                "sendTokens": "function sendTokens(\n uint256 amount,\n bytes32 recipient,\n uint8 destinationChainId,\n bytes32 receiveToken,\n uint256 nonce,\n MessengerProtocol messenger\n ) internal override {\n uint8 sourceChainId = chainId; \n require(\n destinationChainId != sourceChainId,\n \"Bridge: wrong destination chain\"\n );\n require(\n otherBridgeTokens[destinationChainId][receiveToken],\n \"Bridge: unknown chain or token\"\n );\n bytes32 message = this.hashMessage(\n amount,\n recipient,\n sourceChainId,\n destinationChainId,\n receiveToken,\n nonce,\n messenger\n );\n bool wasMessageSent;\n assembly {\n mstore(0x00, message)\n mstore(0x20, sentMessages.slot)\n let key := keccak256(0, 0x40)\n wasMessageSent := sload(key)\n sstore(key, true)\n }\n require(!wasMessageSent, \"Bridge: tokens already sent\");\n uint256 bridgeTransactionCost = this.getTransactionCost(\n destinationChainId\n );\n uint256 messageTransactionCost = sendMessage(message, messenger);\n unchecked {\n require(\n msg.value >= bridgeTransactionCost + messageTransactionCost,\n \"Bridge: not enough fee\"\n );\n }\n emit TokensSent(\n amount,\n recipient,\n destinationChainId,\n receiveToken,\n nonce,\n messenger\n );\n }"
+            },
+            {
+                "sendMessage": "function sendMessage(bytes32 message) external payable {\n require(\n uint8(message[0]) == chainId,\n \"WormholeMessenger: wrong chainId\"\n );\n require(\n otherChainIds[uint8(message[1])] != 0,\n \"Messenger: wrong destination\"\n );\n bytes32 messageWithSender = message.hashWithSenderAddress(msg.sender);\n uint32 nonce_ = nonce;\n uint64 sequence = wormhole.publishMessage(\n nonce_,\n abi.encodePacked(messageWithSender),\n commitmentLevel\n );\n unchecked {\n nonce = nonce_ + 1;\n }\n require(\n !sentMessages[messageWithSender],\n \"WormholeMessenger: has message\"\n );\n sentMessages[messageWithSender] = true;\n emit MessageSent(messageWithSender, sequence);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "MessageSent": [
+            {
+                "sendMessage": "function sendMessage(bytes32 message) external payable {\n require(\n uint8(message[0]) == chainId,\n \"WormholeMessenger: wrong chainId\"\n );\n require(\n otherChainIds[uint8(message[1])] != 0,\n \"Messenger: wrong destination\"\n );\n bytes32 messageWithSender = message.hashWithSenderAddress(msg.sender);\n uint32 nonce_ = nonce;\n uint64 sequence = wormhole.publishMessage(\n nonce_,\n abi.encodePacked(messageWithSender),\n commitmentLevel\n );\n unchecked {\n nonce = nonce_ + 1;\n }\n require(\n !sentMessages[messageWithSender],\n \"WormholeMessenger: has message\"\n );\n sentMessages[messageWithSender] = true;\n emit MessageSent(messageWithSender, sequence);\n }"
+            }
+        ],
+        "MessageReceived": [
+            {
+                "receiveMessage": "function receiveMessage(bytes memory encodedMsg) external {\n (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole\n .parseAndVerifyVM(encodedMsg);\n require(valid, reason);\n require(vm.payload.length == 32, \"WormholeMessenger: wrong length\");\n bytes32 messageWithSender = bytes32(vm.payload);\n require(\n uint8(messageWithSender[1]) == chainId,\n \"WormholeMessenger: wrong chainId\"\n );\n require(\n otherWormholeMessengers[vm.emitterChainId] == vm.emitterAddress,\n \"WormholeMessenger: wrong emitter\"\n );\n receivedMessages[messageWithSender] = true;\n emit MessageReceived(messageWithSender, vm.sequence);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Received1": [
+            {
+                "receiveTokens": "function receiveTokens(\n uint256 amount,\n bytes32 recipient,\n uint8 sourceChainId,\n bytes32 receiveToken,\n uint256 nonce,\n MessengerProtocol messenger\n ) external override {\n require(\n otherBridges[sourceChainId] != bytes32(0),\n \"Bridge: source not registered\"\n );\n bytes32 messageWithSender = this\n .hashMessage(\n amount,\n recipient,\n sourceChainId,\n chainId,\n receiveToken,\n nonce,\n messenger\n )\n .hashWithSender(otherBridges[sourceChainId]);\n bool wasMessageProcessed;\n assembly {\n mstore(0x00, messageWithSender)\n mstore(0x20, processedMessages.slot)\n let key := keccak256(0, 0x40)\n wasMessageProcessed := sload(key)\n sstore(key, true)\n }\n require(!wasMessageProcessed, \"Bridge: message processed\");\n require(\n this.hasReceivedMessage(messageWithSender, messenger),\n \"Bridge: no message\"\n );\n receiveAndSwap(\n amount,\n receiveToken,\n address(uint160(uint256(recipient)))\n );\n }"
+            },
+            {
+                "receiveAndSwap": "function receiveAndSwap(\n uint256 vUsdAmount,\n bytes32 token,\n address recipient\n ) internal {\n Pool tokenPool = pools[token];\n require(address(tokenPool) != address(0), \"Router: no pool\");\n function swapFromVUsd(...) {...}\ntokenPool.swapFromVUsd(recipient, vUsdAmount);\n }"
+            },
+            {
+                "swapFromVUsd": "function swapFromVUsd(\n address user,\n uint256 amount\n ) external onlyRouter returns (uint256) {\n uint256 result; \n uint256 fee;\n if (amount > 0) {\n vUsdBalance += amount;\n uint256 newAmount = this.getY(vUsdBalance);\n if (tokenBalance > newAmount) {\n result = fromSystemPrecision(tokenBalance - newAmount);\n } \n fee = (result * feeShareBP) / BP;\n \n unchecked {\n result -= fee;\n }\n tokenBalance = newAmount;\n function safeTransfer(...) {...}\nfunction _addRewards(...) {...}\ntoken.safeTransfer(user, result);\n _addRewards(fee);\n }\n emit SwappedFromVUsd(user, address(token), amount, result, fee);\n return result;\n }"
+            },
+            {
+                "_addRewards": "function _addRewards(uint256 rewardAmount_) internal {\n if (totalLpAmount > 0) {\n uint256 adminFeeRewards = (rewardAmount_ * adminFeeShareBP) / BP;\n unchecked {\n rewardAmount_ -= adminFeeRewards;\n }\n accRewardPerShareP += (rewardAmount_ << P) / totalLpAmount;\n adminFeeAmount += adminFeeRewards;\n }\n }"
+            }
+        ]
+    }
+}

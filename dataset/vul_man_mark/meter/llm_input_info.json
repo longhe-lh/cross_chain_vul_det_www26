@@ -1,0 +1,20 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(\n bytes32 resourceID,\n uint8 destinationChainID,\n uint64 depositNonce,\n address depositer,\n bytes calldata data\n ) external override onlyBridge {\n bytes memory recipientAddress;\n uint256 amount;\n uint256 lenRecipientAddress;\n assembly {\n amount := calldataload(0xC4)\n recipientAddress := mload(0x40)\n lenRecipientAddress := calldataload(0xE4)\n mstore(0x40, add(0x20, add(recipientAddress, lenRecipientAddress)))\n calldatacopy(\n recipientAddress, \n 0xE4, \n sub(calldatasize(), 0xE) \n )\n }\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n \n if (tokenAddress != _wtokenAddress) {\n if (_burnList[tokenAddress]) {\n function burnERC20(...) {...}\nfunction lockERC20(...) {...}\nburnERC20(tokenAddress, depositer, amount);\n } else {\n lockERC20(tokenAddress, depositer, address(this), amount);\n }\n }\n _depositRecords[destinationChainID][depositNonce] = DepositRecord(\n tokenAddress,\n uint8(lenRecipientAddress),\n destinationChainID,\n resourceID,\n recipientAddress,\n depositer,\n amount\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "ProposalEvent1": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint256 amount;\n bytes memory destinationRecipientAddress;\n assembly {\n amount := calldataload(0x64)\n destinationRecipientAddress := mload(0x40)\n let lenDestinationRecipientAddress := calldataload(0x84)\n mstore(0x40, add(0x20, add(destinationRecipientAddress, lenDestinationRecipientAddress)))\n \n calldatacopy(\n destinationRecipientAddress, \n 0x84, \n sub(calldatasize(), 0x84) \n )\n }\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n \n if (tokenAddress == _wtokenAddress) {\n function withdraw(...) {...}\nfunction safeTransferETH(...) {...}\nfunction mintERC20(...) {...}\nfunction releaseERC20(...) {...}\nIWETH(_wtokenAddress).withdraw(amount);\n \n TransferHelper.safeTransferETH(address(recipientAddress), amount);\n return;\n }\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            },
+            {
+                "mintERC20": "function mintERC20(address tokenAddress, address recipient, uint256 amount) internal {\n ERC20PresetMinterPauser erc20 = ERC20PresetMinterPauser(tokenAddress);\n function mint(...) {...}\nerc20.mint(recipient, amount);\n }"
+            }
+        ]
+    }
+}

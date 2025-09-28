@@ -1,0 +1,61 @@
+{
+    "src_chain": {
+        "TokenSent1": [
+            {
+                "sendToken": "function sendToken(\n string calldata destinationChain,\n string calldata destinationAddress,\n string calldata symbol,\n uint256 amount\n ) external {\n function _burnTokenFrom(...) {...}\n_burnTokenFrom(msg.sender, symbol, amount);\n\n emit TokenSent(\n msg.sender,\n destinationChain,\n destinationAddress,\n symbol,\n amount\n );\n }"
+            },
+            {
+                "_burnTokenFrom": "function _burnTokenFrom(\n address sender,\n string memory symbol,\n uint256 amount\n ) internal {\n function tokenAddresses(...) {...}\naddress tokenAddress = tokenAddresses(symbol);\n\n if (tokenAddress == address(0)) revert TokenDoesNotExist(symbol);\n\n if (amount == 0) revert InvalidAmount();\n\n TokenType tokenType = _getTokenType(symbol);\n\n bool burnSuccess;\n\n if (tokenType == TokenType.External) {\n burnSuccess = _callERC20Token(\n tokenAddress,\n abi.encodeWithSelector(\n IERC20.transferFrom.selector,\n sender,\n address(this),\n amount\n )\n );\n\n if (!burnSuccess) revert BurnFailed(symbol);\n\n return;\n }\n\n if (tokenType == TokenType.InternalBurnableFrom) {\n burnSuccess = _callERC20Token(\n tokenAddress,\n abi.encodeWithSelector(\n IBurnableMintableCappedERC20.burnFrom.selector,\n sender,\n amount\n )\n );\n\n if (!burnSuccess) revert BurnFailed(symbol);\n\n return;\n }\n\n burnSuccess = _callERC20Token(\n tokenAddress,\n abi.encodeWithSelector(\n IERC20.transferFrom.selector,\n sender,\n IBurnableMintableCappedERC20(tokenAddress).depositAddress(\n bytes32(0)\n ),\n amount\n )\n );\n\n if (!burnSuccess) revert BurnFailed(symbol);\n\n IBurnableMintableCappedERC20(tokenAddress).burn(bytes32(0));\n }"
+            }
+        ],
+        "ContractCall2": [
+            {
+                "callContract": "function callContract(\n string calldata destinationChain,\n string calldata destinationContractAddress,\n bytes calldata payload\n ) external {\n emit ContractCall(\n msg.sender,\n destinationChain,\n destinationContractAddress,\n keccak256(payload),\n payload\n );\n }"
+            }
+        ],
+        "ContractCallWithToken3": [
+            {
+                "callContractWithToken": "function callContractWithToken(\n string calldata destinationChain,\n string calldata destinationContractAddress,\n bytes calldata payload,\n string calldata symbol,\n uint256 amount\n ) external {\n function _burnTokenFrom(...) {...}\n_burnTokenFrom(msg.sender, symbol, amount);\n\n emit ContractCallWithToken(\n msg.sender,\n destinationChain,\n destinationContractAddress,\n keccak256(payload),\n payload,\n symbol,\n amount\n );\n }"
+            },
+            {
+                "_burnTokenFrom": "function _burnTokenFrom(\n address sender,\n string memory symbol,\n uint256 amount\n ) internal {\n function tokenAddresses(...) {...}\naddress tokenAddress = tokenAddresses(symbol);\n\n if (tokenAddress == address(0)) revert TokenDoesNotExist(symbol);\n\n if (amount == 0) revert InvalidAmount();\n\n TokenType tokenType = _getTokenType(symbol);\n\n bool burnSuccess;\n\n if (tokenType == TokenType.External) {\n burnSuccess = _callERC20Token(\n tokenAddress,\n abi.encodeWithSelector(\n IERC20.transferFrom.selector,\n sender,\n address(this),\n amount\n )\n );\n\n if (!burnSuccess) revert BurnFailed(symbol);\n\n return;\n }\n\n if (tokenType == TokenType.InternalBurnableFrom) {\n burnSuccess = _callERC20Token(\n tokenAddress,\n abi.encodeWithSelector(\n IBurnableMintableCappedERC20.burnFrom.selector,\n sender,\n amount\n )\n );\n\n if (!burnSuccess) revert BurnFailed(symbol);\n\n return;\n }\n\n burnSuccess = _callERC20Token(\n tokenAddress,\n abi.encodeWithSelector(\n IERC20.transferFrom.selector,\n sender,\n IBurnableMintableCappedERC20(tokenAddress).depositAddress(\n bytes32(0)\n ),\n amount\n )\n );\n\n if (!burnSuccess) revert BurnFailed(symbol);\n\n IBurnableMintableCappedERC20(tokenAddress).burn(bytes32(0));\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "execute": [
+            {
+                "execute": "function execute(\n address callee,\n bytes calldata data\n ) external noReenter returns (bool success, bytes memory returnData) {\n if (callee.code.length == 0) revert NotContract();\n\n (success, returnData) = callee.call(data);\n }"
+            },
+            {
+                "validateProof": "function validateProof(bytes32 messageHash, bytes calldata proof) external view returns (bool) {\n\n (address[] memory operators, uint256[] memory weights, uint256 threshold, bytes[] memory signatures) = abi.decode(\n\n proof,\n\n (address[], uint256[], uint256, bytes[])\n\n );\n\n\n\n bytes32 operatorsHash = keccak256(abi.encode(operators, weights, threshold));\n\n uint256 operatorsEpoch = epochForHash[operatorsHash];\n\n uint256 epoch = currentEpoch;\n\n\n\n if (operatorsEpoch == 0 || epoch - operatorsEpoch >= OLD_KEY_RETENTION) revert InvalidOperators();\n\n\n\n _validateSignatures(messageHash, operators, weights, threshold, signatures);\n\n\n\n return operatorsEpoch == epoch;\n\n }"
+            },
+            {
+                "_validateSignatures": "function _validateSignatures(\n\n bytes32 messageHash,\n\n address[] memory operators,\n\n uint256[] memory weights,\n\n uint256 threshold,\n\n bytes[] memory signatures\n\n ) internal pure {\n\n uint256 operatorsLength = operators.length;\n\n uint256 operatorIndex = 0;\n\n uint256 weight = 0;\n\n \n\n \n\n for (uint256 i = 0; i < signatures.length; ++i) {\n\n function recover(...) {...}\naddress signer = ECDSA.recover(messageHash, signatures[i]);\n\n \n\n for (; operatorIndex < operatorsLength && signer != operators[operatorIndex]; ++operatorIndex) {}\n\n \n\n if (operatorIndex == operatorsLength) revert MalformedSigners();\n\n \n\n weight += weights[operatorIndex];\n\n \n\n if (weight >= threshold) return;\n\n \n\n ++operatorIndex;\n\n }\n\n \n\n revert LowSignaturesWeight();\n\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Executed1": [
+            {
+                "burnToken": "function burnToken(bytes calldata params, bytes32) external onlySelf {\n (string memory symbol, bytes32 salt) = abi.decode(\n params,\n (string, bytes32)\n );\n\n function tokenAddresses(...) {...}\naddress tokenAddress = tokenAddresses(symbol);\n\n if (tokenAddress == address(0)) revert TokenDoesNotExist(symbol);\n\n if (_getTokenType(symbol) == TokenType.External) {\n DepositHandler depositHandler = new DepositHandler{salt: salt}();\n\n (bool success, bytes memory returnData) = depositHandler.execute(\n tokenAddress,\n abi.encodeWithSelector(\n IERC20.transfer.selector,\n address(this),\n IERC20(tokenAddress).balanceOf(address(depositHandler))\n )\n );\n\n if (\n !success ||\n (returnData.length != uint256(0) &&\n !abi.decode(returnData, (bool)))\n ) revert BurnFailed(symbol);\n\n \n\n depositHandler.destroy(address(this));\n } else {\n IBurnableMintableCappedERC20(tokenAddress).burn(salt);\n }\n }"
+            }
+        ],
+        "ContractCallApproved2": [
+            {
+                "approveContractCall": "function approveContractCall(\n bytes calldata params,\n bytes32 commandId\n ) external onlySelf {\n (\n string memory sourceChain,\n string memory sourceAddress,\n address contractAddress,\n bytes32 payloadHash,\n bytes32 sourceTxHash,\n uint256 sourceEventIndex\n ) = abi.decode(\n params,\n (string, string, address, bytes32, bytes32, uint256)\n );\n\n _setContractCallApproved(\n commandId,\n sourceChain,\n sourceAddress,\n contractAddress,\n payloadHash\n );\n\n emit ContractCallApproved(\n commandId,\n sourceChain,\n sourceAddress,\n contractAddress,\n payloadHash,\n sourceTxHash,\n sourceEventIndex\n );\n }"
+            },
+            {
+                "_setContractCallApproved": "function _setContractCallApproved(\n bytes32 commandId,\n string memory sourceChain,\n string memory sourceAddress,\n address contractAddress,\n bytes32 payloadHash\n ) internal {\n _setBool(\n _getIsContractCallApprovedKey(\n commandId,\n sourceChain,\n sourceAddress,\n contractAddress,\n payloadHash\n ),\n true\n );\n }"
+            }
+        ],
+        "ContractCallApprovedWithMint3": [
+            {
+                "approveContractCallWithMint": "function approveContractCallWithMint(\n bytes calldata params,\n bytes32 commandId\n ) external onlySelf {\n (\n string memory sourceChain,\n string memory sourceAddress,\n address contractAddress,\n bytes32 payloadHash,\n string memory symbol,\n uint256 amount,\n bytes32 sourceTxHash,\n uint256 sourceEventIndex\n ) = abi.decode(\n params,\n (\n string,\n string,\n address,\n bytes32,\n string,\n uint256,\n bytes32,\n uint256\n )\n );\n\n _setContractCallApprovedWithMint(\n commandId,\n sourceChain,\n sourceAddress,\n contractAddress,\n payloadHash,\n symbol,\n amount\n );\n\n emit ContractCallApprovedWithMint(\n commandId,\n sourceChain,\n sourceAddress,\n contractAddress,\n payloadHash,\n symbol,\n amount,\n sourceTxHash,\n sourceEventIndex\n );\n }"
+            },
+            {
+                "_setContractCallApprovedWithMint": "function _setContractCallApprovedWithMint(\n bytes32 commandId,\n string memory sourceChain,\n string memory sourceAddress,\n address contractAddress,\n bytes32 payloadHash,\n string memory symbol,\n uint256 amount\n ) internal {\n _setBool(\n _getIsContractCallApprovedWithMintKey(\n commandId,\n sourceChain,\n sourceAddress,\n contractAddress,\n payloadHash,\n symbol,\n amount\n ),\n true\n );\n }"
+            }
+        ]
+    }
+}

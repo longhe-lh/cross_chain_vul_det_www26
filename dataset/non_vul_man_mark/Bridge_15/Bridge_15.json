@@ -1,0 +1,173 @@
+{
+  "contract": "Bridge_15",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_15": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Proposed1",
+          "Confirmed1"
+        ],
+        "rel_chain": [
+          "Transfer"
+        ],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "BSC or ETH",
+        "events": {
+          "Proposed1": {
+            "0": {
+              "func_name": "proposeTransaction",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "bytes32 message = prefixed(keccak256(abi.encodePacked(sender, receiver, amount)));",
+                "require(recoverSigner(message, signature) == proposer, \"Signature Error: Not Signed by the Proposer\");",
+                "require(potentialSigners.length == 3, \"Three potential signers are required\");",
+                "transactions[message] = Transaction(potentialSigners, new address[](0), sender, receiver, amount);",
+                "transactions[message].signers.push(msg.sender);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prefixed",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash));"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "recoverSigner",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "(v, r, s) = splitSignature(sig);",
+                    "return ecrecover(message, v, r, s);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "splitSignature",
+                      "file_name": "BridgeBase.sol",
+                      "key_ops": [
+                        "require(sig.length == 65);",
+                        "r := mload(add(sig, 32));",
+                        "s := mload(add(sig, 64));",
+                        "v := byte(0, mload(add(sig, 96)));"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "Confirmed1": {
+            "0": {
+              "func_name": "confirmTransaction",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "bytes32 message = prefixed(keccak256(abi.encodePacked(sender, receiver, amount)));",
+                "require(recoverSigner(message, signature) == signer, \"Signature Error: Not Signed by the Sender\");",
+                "require(addressExists(transactions[message].potentialSigners, signer), \"Provided Address is not a potential signer for this transaction\");",
+                "require(!addressExists(transactions[message].signers, signer), \"Sender has already signed this transaction\");",
+                "transactions[message].signers.push(signer);",
+                "if (transactions[message].signers.length >= 2) { burn(trx.sender, trx.receiver, trx.amount); }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "addressExists",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "for (uint256 i = 0; i < _arr.length; i++) { if (_arr[i] == _address) { return true; } }"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "prefixed",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash));"
+                  ],
+                  "child": {}
+                },
+                "2": {
+                  "func_name": "recoverSigner",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "(v, r, s) = splitSignature(sig);",
+                    "return ecrecover(message, v, r, s);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "splitSignature",
+                      "file_name": "BridgeBase.sol",
+                      "key_ops": [
+                        "require(sig.length == 65);",
+                        "r := mload(add(sig, 32));",
+                        "s := mload(add(sig, 64));",
+                        "v := byte(0, mload(add(sig, 96)));"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "3": {
+                  "func_name": "burn",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "token.burn(from, amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Relay Chain",
+        "events": {
+          "Transfer": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "token.burn(from, amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "BSC or ETH",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "token.mint(to, amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

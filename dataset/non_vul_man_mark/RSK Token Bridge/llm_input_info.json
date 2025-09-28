@@ -1,0 +1,64 @@
+{
+    "src_chain": {
+        "Cross1": [
+            {
+                "receiveTokensTo": "function receiveTokensTo(\n address tokenToUse,\n address to,\n uint256 amount\n ) public override {\n address sender = _msgSender();\n\n \n\n function safeTransferFrom(...) {...}\nIERC20(tokenToUse).safeTransferFrom(sender, address(this), amount);\n\n crossTokens(tokenToUse, sender, to, amount, \"\");\n }"
+            },
+            {
+                "crossTokens": "function crossTokens(\n address tokenToUse,\n address from,\n address to,\n uint256 amount,\n bytes memory userData\n ) internal whenNotUpgrading whenNotPaused nonReentrant {\n knownTokens[tokenToUse] = true;\n\n function div(...) {...}\nfunction mul(...) {...}\nfunction sub(...) {...}\nfunction safeTransfer(...) {...}\nfunction owner(...) {...}\nuint256 fee = amount.mul(feePercentage).div(feePercentageDivider);\n\n uint256 amountMinusFees = amount.sub(fee);\n\n uint8 decimals = LibUtils.getDecimals(tokenToUse);\n\n uint formattedAmount = amount;\n\n if (decimals != 18) {\n formattedAmount = amount.mul(uint256(10) ** (18 - decimals));\n }\n\n \n\n \n\n allowTokens.updateTokenTransfer(tokenToUse, formattedAmount);\n\n address originalTokenAddress = tokenToUse;\n\n if (originalTokens[tokenToUse] != NULL_ADDRESS) {\n \n\n originalTokenAddress = originalTokens[tokenToUse];\n\n uint256 granularity = LibUtils.getGranularity(tokenToUse);\n\n uint256 modulo = amountMinusFees.mod(granularity);\n\n fee = fee.add(modulo);\n\n amountMinusFees = amountMinusFees.sub(modulo);\n\n IERC777(tokenToUse).burn(amountMinusFees, userData);\n }\n\n emit Cross(originalTokenAddress, from, to, amountMinusFees, userData);\n\n if (fee > 0) {\n \n\n IERC20(tokenToUse).safeTransfer(owner(), fee);\n }\n }"
+            },
+            {
+                "depositTo": "function depositTo(address to) external payable override {\n address sender = _msgSender();\n\n require(\n address(wrappedCurrency) != NULL_ADDRESS,\n \"Bridge: wrappedCurrency empty\"\n );\n\n wrappedCurrency.deposit{value: msg.value}();\n\n function crossTokens(...) {...}\ncrossTokens(address(wrappedCurrency), sender, to, msg.value, \"\");\n }"
+            },
+            {
+                "tokensReceived": "function tokensReceived(\n address operator,\n address from,\n address to,\n uint amount,\n bytes calldata userData,\n bytes calldata\n ) external override(IBridge, IERC777Recipient) {\n \n\n if (operator == address(this)) return; \n\n require(to == address(this), \"Bridge: Not to this address\");\n\n address tokenToUse = _msgSender();\n\n require(\n erc1820.getInterfaceImplementer(tokenToUse, _erc777Interface) !=\n NULL_ADDRESS,\n \"Bridge: Not ERC777 token\"\n );\n\n require(\n userData.length != 0 || !from.isContract(),\n \"Bridge: Specify receiver address in data\"\n );\n\n address receiver = userData.length == 0\n ? from\n : LibUtils.bytesToAddress(userData);\n\n crossTokens(tokenToUse, from, receiver, amount, userData);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Voted": [
+            {
+                "voteTransaction": "function voteTransaction(\n address originalTokenAddress,\n address payable sender,\n address payable receiver,\n uint256 amount,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex\n ) public onlyMember returns (bool) {\n bytes32 transactionId = getTransactionId(\n originalTokenAddress,\n sender,\n receiver,\n amount,\n blockHash,\n transactionHash,\n logIndex\n );\n\n if (processed[transactionId]) return true;\n\n if (votes[transactionId][_msgSender()]) return true;\n\n votes[transactionId][_msgSender()] = true;\n\n emit Voted(\n _msgSender(),\n transactionHash,\n transactionId,\n originalTokenAddress,\n sender,\n receiver,\n amount,\n blockHash,\n logIndex\n );\n\n uint transactionCount = getTransactionCount(transactionId);\n\n if (\n transactionCount >= required &&\n transactionCount >= members.length / 2 + 1\n ) {\n processed[transactionId] = true;\n\n bridge.acceptTransfer(\n originalTokenAddress,\n sender,\n receiver,\n amount,\n blockHash,\n transactionHash,\n logIndex\n );\n\n emit Executed(\n _msgSender(),\n transactionHash,\n transactionId,\n originalTokenAddress,\n sender,\n receiver,\n amount,\n blockHash,\n logIndex\n );\n\n return true;\n }\n\n return true;\n }"
+            },
+            {
+                "getTransactionCount": "function getTransactionCount(\n bytes32 transactionId\n ) public view returns (uint) {\n uint count = 0;\n\n for (uint i = 0; i < members.length; i++) {\n if (votes[transactionId][members[i]]) count += 1;\n }\n\n return count;\n }"
+            },
+            {
+                "getTransactionId": "function getTransactionId(\n address originalTokenAddress,\n address sender,\n address receiver,\n uint256 amount,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex\n ) public pure returns (bytes32) {\n return\n keccak256(\n abi.encodePacked(\n originalTokenAddress,\n sender,\n receiver,\n amount,\n blockHash,\n transactionHash,\n logIndex\n )\n );\n }"
+            }
+        ],
+        "Executed": [
+            {
+                "acceptTransfer": "function acceptTransfer(\n address _originalTokenAddress,\n address payable _from,\n address payable _to,\n uint256 _amount,\n bytes32 _blockHash,\n bytes32 _transactionHash,\n uint32 _logIndex\n ) external override whenNotPaused nonReentrant {\n function _msgSender(...) {...}\nfunction getTransactionDataHash(...) {...}\nrequire(_msgSender() == federation, \"Bridge: Not Federation\");\n\n require(\n knownTokens[_originalTokenAddress] ||\n mappedTokens[_originalTokenAddress] != NULL_ADDRESS,\n \"Bridge: Unknown token\"\n );\n\n require(_to != NULL_ADDRESS, \"Bridge: Null To\");\n\n require(_amount > 0, \"Bridge: Amount 0\");\n\n require(_blockHash != NULL_HASH, \"Bridge: Null BlockHash\");\n\n require(_transactionHash != NULL_HASH, \"Bridge: Null TxHash\");\n\n require(\n transactionsDataHashes[_transactionHash] == bytes32(0),\n \"Bridge: Already accepted\"\n );\n\n bytes32 _transactionDataHash = getTransactionDataHash(\n _to,\n _amount,\n _blockHash,\n _transactionHash,\n _logIndex\n );\n\n \n\n \n\n require(!claimed[_transactionDataHash], \"Bridge: Already claimed\");\n\n transactionsDataHashes[_transactionHash] = _transactionDataHash;\n\n originalTokenAddresses[_transactionHash] = _originalTokenAddress;\n\n senderAddresses[_transactionHash] = _from;\n\n emit AcceptedCrossTransfer(\n _transactionHash,\n _originalTokenAddress,\n _to,\n _from,\n _amount,\n _blockHash,\n _logIndex\n );\n }"
+            },
+            {
+                "getTransactionDataHash": "function getTransactionDataHash(\n address _to,\n uint256 _amount,\n bytes32 _blockHash,\n bytes32 _transactionHash,\n uint32 _logIndex\n ) public pure override returns (bytes32) {\n return\n keccak256(\n abi.encodePacked(\n _blockHash,\n _transactionHash,\n _to,\n _amount,\n _logIndex\n )\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Claimed1": [
+            {
+                "claim": "function claim(\n ClaimData calldata _claimData\n ) external override returns (uint256 receivedAmount) {\n receivedAmount = _claim(\n _claimData,\n _claimData.to,\n payable(address(0)),\n 0\n );\n\n return receivedAmount;\n }"
+            },
+            {
+                "_claim": "function _claim(\n ClaimData calldata _claimData,\n address payable _reciever,\n address payable _relayer,\n uint256 _fee\n ) internal nonReentrant returns (uint256 receivedAmount) {\n address originalTokenAddress = originalTokenAddresses[\n _claimData.transactionHash\n ];\n\n require(originalTokenAddress != NULL_ADDRESS, \"Bridge: Tx not crossed\");\n\n bytes32 transactionDataHash = getTransactionDataHash(\n _claimData.to,\n _claimData.amount,\n _claimData.blockHash,\n _claimData.transactionHash,\n _claimData.logIndex\n );\n\n require(\n transactionsDataHashes[_claimData.transactionHash] ==\n transactionDataHash,\n \"Bridge: Wrong transactionDataHash\"\n );\n\n require(!claimed[transactionDataHash], \"Bridge: Already claimed\");\n\n claimed[transactionDataHash] = true;\n\n if (knownTokens[originalTokenAddress]) {\n receivedAmount = _claimCrossBackToToken(\n originalTokenAddress,\n _reciever,\n _claimData.amount,\n _relayer,\n _fee\n );\n } else {\n receivedAmount = _claimCrossToSideToken(\n originalTokenAddress,\n _reciever,\n _claimData.amount,\n _relayer,\n _fee\n );\n }\n\n emit Claimed(\n _claimData.transactionHash,\n originalTokenAddress,\n _claimData.to,\n senderAddresses[_claimData.transactionHash],\n _claimData.amount,\n _claimData.blockHash,\n _claimData.logIndex,\n _reciever,\n _relayer,\n _fee\n );\n\n return receivedAmount;\n }"
+            },
+            {
+                "_claimCrossToSideToken": "function _claimCrossToSideToken(\n address _originalTokenAddress,\n address payable _receiver,\n uint256 _amount,\n address payable _relayer,\n uint256 _fee\n ) internal returns (uint256 receivedAmount) {\n address sideToken = mappedTokens[_originalTokenAddress];\n\n uint256 granularity = IERC777(sideToken).granularity();\n\n function mul(...) {...}\nuint256 formattedAmount = _amount.mul(granularity);\n\n require(_fee <= formattedAmount, \"Bridge: fee too high\");\n\n receivedAmount = formattedAmount - _fee;\n\n ISideToken(sideToken).mint(_receiver, receivedAmount, \"\", \"\");\n\n if (_fee > 0) {\n ISideToken(sideToken).mint(_relayer, _fee, \"\", \"relayer fee\");\n }\n\n return receivedAmount;\n }"
+            },
+            {
+                "_claimCrossBackToToken": "function _claimCrossBackToToken(\n address _originalTokenAddress,\n address payable _receiver,\n uint256 _amount,\n address payable _relayer,\n uint256 _fee\n ) internal returns (uint256 receivedAmount) {\n function getDecimals(...) {...}\nfunction div(...) {...}\nfunction safeTransfer(...) {...}\nuint256 decimals = LibUtils.getDecimals(_originalTokenAddress);\n\n \n\n uint256 formattedAmount = _amount.div(uint256(10) ** (18 - decimals));\n\n require(_fee <= formattedAmount, \"Bridge: fee too high\");\n\n receivedAmount = formattedAmount - _fee;\n\n if (address(wrappedCurrency) == _originalTokenAddress) {\n wrappedCurrency.withdraw(formattedAmount);\n\n _receiver.transfer(receivedAmount);\n\n if (_fee > 0) {\n _relayer.transfer(_fee);\n }\n } else {\n IERC20(_originalTokenAddress).safeTransfer(\n _receiver,\n receivedAmount\n );\n\n if (_fee > 0) {\n IERC20(_originalTokenAddress).safeTransfer(_relayer, _fee);\n }\n }\n\n return receivedAmount;\n }"
+            },
+            {
+                "claimFallback": "function claimFallback(\n ClaimData calldata _claimData\n ) external override returns (uint256 receivedAmount) {\n require(\n _msgSender() == senderAddresses[_claimData.transactionHash],\n \"Bridge: invalid sender\"\n );\n\n receivedAmount = _claim(\n _claimData,\n _msgSender(),\n payable(address(0)),\n 0\n );\n\n return receivedAmount;\n }"
+            },
+            {
+                "claimGasless": "function claimGasless(\n ClaimData calldata _claimData,\n address payable _relayer,\n uint256 _fee,\n uint256 _deadline,\n uint8 _v,\n bytes32 _r,\n bytes32 _s\n ) external override returns (uint256 receivedAmount) {\n require(_deadline >= block.timestamp, \"Bridge: EXPIRED\");\n\n function getDigest(...) {...}\nfunction _claim(...) {...}\nbytes32 digest = getDigest(_claimData, _relayer, _fee, _deadline);\n\n address recoveredAddress = ecrecover(digest, _v, _r, _s);\n\n require(\n _claimData.to != address(0) && recoveredAddress == _claimData.to,\n \"Bridge: INVALID_SIGNATURE\"\n );\n\n receivedAmount = _claim(_claimData, _claimData.to, _relayer, _fee);\n\n return receivedAmount;\n }"
+            },
+            {
+                "getDigest": "function getDigest(\n ClaimData memory _claimData,\n address payable _relayer,\n uint256 _fee,\n uint256 _deadline\n ) internal returns (bytes32) {\n return\n LibEIP712.hashEIP712Message(\n DOMAIN_SEPARATOR,\n keccak256(\n abi.encode(\n CLAIM_TYPEHASH,\n _claimData.to,\n _claimData.amount,\n _claimData.transactionHash,\n _relayer,\n _fee,\n nonces[_claimData.to]++,\n _deadline\n )\n )\n );\n }"
+            }
+        ]
+    }
+}

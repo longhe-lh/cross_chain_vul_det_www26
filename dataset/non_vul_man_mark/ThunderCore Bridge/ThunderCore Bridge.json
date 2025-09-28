@@ -1,0 +1,153 @@
+{
+  "contract": "ThunderCore Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "ThunderCore Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [
+          "executeSignatures"
+        ],
+        "det_chain": [
+          "RelayedMessage1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "ERC677InitializableBridgeToken",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "transferAndCall",
+              "file_name": "ERC677InitializableBridgeToken.sol",
+              "key_ops": [
+                "require(superTransfer(_to, _value))",
+                "fundReceiver(_to)",
+                "require(contractFallback(_to, _value, _data));"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "superTransfer",
+                  "file_name": "ERC677InitializableBridgeToken.sol",
+                  "key_ops": [
+                    "return super.transfer(_to, _value)"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "fundReceiver",
+                  "file_name": "ERC677InitializableBridgeToken.sol",
+                  "key_ops": [
+                    "if(address(_to).send(fundingRules.amount)){ totalPeriodFundedAmount += fundingRules.amount; }"
+                  ],
+                  "child": {}
+                },
+                "2": {
+                  "func_name": "contractFallback",
+                  "file_name": "ERC677InitializableBridgeToken.sol",
+                  "key_ops": [
+                    "return _to.call(abi.encodeWithSignature(\"onTokenTransfer(address,uint256,bytes)\",  msg.sender, _value, _data))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "ForeignBridgeErcToErcV2",
+        "events": {
+          "executeSignatures": {
+            "0": {
+              "func_name": "executeSignatures",
+              "file_name": "ForeignBridgeErcToErcV2.sol",
+              "key_ops": [
+                "Message.hasEnoughValidSignatures(message, vs, rs, ss, validatorContract())",
+                "require(contractAddress == address(this))",
+                "require(!relayedMessages(txHash))",
+                "setRelayedMessages(txHash, true)",
+                "require(onExecuteMessage(recipient, amount))",
+                "emit RelayedMessage(recipient, amount, txHash)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "hasEnoughValidSignatures",
+                  "file_name": "ForeignBridgeErcToErcV2.sol",
+                  "key_ops": [
+                    "require(isMessageValid(_message))",
+                    "require(_vs.length >= requiredSignatures)",
+                    "address recoveredAddress = ecrecover(hash, _vs[i], _rs[i], _ss[i])",
+                    "require(_validatorContract.isValidator(recoveredAddress))",
+                    "if (addressArrayContains(encounteredAddresses, recoveredAddress)) { revert(); }"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "onExecuteMessage",
+                  "file_name": "ForeignBridgeErcToErcV2.sol",
+                  "key_ops": [
+                    "return tokenTransfer(_recipient, _amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "tokenTransfer",
+                      "file_name": "ForeignBridgeErcToErc.sol",
+                      "key_ops": [
+                        "return erc20token().call(bytes4(keccak256(\"transfer(address,uint256)\")), _recipient, _amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "ForeignBridgeERC677ToNativeV2",
+        "events": {
+          "RelayedMessage1": {
+            "0": {
+              "func_name": "onExecuteMessage",
+              "file_name": "ForeignBridgeERC677ToNativeV2.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "tokenTransfer",
+                  "file_name": "ForeignBridgeERC677ToNativeV2.sol",
+                  "key_ops": [
+                    "return erc677token().mint(_recipient, _amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "mint",
+                      "file_name": "ERC677InitializableBridgeToken.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

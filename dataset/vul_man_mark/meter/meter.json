@@ -1,0 +1,135 @@
+{
+    "contract": "meter.io",
+    "source_code_path": "../vul_src_code/meter/",
+    "type": "ImproperAssetHandling",
+    "vulnerable_entry_function": {
+        "file": "bsc_Bridge.sol",
+        "name": "deposit",
+        "signature": "function deposit(uint8 destinationChainID, bytes32 resourceID, bytes calldata data)",
+        "lines": "1136-1150",
+        "attack_type": "Fake Deposit",
+        "vul_reason": "The Bridge contract allows users to call deposit() for wrapped assets like WETH/WBNB without enforcing asset burn or lock. Unlike depositETH(), which handles WETH correctly, deposit() does not verify the actual transfer of WETH/WBNB tokens. Attackers crafted a malicious resourceID that mapped to _wtokenAddress (WBNB), bypassed real asset transfer, and triggered a fake deposit event that was picked up by relayers. This allowed minting of equivalent tokens on target chains without any real input.",
+        "code_snippet": "depositHandler.deposit(resourceID, destinationChainID, depositNonce, msg.sender, data);"
+    },
+    "detail": "The Meter.io cross-chain bridge exploit occurred because the Bridge contract failed to properly handle deposits of wrapped assets like WBNB when using the deposit() function. Normally, WETH or WBNB should only be deposited via depositETH(), which handles asset wrapping and ensures actual value is transferred. However, deposit() allowed deposits for any resourceID—including those mapped to WBNB—without checking if tokens were truly received or burned. The attacker exploited this by submitting a fake deposit using a crafted resourceID that resolved to the WBNB contract address, but without sending real tokens. Since no validation was enforced and the event was indistinguishable from a legitimate deposit, the relayers propagated the deposit event to target chains (Ethereum, Moonriver), where equivalent tokens were minted and withdrawn by the attacker. This resulted in severe financial loss, as no real assets backed the minted tokens. The root cause lies in inconsistent validation paths between depositETH() and deposit(), and the lack of enforcement for secure asset custody when dealing with wrapped native tokens.",
+    "blg": {
+        "meter.io": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "Deposit1"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "ProposalEvent1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "Deposit1": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "bsc_Bridge.sol",
+                            "key_ops": [
+                                "require(msg.value == fee, \"Incorrect fee supplied\");",
+                                "require(handler != address(0), \"resourceID not mapped to handler\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "deposit",
+                                    "file_name": "bsc_ERC20Handler.sol",
+                                    "key_ops": [
+                                        "require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");",
+                                        "burnERC20(tokenAddress, depositer, amount);",
+                                        "lockERC20(tokenAddress, depositer, address(this), amount);"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "event_name": "Deposit",
+                                    "file_name": "bsc_Bridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "meter.io",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "ProposalEvent1": {
+                        "0": {
+                            "func_name": "executeProposal",
+                            "file_name": "eth_Bridge.sol",
+                            "key_ops": [
+                                "require(proposal._status != ProposalStatus.Inactive, \"proposal is not active\");",
+                                "require(proposal._status == ProposalStatus.Passed, \"proposal already transferred\");",
+                                "require(dataHash == proposal._dataHash, \"data doesn't match datahash\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "executeProposal",
+                                    "file_name": "eth_ERC20Handler.sol",
+                                    "key_ops": [
+                                        "require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");",
+                                        "IWETH(_wtokenAddress).withdraw(amount);",
+                                        "TransferHelper.safeTransferETH(address(recipientAddress), amount);",
+                                        "mintERC20(tokenAddress, address(recipientAddress), amount);",
+                                        "releaseERC20(tokenAddress, address(recipientAddress), amount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "mintERC20",
+                                            "file_name": "eth_ERC20Handler.sol",
+                                            "key_ops": [
+                                                "erc20.mint(recipient, amount);"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "event_name": "mint",
+                                                    "file_name": "eth_ERC20Handler.sol",
+                                                    "key_ops": [
+                                                       "require(hasRole(MINTER_ROLE, _msgSender()), \"ERC20PresetMinterPauser: must have minter role to mint\");"
+                                                    ],
+                                                    "child": {
+                                                        "0":{
+                                                            "func_name":"_mint",
+                                                            "file_name":"eth_ERC20Handler.sol",
+                                                            "key_ops":[],
+                                                            "child":{
+                                                                "0":{
+                                                                    "event_name":"Transfer",
+                                                                    "file_name":"eth_ERC20Handler.sol",
+                                                                    "key_ops":[],
+                                                                    "child":{}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "event_name": "ProposalEvent",
+                                    "file_name": "eth_Bridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

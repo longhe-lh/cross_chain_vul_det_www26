@@ -1,0 +1,2193 @@
+Folder Structure
+--------------------------------------------------
+contracts/
+    Bridge.sol
+    BridgeDeployable.sol
+    Controllable.sol
+    ERC1155Mock.sol
+    ERC20Mock.sol
+    ERC721Mock.sol
+    FeeVerifyTester.sol
+    IBridge.sol
+    IBridgeComplete.sol
+    IBridgeFungible.sol
+    IBridgeMixedFungible.sol
+    IBridgeNonFungible.sol
+    IERC1155Bridgable.sol
+    IERC721Bridgable.sol
+    IMessageReceiptGetter.sol
+    IMessageReceiver.sol
+    MessageReceiverMock.sol
+    TollBridge.sol
+
+
+File Contents
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\Bridge.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+
+
+import "./IBridgeComplete.sol";
+
+import "./Controllable.sol";
+
+import "./IERC721Bridgable.sol";
+
+import "./IERC1155Bridgable.sol";
+
+import "./IMessageReceiver.sol";
+
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+
+import "@openzeppelin/contracts-upgradeable/token/ERC721/utils/ERC721HolderUpgradeable.sol";
+
+
+
+contract Bridge is IBridgeComplete, Controllable, ERC1155HolderUpgradeable, ERC721HolderUpgradeable {
+
+	// Errors
+
+	error FunctionNotPayable();
+
+	error InsufficientFunds(uint256 amountRequested, uint256 amountRemaining);
+
+
+
+	// Replaces function that gets it to save gas
+
+	// Is private so it can't be changed when this contract is extended
+
+	uint256 private setChainId;
+
+
+
+	function __init_bridge(address _controller, uint256 _chainId) internal virtual onlyInitializing {
+
+		setChainId = _chainId;
+
+		Controllable.__init_controller(_controller);
+
+		ERC1155HolderUpgradeable.__ERC1155Holder_init();
+
+	}
+
+
+
+	/**
+
+	 * @dev Returns the chainId of the network this contract is deployed on
+
+	 */
+
+	function chainId() public view returns (uint256) {
+
+		/*
+
+		uint256 id;
+
+		assembly {
+
+			id := chainid()
+
+		}
+
+		return id;
+
+		*/
+
+	  return setChainId;
+
+	}
+
+
+
+	/**
+
+	 * @dev Transfers an ERC20 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferFungible` event
+
+	 */
+
+	function transferFungible(
+
+		address token,
+
+		uint256 amount,
+
+		uint256 networkId,
+
+		bytes calldata
+
+	) external virtual override payable {
+
+		// This function is only payable so it can be overriden by TollBridge. We don't want to actually accept any ETH 
+
+		if(msg.value != 0) revert FunctionNotPayable();
+
+
+
+		_transferFungible(token, amount, networkId);
+
+	}
+
+
+
+	/**
+
+	 * @dev Used by bridge network to transfer the item directly to user without need for manual claiming
+
+	 */
+
+	function bridgeClaimFungible(
+
+		address _token,
+
+		address _to,
+
+		uint256 _amount
+
+	) external virtual override onlyController {
+
+		if(IERC20Upgradeable(_token).balanceOf(address(this)) < _amount) revert InsufficientFunds(_amount, IERC20Upgradeable(_token).balanceOf(address(this)));
+
+
+
+		IERC20Upgradeable(_token).transfer(_to, _amount);
+
+
+
+		emit TokenClaimedFungible(_to, _token, _amount);
+
+	}
+
+
+
+	/**
+
+	 * @dev Transfers an ERC721 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferNonFungible` event
+
+	 */
+
+	function transferNonFungible(
+
+		address _token,
+
+		uint256 _tokenId,
+
+		uint256 _networkId,
+
+		bytes calldata
+
+	) external virtual override payable {
+
+		// This function is only payable so it can be overriden by TollBridge. We don't want to actually accept any ETH 
+
+		if(msg.value != 0) revert FunctionNotPayable();
+
+
+
+		_transferNonFungible(_token, _tokenId, _networkId);
+
+	}
+
+
+
+	/**
+
+	* @dev Used by bridge network to transfer the item directly to user without need for manual claiming
+
+	*/
+
+	function bridgeClaimNonFungible(
+
+		address _token,
+
+		address _to,
+
+		uint256 _tokenId
+
+	) external virtual override onlyController {
+
+		address tokenOwner;
+
+		// The try-catch block is because `ownerOf` can (and I think is supposed to) revert if the item doesn't yet exist on this chain
+
+		try IERC721Bridgable(_token).ownerOf(_tokenId) returns (address owner) {
+
+			tokenOwner = owner;
+
+		} catch {
+
+			tokenOwner = address(0);
+
+		}
+
+
+
+		// Check if the token needs to be minted
+
+		// If it does, attempt to mint it (will fail if this contract has no such permission, or the ERC721 contract doesn't support bridgeMint)
+
+		// If the token exists, and the owner is this contract, it will be sent like normal
+
+		// Otherwise this contract will revert
+
+		if(tokenOwner == address(0)) {
+
+			IERC721Bridgable(_token).bridgeMint(_to, _tokenId);
+
+		} else {
+
+			// This will revert if the bridge does not own the token; this is intended
+
+			IERC721Bridgable(_token).transferFrom(address(this), _to, _tokenId);
+
+		}
+
+
+
+		emit TokenClaimedNonFungible(_to, _token, _tokenId);
+
+	}
+
+
+
+	/**
+
+	* @dev Transfers an ERC1155 token to a different chain
+
+	* This function simply moves the caller's tokens to this contract, and emits a `TokenTransferMixedFungible` event
+
+	*/
+
+	function transferMixedFungible(
+
+		address _token,
+
+		uint256 _tokenId,
+
+		uint256 _amount,
+
+		uint256 _networkId,
+
+		bytes calldata
+
+	) external virtual override payable {
+
+		// This function is only payable so it can be overriden by TollBridge. We don't want to actually accept any ETH 
+
+		if(msg.value != 0) revert FunctionNotPayable();
+
+
+
+		_transferMixedFungible(_token, _tokenId, _amount, _networkId);
+
+	}
+
+
+
+	/**
+
+	* @dev Used by bridge network to transfer the item directly to user without need for manual claiming
+
+	*/
+
+	function bridgeClaimMixedFungible(
+
+		address token,
+
+		address to,
+
+		uint256 tokenId,
+
+		uint256 amount
+
+	) external virtual override onlyController {
+
+		// Get balance of tokens that this contract owns, mint the rest
+
+		uint256 balance = IERC1155Bridgable(token).balanceOf(address(this), tokenId);
+
+		uint256 balanceToMint = 0;
+
+		uint256 balanceToTransfer = amount;
+
+
+
+		if(balance < amount) {
+
+			balanceToMint = amount - balance;
+
+			balanceToTransfer = balance;
+
+		}
+
+
+
+		IERC1155Bridgable(token).safeTransferFrom(address(this), to, tokenId, balanceToTransfer, "");
+
+
+
+		if(balanceToMint > 0) {
+
+			IERC1155Bridgable(token).bridgeMint(to, tokenId, balanceToMint);
+
+		}
+
+
+
+		emit TokenClaimedMixedFungible(to, token, tokenId, amount);
+
+	}
+
+
+
+	function sendMessage(
+
+		uint256 _messageId,
+
+		uint256 _destination,
+
+		string calldata _recipient,
+
+		bool _receipt,
+
+		bytes calldata _message,
+
+		bytes calldata
+
+	) external virtual override payable {
+
+		// This function is only payable so it can be overriden by TollBridge. We don't want to actually accept any ETH 
+
+		if(msg.value != 0) revert FunctionNotPayable();
+
+
+
+		_sendMessage(_messageId, _destination, _recipient, _receipt, _message);
+
+	}
+
+
+
+	function sendBroadcast(
+
+		uint256 _messageId,
+
+		bool _receipt,
+
+		bytes calldata _message,
+
+		bytes calldata
+
+	) external virtual override payable {
+
+		// This function is only payable so it can be overriden by TollBridge. We don't want to actually accept any ETH 
+
+		if(msg.value != 0) revert FunctionNotPayable();
+
+
+
+		_sendBroadcast(_messageId, _receipt, _message);
+
+	}
+
+
+
+	function relayMessage(
+
+		IMessageReceiver _recipient,
+
+		uint256 _messageId,
+
+		string calldata _sender,
+
+		uint256 _fromNetworkId,
+
+		bool _receipt,
+
+		bytes calldata _message
+
+	) external virtual override onlyController returns (bool success) {
+
+		try _recipient.receiveBridgeMessage(_sender, _fromNetworkId, _message) returns (bool result) {
+
+			success = result;
+
+		} catch {
+
+			success = false;
+
+		}
+
+
+
+		emit MessageReceived(_recipient, _sender, _fromNetworkId, success, _messageId, _receipt);
+
+	}
+
+
+
+	function _transferFungible(address token, uint256 amount, uint256 networkId) internal {
+
+		// require(networkId != chainId(), "Same chainId");
+
+
+
+		IERC20Upgradeable(token).transferFrom(_msgSender(), address(this), amount);
+
+
+
+		emit TokenTransferFungible(_msgSender(), token, amount, networkId);
+
+	}
+
+
+
+	function _transferNonFungible(address _token, uint256 _tokenId, uint256 _networkId) internal {
+
+		// require(networkId != chainId(), "Same chainId");
+
+
+
+		IERC721Upgradeable(_token).transferFrom(_msgSender(), address(this), _tokenId);
+
+
+
+		emit TokenTransferNonFungible(_msgSender(), _token, _tokenId, _networkId);
+
+	}
+
+
+
+	function _transferMixedFungible(
+
+		address _token,
+
+		uint256 _tokenId,
+
+		uint256 _amount,
+
+		uint256 _networkId
+
+	) internal {
+
+		// require(networkId != chainId(), "Same chainId");
+
+
+
+		IERC1155Upgradeable(_token).safeTransferFrom(_msgSender(), address(this), _tokenId, _amount, "");
+
+
+
+		emit TokenTransferMixedFungible(_msgSender(), _token, _tokenId, _amount, _networkId);
+
+	}
+
+
+
+	function _sendMessage(
+
+		uint256 _messageId,
+
+		uint256 _destination,
+
+		string calldata _recipient,
+
+		bool _receipt,
+
+		bytes calldata _message
+
+	) internal {
+
+		emit MessageSent(_msgSender(), _messageId, _destination, _recipient, _receipt, _message);
+
+	}
+
+
+
+	function _sendBroadcast(
+
+		uint256 _messageId,
+
+		bool _receipt,
+
+		bytes calldata _message
+
+	) internal {
+
+		emit BroadcastSent(_msgSender(), _messageId, _receipt, _message);
+
+	}
+
+
+
+    /**
+
+     * @dev This empty reserved space is put in place to allow future versions to add new
+
+     * variables without shifting down storage in the inheritance chain.
+
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+
+     */
+
+    uint256[50] private __gap;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\BridgeDeployable.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+
+
+import "./Bridge.sol";
+
+
+
+contract BridgeDeployable is Bridge {
+
+	function initialize(address _controller, uint256 _chainId) public virtual initializer {
+
+		Bridge.__init_bridge(_controller, _chainId);
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\Controllable.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+
+
+contract Controllable is OwnableUpgradeable {
+
+	// Errors
+
+	error ControllerOnly();
+
+
+
+	address private controller;
+
+
+
+	modifier onlyController {
+
+		if(_msgSender() != controller && _msgSender() != owner()) revert ControllerOnly();
+
+		_;
+
+	}
+
+
+
+	function __init_controller(address _controller) internal virtual onlyInitializing {
+
+		controller = _controller;
+
+		__Ownable_init();
+
+	}
+
+
+
+	function changeController(address _controller) external onlyOwner {
+
+		require(_controller != address(0), "Controller cannot be 0 address");
+
+		controller = _controller;
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\ERC1155Mock.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+
+
+pragma solidity ^0.8.0;
+
+
+
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
+
+
+
+contract ERC1155Mock is ERC1155Upgradeable {
+
+	// No point in making this upgradeable
+
+	constructor(string memory uri) initializer {
+
+		__ERC1155_init(uri);
+
+	}
+
+
+
+	function setURI(string memory newuri) public {
+
+		_setURI(newuri);
+
+	}
+
+
+
+	function mint(
+
+		address to,
+
+		uint256 id,
+
+		uint256 value,
+
+		bytes memory data
+
+	) public {
+
+		_mint(to, id, value, data);
+
+	}
+
+
+
+	function mintBatch(
+
+		address to,
+
+		uint256[] memory ids,
+
+		uint256[] memory values,
+
+		bytes memory data
+
+	) public {
+
+		_mintBatch(to, ids, values, data);
+
+	}
+
+
+
+	function burn(
+
+		address owner,
+
+		uint256 id,
+
+		uint256 value
+
+	) public {
+
+		_burn(owner, id, value);
+
+	}
+
+
+
+	function burnBatch(
+
+		address owner,
+
+		uint256[] memory ids,
+
+		uint256[] memory values
+
+	) public {
+
+		_burnBatch(owner, ids, values);
+
+	}
+
+
+
+	function bridgeMint(
+
+		address _recipient,
+
+		uint256 _id,
+
+		uint256 _amount
+
+	) external {
+
+		_mint(_recipient, _id, _amount, "");
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\ERC20Mock.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+
+
+pragma solidity ^0.8.0;
+
+
+
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+
+
+
+contract ERC20Mock is ERC20Upgradeable {
+
+	// No point in making upgradeable
+
+	constructor(string memory name, string memory symbol) initializer {
+
+		__ERC20_init(name, symbol);
+
+	}
+
+
+
+	function mint(address to, uint256 amount) external {
+
+		_mint(to, amount);
+
+	}
+
+
+
+	function burn(address account, uint256 amount) public {
+
+		_burn(account, amount);
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\ERC721Mock.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+
+
+pragma solidity ^0.8.0;
+
+
+
+import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+
+
+
+contract ERC721Mock is ERC721Upgradeable {
+
+	string public uri;
+
+
+
+	// no point in making upgradeable
+
+	constructor(string memory name, string memory symbol) initializer {
+
+		__ERC721_init(name, symbol);
+
+	}
+
+
+
+	function _baseURI() internal virtual override view returns (string memory) {
+
+		return uri;
+
+	}
+
+
+
+	function setUri(string calldata _uri) public {
+
+		uri = _uri;
+
+	}
+
+
+
+	function exists(uint256 tokenId) public view returns (bool) {
+
+		return _exists(tokenId);
+
+	}
+
+
+
+	function mint(address to, uint256 tokenId) public {
+
+		_mint(to, tokenId);
+
+	}
+
+
+
+	function safeMint(address to, uint256 tokenId) public {
+
+		_safeMint(to, tokenId);
+
+	}
+
+
+
+	function safeMint(
+
+		address to,
+
+		uint256 tokenId,
+
+		bytes memory _data
+
+	) public {
+
+		_safeMint(to, tokenId, _data);
+
+	}
+
+
+
+	function burn(uint256 tokenId) public {
+
+		_burn(tokenId);
+
+	}
+
+
+
+	function bridgeMint(
+
+		address _recipient,
+
+		uint256 _id
+
+	) external {
+
+		_mint(_recipient, _id);
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\FeeVerifyTester.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+
+
+import "./TollBridge.sol";
+
+import "hardhat/console.sol";
+
+
+
+contract FeeVerifyTester is TollBridge {
+
+	using ECDSAUpgradeable for bytes32;
+
+	using ECDSAUpgradeable for bytes;
+
+
+
+	function toString(address account) private pure returns(string memory) {
+
+		return toString(abi.encodePacked(account));
+
+	}
+
+
+
+	function toString(uint256 value) private pure returns(string memory) {
+
+		return toString(abi.encodePacked(value));
+
+	}
+
+
+
+	function toString(bytes32 value) private pure returns(string memory) {
+
+		return toString(abi.encodePacked(value));
+
+	}
+
+
+
+	function toString(bytes memory data) private pure returns(string memory) {
+
+		bytes memory alphabet = "0123456789abcdef";
+
+
+
+		bytes memory str = new bytes(2 + data.length * 2);
+
+		str[0] = "0";
+
+		str[1] = "x";
+
+		for (uint i = 0; i < data.length; i++) {
+
+			str[2+i*2] = alphabet[uint(uint8(data[i] >> 4))];
+
+			str[3+i*2] = alphabet[uint(uint8(data[i] & 0x0f))];
+
+		}
+
+		return string(str);
+
+	}
+
+
+
+	function testVerifyFee(
+
+      uint256 _destination,
+
+		bytes calldata _encodedMessage,
+
+		bytes calldata _feeData
+
+	) external view returns (address) {
+
+		address feeToken;
+
+		uint256 feeAmount;
+
+		uint256 maxBlock;
+
+		bytes32 hash;
+
+		bytes memory signature;
+
+
+
+		(feeToken, feeAmount, maxBlock, hash, signature) = abi.decode(_feeData, (address, uint256, uint256, bytes32, bytes));
+
+
+
+		bytes memory messageWithReceipt = _encodedMessage;
+
+
+
+		console.log(toString(keccak256(abi.encode(
+
+			chainId(),
+
+			_msgSender(),
+
+			_destination,
+
+			feeToken,
+
+			feeAmount,
+
+			maxBlock,
+
+			messageWithReceipt
+
+		))));
+
+
+
+		bytes32 computedHash = keccak256(abi.encode(
+
+			chainId(),
+
+			_msgSender(),
+
+			_destination,
+
+			feeToken,
+
+			feeAmount,
+
+			maxBlock,
+
+			messageWithReceipt
+
+		)).toEthSignedMessageHash();
+
+
+
+		console.log(toString(computedHash));
+
+
+
+		verifyFee(_destination, messageWithReceipt, _feeData);
+
+
+
+		console.log(hash.recover(signature));
+
+
+
+		return hash.recover(signature);
+
+	}
+
+
+
+	function gasTester(
+
+		bytes calldata _message,
+
+		bytes calldata _feeData
+
+	) external { // This could be view, but we want it to burn gas
+
+		address feeToken;
+
+		uint256 feeAmount;
+
+		uint256 maxBlock;
+
+		bytes32 hash;
+
+		bytes memory signature;
+
+
+
+		(feeToken, feeAmount, maxBlock, hash, signature) = abi.decode(_feeData, (address, uint256, uint256, bytes32, bytes));
+
+
+
+		// address testAddress = address(0);
+
+		// bool testBool = true;
+
+		// uint256 destination = 100;
+
+
+
+		bytes memory messageWithBool = abi.encode(_message, true);
+
+
+
+		uint256 remainingGas = gasleft();
+
+
+
+		block.number <= maxBlock;
+
+
+
+		uint256 blockCheckGasUsed = remainingGas - gasleft();
+
+
+
+		remainingGas = gasleft();
+
+
+
+		hash.recover(signature) == feeVerifier;
+
+
+
+		uint256 sigCheckGasUsed = remainingGas - gasleft();
+
+
+
+		remainingGas = gasleft();
+
+
+
+		// Verify hash matches sent data
+
+		bytes32 computedHash = keccak256(abi.encode(
+
+			chainId(),
+
+			_msgSender(),
+
+			100,
+
+			feeToken,
+
+			feeAmount,
+
+			maxBlock,
+
+			messageWithBool
+
+		)).toEthSignedMessageHash();
+
+
+
+		hash == computedHash;
+
+
+
+		uint256 hashCheckGasUsed = remainingGas - gasleft();
+
+
+
+		remainingGas = gasleft();
+
+
+
+		verifyFee(100, messageWithBool, _feeData);
+
+
+
+		uint256 verifyFeeGasUsed = remainingGas - gasleft();
+
+
+
+		console.log("blockCheckGasUsed: ", blockCheckGasUsed);
+
+		console.log("sigCheckGasUsed: ", sigCheckGasUsed);
+
+		console.log("hashCheckGasUsed: ", hashCheckGasUsed);
+
+		console.log("verifyFeeGasUsed: ", verifyFeeGasUsed);
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IBridge.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "./IMessageReceiver.sol";
+
+
+
+/**
+
+ * @dev Interface for bridge contract
+
+ */
+
+interface IBridge {
+
+	/**
+
+	 * @dev Used to send arbitrary messages to other networks
+
+	 * MUST emit `MessageSent` event
+
+	 */
+
+	function sendMessage(
+
+		uint256 messageId,
+
+		uint256 destination,
+
+		string calldata recipient,
+
+		bool receipt,
+
+		bytes calldata message,
+
+		bytes calldata data
+
+	) external payable;
+
+
+
+	/**
+
+	 * @dev Used to send arbitrary messages to all other contracts within the same project as sender
+
+	 * MUST emit `BroadcastSent` event
+
+	 */
+
+	function sendBroadcast(
+
+		uint256 messageId,
+
+		bool receipt,
+
+		bytes calldata message,
+
+		bytes calldata data
+
+	) external payable;
+
+
+
+	/**
+
+	 * @dev Relay message from another network. MUST only be callable by bridge network
+
+	 * MUST emit `MessageReceived` event
+
+	 */
+
+	function relayMessage(
+
+		IMessageReceiver recipient,
+
+		uint256 messageId,
+
+		string calldata sender,
+
+		uint256 fromNetworkId,
+
+		bool receipt,
+
+		bytes calldata message
+
+	) external returns (bool);
+
+
+
+	event MessageSent(
+
+		address indexed from,
+
+		uint256 indexed messageId,
+
+		uint256 destination,
+
+		string recipient,
+
+		bool receipt,
+
+		bytes message
+
+	);
+
+	event BroadcastSent(
+
+		address indexed from,
+
+		uint256 indexed messageId,
+
+		bool receipt,
+
+		bytes message
+
+	);
+
+	event MessageReceived(
+
+		IMessageReceiver indexed receiver,
+
+		string from,
+
+		uint256 fromNetworkId,
+
+		bool success,
+
+		uint256 messageId,
+
+		bool receipt
+
+	);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IBridgeComplete.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "./IBridge.sol";
+
+import "./IBridgeFungible.sol";
+
+import "./IBridgeNonFungible.sol";
+
+import "./IBridgeMixedFungible.sol";
+
+
+
+/**
+
+ * @dev Interface for bridge contract with extra functions for bridging tokens
+
+ */
+
+interface IBridgeComplete is IBridgeFungible, IBridgeNonFungible, IBridgeMixedFungible {}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IBridgeFungible.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "./IBridge.sol";
+
+
+
+/**
+
+ * @dev Interface for bridge contract with extra functions for bridging ERC-20 tokens
+
+ */
+
+interface IBridgeFungible is IBridge {
+
+	/**
+
+	 * @dev Transfers an ERC20 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferFungible` event
+
+	 */
+
+	function transferFungible(address token, uint256 amount, uint256 networkId, bytes calldata data) external payable;
+
+
+
+	/**
+
+	 * @dev Used by the bridge relay to 'transfer' a user's item to the chain
+
+	 */
+
+	function bridgeClaimFungible(address token, address to, uint256 amount) external;
+
+
+
+	event TokenTransferFungible(address indexed from, address indexed token, uint256 amount, uint256 networkId);
+
+	event TokenClaimedFungible(address indexed from, address indexed token, uint amount);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IBridgeMixedFungible.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "./IBridge.sol";
+
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
+
+
+
+/**
+
+ * @dev Interface for bridge contract with added support for MixedFungible tokens that follow the ERC-1155 standard
+
+ */
+
+interface IBridgeMixedFungible is IBridge, IERC1155ReceiverUpgradeable {
+
+	/**
+
+	 * @dev Transfers an ERC1155 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferMixedFungible` event
+
+	 */
+
+	function transferMixedFungible(address token, uint256 tokenId, uint256 amount, uint256 networkId, bytes calldata data) external payable;
+
+
+
+	/**
+
+	 * @dev Used by the bridge relay to 'transfer' a user's item to the chain
+
+	 */
+
+	function bridgeClaimMixedFungible(address token, address to, uint256 tokenId, uint256 amount) external;
+
+
+
+	event TokenTransferMixedFungible(address indexed from, address indexed token, uint256 tokenId, uint256 amount, uint256 networkId);
+
+	event TokenClaimedMixedFungible(address indexed from, address indexed token, uint256 tokenId, uint256 amount);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IBridgeNonFungible.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "./IBridge.sol";
+
+
+
+/**
+
+ * @dev Interface for bridge contract with added support for NonFungible tokens that follow the ERC-721 standard
+
+ */
+
+interface IBridgeNonFungible is IBridge {
+
+	/**
+
+	 * @dev Transfers an ERC721 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferFungible` event
+
+	 */
+
+	function transferNonFungible(address token, uint256 tokenId, uint256 networkId, bytes calldata data) external payable;
+
+
+
+	/**
+
+	 * @dev Used by the bridge relay to 'transfer' a user's item to the chain
+
+	 */
+
+	function bridgeClaimNonFungible(address token, address to, uint256 tokenId) external;
+
+
+
+	event TokenTransferNonFungible(address indexed from, address indexed token, uint256 tokenId, uint256 networkId);
+
+	event TokenClaimedNonFungible(address indexed from, address indexed token, uint256 tokenId);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IERC1155Bridgable.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+
+
+
+interface IERC1155Bridgable is IERC1155Upgradeable {
+
+	/**
+
+	  * @dev Create a new token, of a given ID
+
+	  * SHOULD only be callable by the bridge network
+
+	  * MUST revert if the token already exists
+
+	  */
+
+	 function bridgeMint(address recipient, uint256 id, uint256 amount) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IERC721Bridgable.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
+
+
+
+interface IERC721Bridgable is IERC721Upgradeable {
+
+	/**
+
+	  * @dev Create a new token, of a given ID
+
+	  * SHOULD only be callable by the bridge network
+
+	  * MUST revert if the token already exists
+
+	  */
+
+	 function bridgeMint(address recipient, uint256 id) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IMessageReceiptGetter.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+/**
+
+ * @dev Interface for receiving message sent receipts from bridge
+
+ */
+
+interface IMessageReceiptGetter {
+
+
+
+	// MUST only be callable by bridge network
+
+	function messageReceipt(
+
+		uint256 messageId,
+
+		uint256 fromNetworkId,
+
+		bool success
+
+	) external;
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\IMessageReceiver.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+
+
+/**
+
+ * @dev Interface for receiving messages from bridge
+
+ */
+
+interface IMessageReceiver {
+
+	function receiveBridgeMessage(
+
+		string calldata sender,
+
+		uint256 fromNetworkId,
+
+		bytes calldata message
+
+	) external returns (bool);
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\MessageReceiverMock.sol
+File type: .sol
+// SPDX-License-Identifier: MIT
+
+
+
+pragma solidity ^0.8.0;
+
+
+
+import "../IMessageReceiver.sol";
+
+
+
+contract MessageReceiverMock is IMessageReceiver {
+
+	mapping (bytes => bool) public hardFailOn;
+
+	mapping (bytes => bool) public softFailOn;
+
+
+
+	uint256 public stuff;
+
+
+
+	function receiveBridgeMessage(
+
+		string calldata,
+
+		uint256,
+
+		bytes calldata message
+
+	) external override returns (bool) {
+
+		require(!hardFailOn[message], "MessageReceiverMock: Hard fail");
+
+		if (softFailOn[message]) return false;
+
+
+
+		stuff = stuff + 1;
+
+
+
+		return true;
+
+	}
+
+
+
+	function setHardFail(bytes memory message, bool fail) external {
+
+		hardFailOn[message] = fail;
+
+	}
+
+
+
+	function setSoftFail(bytes memory message, bool fail) external {
+
+		softFailOn[message] = fail;
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+F:\cross_chain_vul_det_based_llm\dedup_non_vul_bridges_output_aliyun_721\Xenum\contracts\TollBridge.sol
+File type: .sol
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+
+
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
+
+import "./Bridge.sol";
+
+
+
+contract TollBridge is Bridge {
+
+	using ECDSAUpgradeable for bytes32;
+
+	using ECDSAUpgradeable for bytes;
+
+	using AddressUpgradeable for address payable;
+
+
+
+	// Errors
+
+	error FeeValidationExpired(uint256 maxBlock, uint256 currentBlock);
+
+	error HashMismatch(bytes32 hash, bytes32 computedHash);
+
+	error UntrustedSigner(address signer);
+
+	error IncorrectFeeAmount(uint256 amountPaid, uint256 amountRequired);
+
+
+
+	// Fees that have been paid and can be withdrawn from this contract
+
+	mapping (address => uint256) public pendingFees;
+
+
+
+	// Address that can sign fee hashes
+
+	// In the future we will change this to a ERC-20 token contract
+
+	// and anyone who holds a token will be allowed to sign fee hashes
+
+	// Could possibly also have this address be a contract that signs the hashes
+
+	address public feeVerifier;
+
+
+
+	function initialize(address _controller, address _verifier, uint256 _chainId) public virtual initializer {
+
+      feeVerifier = _verifier;
+
+		Bridge.__init_bridge(_controller, _chainId);
+
+	}
+
+
+
+	function setFeeVerifier(address _newVerifier) external onlyOwner {
+
+		feeVerifier = _newVerifier;
+
+	}
+
+
+
+	/** @dev Uses a ECDSA hash to verify that the fee paid is valid
+
+	 * The hash must contain the following data, in the following order, with each element seperated by ''
+
+	 * chainId, Sender addr, destination network, fee token addr, fee token amount, block valid until, abi encoded data (exact data depends on transaction. See whitepaper) 
+
+	 * 
+
+	 * If `block.number` > block valid until, revert
+
+	 * _feeData must be ABI encoded data of the following
+
+	 * feeToken[address], feeAmount[uint256], maxBlock[uint256], hash[bytes32], signature[bytes]
+
+	 */
+
+	function verifyFee(
+
+		uint256 _destination,
+
+      bytes memory _messageWithReceiptRequestAndTo, // This will be abi.encode(message, receipt, recipient) where `message` is the bytes of the message, and `receipt` is a bool that says weather or not a delivery receipt is requested
+
+      bytes calldata _feeData
+
+	) internal view {
+
+		address feeToken;
+
+		uint256 feeAmount;
+
+		uint256 maxBlock;
+
+		bytes32 hash;
+
+		bytes memory signature;
+
+
+
+		(feeToken, feeAmount, maxBlock, hash, signature) = abi.decode(_feeData, (address, uint256, uint256, bytes32, bytes));
+
+
+
+      // This is done in order from least gas cost to highest to save gas if one of the checks fail
+
+
+
+		// Verfiy fee signature is still valid (within correct block range) 
+
+		if(block.number > maxBlock) revert FeeValidationExpired(maxBlock, block.number);
+
+
+
+		// Verify hash matches sent data
+
+		bytes32 computedHash = keccak256(abi.encode(
+
+			chainId(),
+
+			_msgSender(),
+
+			_destination,
+
+			feeToken,
+
+			feeAmount,
+
+			maxBlock,
+
+         _messageWithReceiptRequestAndTo
+
+		)).toEthSignedMessageHash();
+
+
+
+		if(hash != computedHash) revert HashMismatch(hash, computedHash);
+
+
+
+		// Check that hash is signed by a valid address
+
+		{
+
+			address signer = hash.recover(signature);
+
+			if(signer != feeVerifier) revert UntrustedSigner(signer);
+
+		}
+
+	}
+
+
+
+	/**
+
+	 * @dev Transfers an ERC20 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferFungible` event
+
+	 */
+
+	function transferFungible(
+
+		address _token,
+
+	   uint256 _amount,
+
+		uint256 _networkId,
+
+		bytes calldata _feeData
+
+	) external virtual override payable {
+
+      verifyFee(_networkId, abi.encode(_token, _amount), _feeData);
+
+	
+
+		_transferFungible(_token, _amount, _networkId);
+
+
+
+      _payToll(_feeData);
+
+   }
+
+
+
+	/**
+
+	 * @dev Transfers an ERC721 token to a different chain
+
+	 * This function simply moves the caller's tokens to this contract, and emits a `TokenTransferNonFungible` event
+
+	 */
+
+	function transferNonFungible(
+
+		address _token,
+
+		uint256 _tokenId,
+
+		uint256 _networkId,
+
+		bytes calldata _feeData
+
+	) external virtual override payable {
+
+		// require(networkId != chainId(), "Same chainId");
+
+      verifyFee(_networkId, abi.encode(_token, _tokenId), _feeData);
+
+		
+
+		_transferNonFungible(_token, _tokenId, _networkId);
+
+
+
+		_payToll(_feeData);
+
+	}
+
+
+
+	/**
+
+	* @dev Transfers an ERC1155 token to a different chain
+
+	* This function simply moves the caller's tokens to this contract, and emits a `TokenTransferMixedFungible` event
+
+	*/
+
+	function transferMixedFungible(
+
+		address _token,
+
+		uint256 _tokenId,
+
+		uint256 _amount,
+
+		uint256 _networkId,
+
+		bytes calldata _feeData
+
+	) external virtual override payable {
+
+		// require(networkId != chainId(), "Same chainId");
+
+      verifyFee(_networkId, abi.encode(_token, _tokenId, _amount), _feeData);
+
+		
+
+		_transferMixedFungible(_token, _tokenId, _amount, _networkId);
+
+
+
+		_payToll(_feeData);
+
+	}
+
+
+
+	function sendMessage(
+
+		uint256 _messageId,
+
+		uint256 _destination,
+
+		string calldata _recipient,
+
+		bool _receipt,
+
+		bytes calldata _message,
+
+		bytes calldata _feeData
+
+	) external virtual override payable {
+
+		verifyFee(_destination, abi.encode(_message, _receipt, _recipient), _feeData);
+
+
+
+		_sendMessage(_messageId, _destination, _recipient, _receipt, _message);
+
+
+
+		_payToll(_feeData);
+
+	}
+
+
+
+	function sendBroadcast(
+
+		uint256 _messageId,
+
+		bool _receipt,
+
+		bytes calldata _message,
+
+		bytes calldata _feeData
+
+	) external virtual override payable {
+
+		verifyFee(0, abi.encode(_message, _receipt), _feeData);
+
+
+
+		_sendBroadcast(_messageId, _receipt, _message);
+
+
+
+		_payToll(_feeData);
+
+	}
+
+
+
+	function withdrawalFees(address _token, uint256 _amount) external virtual onlyController {
+
+		if(pendingFees[_token] < _amount) revert InsufficientFunds(_amount, pendingFees[_token]);
+
+		pendingFees[_token] -= _amount;
+
+
+
+		if(_token == address(0)) {
+
+			payable(_msgSender()).sendValue(_amount);
+
+		} else {
+
+			IERC20Upgradeable(_token).transfer(_msgSender(), _amount);
+
+		}
+
+	}
+
+
+
+	/**
+
+	* @dev Pull the amount of `tollToken` equal to `_fee` from the user's account to pay the bridge toll
+
+	*/
+
+	function _payToll(bytes calldata _feeData) internal {
+
+		address token;
+
+		uint256 fee;
+
+
+
+		(token, fee,,, ) = abi.decode(_feeData, (address, uint256, uint256, bytes32, bytes));
+
+
+
+		// token == address(0) is used to indicate fee will be payed in base network currency (ie. ETH on Ethereum, etc.)
+
+		if(token == address(0) && fee > 0) {
+
+			if(msg.value != fee) revert IncorrectFeeAmount(msg.value, fee);
+
+			pendingFees[token] += fee;
+
+		} else if(fee > 0) {
+
+			// Only make payable if the fee is in base network currency
+
+			if(msg.value != 0) revert FunctionNotPayable();
+
+			pendingFees[token] += fee;
+
+			IERC20Upgradeable(token).transferFrom(_msgSender(), address(this), fee);
+
+		} else /* fee == 0 */ {
+
+			// Only make payable if the fee is in base network currency
+
+			if(msg.value != 0) revert FunctionNotPayable();
+
+		}
+
+	}
+
+}
+
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------

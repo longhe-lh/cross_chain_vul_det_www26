@@ -1,0 +1,62 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "stake": "function stake(\n uint256 amount\n ) external nonReentrant whenNotPaused updateReward(msg.sender) {\n require(amount > 0, \"Cannot stake 0\");\n\n _totalSupply = _totalSupply + amount;\n\n _balances[msg.sender] = _balances[msg.sender] + amount;\n\n lastStakedTime[msg.sender] = block.timestamp;\n\n function safeTransferFrom(...) {...}\nstakingToken.safeTransferFrom(msg.sender, address(this), amount);\n\n emit Staked(msg.sender, amount);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) internal {\n \n\n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0x23b872dd, from, to, value)\n );\n\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper: TRANSFER_FROM_FAILED\"\n );\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "_withdraw": "function _withdraw(uint256 amount) private {\n require(amount > 0, \"Cannot withdraw 0\");\n\n uint256 balance = _balances[msg.sender];\n\n require(amount <= balance, \"Cannot withdraw more than account balance\");\n\n _totalSupply = _totalSupply - amount;\n\n function fee(...) {...}\nfunction safeTransfer(...) {...}\nuint256 collectedFee = fee(msg.sender, amount);\n\n _balances[msg.sender] = balance - amount;\n\n uint256 withdrawableBalance = amount - collectedFee;\n\n stakingToken.safeTransfer(msg.sender, withdrawableBalance);\n\n emit Withdrawn(msg.sender, withdrawableBalance);\n\n if (collectedFee > 0) {\n emit FeesCollected(msg.sender, collectedFee);\n\n totalFees = totalFees + collectedFee;\n }\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n\n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper: TRANSFER_FAILED\"\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "mint": "function mint(address to) external lock returns (uint liquidity) {\n (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); \n\n uint balance0 = IERC20(token0).balanceOf(address(this));\n\n uint balance1 = IERC20(token1).balanceOf(address(this));\n\n uint amount0 = balance0.sub(_reserve0);\n\n uint amount1 = balance1.sub(_reserve1);\n\n bool feeOn = _mintFee(_reserve0, _reserve1);\n\n uint _totalSupply = totalSupply; \n\n if (_totalSupply == 0) {\n liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);\n\n _mint(address(0), MINIMUM_LIQUIDITY); \n } else {\n liquidity = Math.min(\n amount0.mul(_totalSupply) / _reserve0,\n amount1.mul(_totalSupply) / _reserve1\n );\n }\n\n require(liquidity > 0, \"Elk: INSUFFICIENT_LIQUIDITY_MINTED\");\n\n _mint(to, liquidity);\n\n _update(balance0, balance1, _reserve0, _reserve1);\n\n if (feeOn) kLast = uint(reserve0).mul(reserve1); \n\n emit Mint(msg.sender, amount0, amount1);\n }"
+            },
+            {
+                "_mint": "function _mint(address to, uint value) internal {\n function add(...) {...}\ntotalSupply = totalSupply.add(value);\n\n balanceOf[to] = balanceOf[to].add(value);\n\n emit Transfer(address(0), to, value);\n }"
+            },
+            {
+                "_update": "function _update(\n uint balance0,\n uint balance1,\n uint112 _reserve0,\n uint112 _reserve1\n ) private {\n require(\n balance0 <= uint112(-1) && balance1 <= uint112(-1),\n \"Elk: OVERFLOW\"\n );\n\n uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);\n\n uint32 timeElapsed = blockTimestamp - blockTimestampLast; \n\n if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {\n \n\n price0CumulativeLast +=\n uint(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) *\n timeElapsed;\n\n price1CumulativeLast +=\n uint(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) *\n timeElapsed;\n }\n\n reserve0 = uint112(balance0);\n\n reserve1 = uint112(balance1);\n\n blockTimestampLast = blockTimestamp;\n\n emit Sync(reserve0, reserve1);\n }"
+            }
+        ],
+        "withdraw": [
+            {
+                "burn": "function burn(\n address to\n ) external lock returns (uint amount0, uint amount1) {\n (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); \n\n address _token0 = token0; \n\n address _token1 = token1; \n\n uint balance0 = IERC20(_token0).balanceOf(address(this));\n\n uint balance1 = IERC20(_token1).balanceOf(address(this));\n\n uint liquidity = balanceOf[address(this)];\n\n bool feeOn = _mintFee(_reserve0, _reserve1);\n\n uint _totalSupply = totalSupply; \n\n amount0 = liquidity.mul(balance0) / _totalSupply; \n\n amount1 = liquidity.mul(balance1) / _totalSupply; \n\n require(\n amount0 > 0 && amount1 > 0,\n \"Elk: INSUFFICIENT_LIQUIDITY_BURNED\"\n );\n\n _burn(address(this), liquidity);\n\n _safeTransfer(_token0, to, amount0);\n\n _safeTransfer(_token1, to, amount1);\n\n balance0 = IERC20(_token0).balanceOf(address(this));\n\n balance1 = IERC20(_token1).balanceOf(address(this));\n\n _update(balance0, balance1, _reserve0, _reserve1);\n\n if (feeOn) kLast = uint(reserve0).mul(reserve1); \n\n emit Burn(msg.sender, amount0, amount1, to);\n }"
+            },
+            {
+                "_burn": "function _burn(address from, uint value) internal {\n function sub(...) {...}\nbalanceOf[from] = balanceOf[from].sub(value);\n\n totalSupply = totalSupply.sub(value);\n\n emit Transfer(from, address(0), value);\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(address token, address to, uint value) private {\n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(SELECTOR, to, value)\n );\n\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"Elk: TRANSFER_FAILED\"\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "withdraw": "function withdraw(\n uint256 amount\n ) public nonReentrant updateReward(msg.sender) {\n _withdraw(amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n\n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper: TRANSFER_FAILED\"\n );\n }"
+            }
+        ],
+        "Staked2": [
+            {
+                "stake": "function stake(\n uint256 amount\n ) external nonReentrant whenNotPaused updateReward(msg.sender) {\n require(amount > 0, \"Cannot stake 0\");\n\n _totalSupply = _totalSupply + amount;\n\n _balances[msg.sender] = _balances[msg.sender] + amount;\n\n lastStakedTime[msg.sender] = block.timestamp;\n\n function safeTransferFrom(...) {...}\nstakingToken.safeTransferFrom(msg.sender, address(this), amount);\n\n emit Staked(msg.sender, amount);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) internal {\n \n\n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0x23b872dd, from, to, value)\n );\n\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper: TRANSFER_FROM_FAILED\"\n );\n }"
+            }
+        ]
+    }
+}

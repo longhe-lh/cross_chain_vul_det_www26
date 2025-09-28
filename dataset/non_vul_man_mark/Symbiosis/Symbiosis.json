@@ -1,0 +1,112 @@
+{
+  "contract": "Symbiosis",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Symbiosis": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "SynthesizeRequest1",
+          "RevertBurnRequest2"
+        ],
+        "rel_chain": [
+          "transmitRequestV2",
+          "receiveRequestV2"
+        ],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Portal",
+        "events": {
+          "SynthesizeRequest1": {
+            "0": {
+              "func_name": "synthesize",
+              "file_name": "Portal.sol",
+              "key_ops": [
+                "require(tokenWhitelist[_token], \"Symb: unauthorized token\")",
+                "require(_amount >= tokenThreshold[_token], \"Symb: amount under threshold\")",
+                "TransferHelper.safeTransferFrom(_token, _msgSender(), address(this), _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendSynthesizeRequest",
+                  "file_name": "Portal.sol",
+                  "key_ops": [
+                    "balanceOf[_token] = balanceOf[_token] + _amount",
+                    "IBridge(bridge).transmitRequestV2(out, _receiveSide, _oppositeBridge, _chainID)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "RevertBurnRequest2": {
+            "0": {
+              "func_name": "revertBurnRequest",
+              "file_name": "Portal.sol",
+              "key_ops": [
+                "require(unsynthesizeStates[externalID] != UnsynthesizeState.Unsynthesized, \"Symb: Real tokens already transfered\")",
+                "unsynthesizeStates[externalID] = UnsynthesizeState.RevertRequest",
+                "IBridge(bridge).transmitRequestV2(out, _receiveSide, _oppositeBridge, _chainId)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "IBridge",
+        "events": {
+          "transmitRequestV2": {
+            "0": {
+              "func_name": "transmitRequestV2",
+              "file_name": "IBridge.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "receiveRequestV2": {
+            "0": {
+              "func_name": "receiveRequestV2",
+              "file_name": "IBridge.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Synthesis",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "_transfer",
+              "file_name": "ERC20.sol",
+              "key_ops": [
+                "require(sender != address(0), \"ERC20: transfer from the zero address\")",
+                "require(recipient != address(0), \"ERC20: transfer to the zero address\")",
+                "_balances[sender] = senderBalance - amount",
+                "_balances[recipient] += amount"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

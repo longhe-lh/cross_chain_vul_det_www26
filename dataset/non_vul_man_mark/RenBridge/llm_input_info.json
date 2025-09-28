@@ -1,0 +1,52 @@
+{
+    "src_chain": {
+        "register1": [
+            {
+                "register": "function register(\n address _darknodeID,\n bytes calldata _publicKey\n ) external onlyRefunded(_darknodeID) {\n require(\n _darknodeID != address(0),\n \"DarknodeRegistry: darknode address cannot be zero\"\n );\n\n require(\n ren.transferFrom(msg.sender, address(store), minimumBond),\n \"DarknodeRegistry: bond transfer failed\"\n );\n\n store.appendDarknode(\n _darknodeID,\n msg.sender,\n minimumBond,\n _publicKey,\n currentEpoch.blocktime.add(minimumEpochInterval),\n 0\n );\n\n numDarknodesNextEpoch = numDarknodesNextEpoch.add(1);\n\n emit LogDarknodeRegistered(msg.sender, _darknodeID, minimumBond);\n }"
+            },
+            {
+                "appendDarknode": "function appendDarknode(\n\n address _darknodeID,\n\n address payable _darknodeOperator,\n\n uint256 _bond,\n\n bytes calldata _publicKey,\n\n uint256 _registeredAt,\n\n uint256 _deregisteredAt\n\n ) external onlyOwner {\n\n Darknode memory darknode = Darknode({\n\n owner: _darknodeOperator,\n\n bond: _bond,\n\n publicKey: _publicKey,\n\n registeredAt: _registeredAt,\n\n deregisteredAt: _deregisteredAt\n\n });\n\n darknodeRegistry[_darknodeID] = darknode;\n\n function append(...) {...}\nLinkedList.append(darknodes, _darknodeID);\n\n }"
+            }
+        ],
+        "deregister2": [
+            {
+                "deregister": "function deregister(\n address _darknodeID\n )\n external\n onlyDeregisterable(_darknodeID)\n onlyDarknodeOperator(_darknodeID)\n {\n function deregisterDarknode(...) {...}\nderegisterDarknode(_darknodeID);\n }"
+            },
+            {
+                "deregisterDarknode": "function deregisterDarknode(address _darknodeID) private {\n function darknodeOperator(...) {...}\nfunction add(...) {...}\nfunction updateDarknodeDeregisteredAt(...) {...}\nfunction sub(...) {...}\naddress darknodeOperator = store.darknodeOperator(_darknodeID);\n\n store.updateDarknodeDeregisteredAt(\n _darknodeID,\n currentEpoch.blocktime.add(minimumEpochInterval)\n );\n\n numDarknodesNextEpoch = numDarknodesNextEpoch.sub(1);\n\n emit LogDarknodeDeregistered(darknodeOperator, _darknodeID);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "slashDuplicatePropose": [
+            {
+                "slashDuplicatePropose": "function slashDuplicatePropose(\n uint256 _height,\n uint256 _round,\n bytes calldata _blockhash1,\n uint256 _validRound1,\n bytes calldata _signature1,\n bytes calldata _blockhash2,\n uint256 _validRound2,\n bytes calldata _signature2\n ) external {\n address signer = Validate.duplicatePropose(\n _height,\n _round,\n _blockhash1,\n _validRound1,\n _signature1,\n _blockhash2,\n _validRound2,\n _signature2\n );\n\n require(\n !slashed[_height][_round][signer],\n \"DarknodeSlasher: already slashed\"\n );\n\n slashed[_height][_round][signer] = true;\n\n function slash(...) {...}\ndarknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent);\n }"
+            }
+        ],
+        "slashDuplicatePrevote": [
+            {
+                "slashDuplicatePrevote": "function slashDuplicatePrevote(\n uint256 _height,\n uint256 _round,\n bytes calldata _blockhash1,\n bytes calldata _signature1,\n bytes calldata _blockhash2,\n bytes calldata _signature2\n ) external {\n address signer = Validate.duplicatePrevote(\n _height,\n _round,\n _blockhash1,\n _signature1,\n _blockhash2,\n _signature2\n );\n\n require(\n !slashed[_height][_round][signer],\n \"DarknodeSlasher: already slashed\"\n );\n\n slashed[_height][_round][signer] = true;\n\n function slash(...) {...}\ndarknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent);\n }"
+            }
+        ],
+        "slashDuplicatePrecommit": [
+            {
+                "slashDuplicatePrecommit": "function slashDuplicatePrecommit(\n uint256 _height,\n uint256 _round,\n bytes calldata _blockhash1,\n bytes calldata _signature1,\n bytes calldata _blockhash2,\n bytes calldata _signature2\n ) external {\n address signer = Validate.duplicatePrecommit(\n _height,\n _round,\n _blockhash1,\n _signature1,\n _blockhash2,\n _signature2\n );\n\n require(\n !slashed[_height][_round][signer],\n \"DarknodeSlasher: already slashed\"\n );\n\n slashed[_height][_round][signer] = true;\n\n function slash(...) {...}\ndarknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent);\n }"
+            }
+        ],
+        "slashSecretReveal": [
+            {
+                "slashSecretReveal": "function slashSecretReveal(\n uint256 _a,\n uint256 _b,\n uint256 _c,\n uint256 _d,\n uint256 _e,\n uint256 _f,\n bytes calldata _signature\n ) external {\n address signer = Validate.recoverSecret(\n _a,\n _b,\n _c,\n _d,\n _e,\n _f,\n _signature\n );\n\n require(!secretRevealed[signer], \"DarknodeSlasher: already slashed\");\n\n secretRevealed[signer] = true;\n\n function slash(...) {...}\ndarknodeRegistry.slash(signer, msg.sender, secretRevealSlashPercent);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "claim1": [
+            {
+                "claim": "function claim(address _darknode) external onlyDarknode(_darknode) {\n require(\n darknodeRegistry.isRegisteredInPreviousEpoch(_darknode),\n \"DarknodePayment: cannot claim for this epoch\"\n );\n\n function _claimDarknodeReward(...) {...}\nfunction isRegisteredInPreviousEpoch(...) {...}\n_claimDarknodeReward(_darknode);\n\n emit LogDarknodeClaim(_darknode, previousCycle);\n }"
+            },
+            {
+                "_claimDarknodeReward": "function _claimDarknodeReward(address _darknode) private {\n require(\n !rewardClaimed[_darknode][previousCycle],\n \"DarknodePayment: reward already claimed\"\n );\n\n rewardClaimed[_darknode][previousCycle] = true;\n\n uint256 arrayLength = registeredTokens.length;\n\n for (uint256 i = 0; i < arrayLength; i++) {\n address token = registeredTokens[i];\n\n if (previousCycleRewardShare[token] > 0) {\n unclaimedRewards[token] = unclaimedRewards[token].sub(\n previousCycleRewardShare[token],\n \"DarknodePayment: share exceeds unclaimed rewards\"\n );\n\n store.incrementDarknodeBalance(\n _darknode,\n token,\n previousCycleRewardShare[token]\n );\n }\n }\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,79 @@
+{
+  "contract": "THORChain",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "THORChain": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1"
+        ],
+        "rel_chain": [
+          "Outbound"
+        ],
+        "det_chain": [
+          "TransferOut1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "RUNE_Bridge.sol",
+              "key_ops": [
+                "require(value > 0, \"user must send assets\");",
+                "iRUNE(RUNE).transferTo(address(this), value);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "Outbound": {
+            "0": {
+              "func_name": "transferOut",
+              "file_name": "RUNE_Bridge.sol",
+              "key_ops": [
+                "iRUNE(RUNE).transfer(to, value);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "THORChain",
+        "events": {
+          "TransferOut1": {
+            "0": {
+              "func_name": "transferOut",
+              "file_name": "THORChain_Router.sol",
+              "key_ops": [
+                "vaultAllowance[msg.sender][asset] -= amount;",
+                "asset.call(abi.encodeWithSelector(0xa9059cbb, to, amount));"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

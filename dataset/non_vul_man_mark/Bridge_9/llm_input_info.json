@@ -1,0 +1,17 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "burn": "function burn(address to, uint tokenId) external {\n \n \n _burn(tokenId);\n \n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address to) external {\n \n uint256 tokenId = _tokenIdCounter.current();\n _tokenIdCounter.increment();\n _safeMint(to, tokenId);\n \n }"
+            }
+        ]
+    }
+}

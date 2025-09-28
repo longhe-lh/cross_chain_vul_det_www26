@@ -1,0 +1,37 @@
+{
+    "src_chain": {
+        "Locked1": [
+            {
+                "lockToken": "function lockToken(uint256 amount, address recipient) public {\n require(\n recipient != address(0),\n \"EthManager/recipient is a zero address\"\n );\n require(amount > 0, \"EthManager/zero token locked\");\n uint256 _balanceBefore = busd_.balanceOf(msg.sender);\n require(\n busd_.transferFrom(msg.sender, address(this), amount),\n \"EthManager/lock failed\"\n );\n uint256 _balanceAfter = busd_.balanceOf(msg.sender);\n uint256 _actualAmount = _balanceBefore.sub(_balanceAfter);\n emit Locked(address(busd_), msg.sender, _actualAmount, recipient);\n }"
+            }
+        ],
+        "Locked2": [
+            {
+                "lockToken": "function lockToken(\n address ethTokenAddr,\n uint256 amount,\n address recipient\n ) public {\n require(\n recipient != address(0),\n \"EthManager/recipient is a zero address\"\n );\n require(amount > 0, \"EthManager/zero token locked\");\n IERC20 ethToken = IERC20(ethTokenAddr);\n uint256 _balanceBefore = ethToken.balanceOf(msg.sender);\n function safeTransferFrom(...) {...}\nethToken.safeTransferFrom(msg.sender, address(this), amount);\n uint256 _balanceAfter = ethToken.balanceOf(msg.sender);\n uint256 _actualAmount = _balanceBefore.sub(_balanceAfter);\n emit Locked(address(ethToken), msg.sender, _actualAmount, recipient);\n }"
+            }
+        ],
+        "Locked3": [
+            {
+                "lockToken": "function lockToken(uint256 amount, address recipient) public {\n require(\n recipient != address(0),\n \"EthManager/recipient is a zero address\"\n );\n require(amount > 0, \"EthManager/zero token locked\");\n uint256 _balanceBefore = link_.balanceOf(msg.sender);\n require(\n link_.transferFrom(msg.sender, address(this), amount),\n \"EthManager/lock failed\"\n );\n uint256 _balanceAfter = link_.balanceOf(msg.sender);\n uint256 _actualAmount = _balanceBefore.sub(_balanceAfter);\n emit Locked(address(link_), msg.sender, _actualAmount, recipient);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Unlocked1": [
+            {
+                "unlockToken": "function unlockToken(\n uint256 amount,\n address recipient,\n bytes32 receiptId\n ) public onlyWallet {\n require(\n !usedEvents_[receiptId],\n \"EthManager/The burn event cannot be reused\"\n );\n usedEvents_[receiptId] = true;\n require(busd_.transfer(recipient, amount), \"EthManager/unlock failed\");\n emit Unlocked(address(busd_), amount, recipient, receiptId);\n }"
+            }
+        ],
+        "Unlocked2": [
+            {
+                "unlockToken": "function unlockToken(\n address ethTokenAddr,\n uint256 amount,\n address recipient,\n bytes32 receiptId\n ) public onlyWallet {\n require(\n !usedEvents_[receiptId],\n \"EthManager/The burn event cannot be reused\"\n );\n IERC20 ethToken = IERC20(ethTokenAddr);\n usedEvents_[receiptId] = true;\n function safeTransfer(...) {...}\nethToken.safeTransfer(recipient, amount);\n emit Unlocked(ethTokenAddr, amount, recipient, receiptId);\n }"
+            }
+        ],
+        "Unlocked3": [
+            {
+                "unlockToken": "function unlockToken(\n uint256 amount,\n address recipient,\n bytes32 receiptId\n ) public onlyWallet {\n require(\n !usedEvents_[receiptId],\n \"EthManager/The burn event cannot be reused\"\n );\n usedEvents_[receiptId] = true;\n require(link_.transfer(recipient, amount), \"EthManager/unlock failed\");\n emit Unlocked(address(link_), amount, recipient, receiptId);\n }"
+            }
+        ]
+    }
+}

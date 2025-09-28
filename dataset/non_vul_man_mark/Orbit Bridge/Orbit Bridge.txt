@@ -1,0 +1,1318 @@
+Folder Structure
+--------------------------------------------------
+contracts/
+    EthVault.impl.sol
+    EthVault.sol
+    EthVaultImpl.sol
+    MultiSigWallet.sol
+    SafeMath.sol
+
+
+File Contents
+--------------------------------------------------
+
+
+D:\LongHe\01-PHD\02-»ùÓÚLLMµÄ¿çÁ´Â©¶´¼ì²â\10-data-deduplicate\dedup_non_vul_bridges\Orbit Bridge\contracts\EthVault.impl.sol
+File type: .sol
+pragma solidity ^0.5.0;
+
+import "./SafeMath.sol";
+import "./EthVault.sol";
+
+interface IERC20 {
+    function transfer(address to, uint256 value) external returns (bool);
+
+    function approve(address spender, uint256 value) external returns (bool);
+
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+
+    function totalSupply() external view returns (uint256);
+
+    function balanceOf(address who) external view returns (uint256);
+
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    function decimals() external view returns (uint8);
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+contract TIERC20 {
+    function transfer(address to, uint value) public;
+    function transferFrom(address from, address to, uint value) public;
+
+    function balanceOf(address who) public view returns (uint);
+    function allowance(address owner, address spender) public view returns (uint256);
+
+    function decimals() external view returns (uint8);
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+contract EthVaultImpl is EthVault, SafeMath{
+    event Deposit(string fromChain, string toChain, address fromAddr, bytes toAddr, address token, uint8 decimal, uint amount, uint depositId, uint block);
+    event Withdraw(address hubContract, string fromChain, string toChain, bytes fromAddr, bytes toAddr, bytes token, bytes32[] bytes32s, uint[] uints);
+
+    modifier onlyActivated {
+        require(isActivated);
+        _;
+    }
+
+    constructor(address[] memory _owner) public EthVault(_owner, _owner.length, address(0), address(0)) {
+    }
+
+    function getVersion() public pure returns(string memory){
+        return "1028";
+    }
+
+    function changeActivate(bool activate) public onlyWallet {
+        isActivated = activate;
+    }
+
+    function setTetherAddress(address tether) public onlyWallet {
+        tetherAddress = tether;
+    }
+
+    function getChainId(string memory _chain) public view returns(bytes32){
+        return sha256(abi.encodePacked(address(this), _chain));
+    }
+
+    function setValidChain(string memory _chain, bool valid) public onlyWallet {
+        isValidChain[getChainId(_chain)] = valid;
+    }
+
+    function deposit(string memory toChain, bytes memory toAddr) payable public onlyActivated {
+        require(isValidChain[getChainId(toChain)]);
+        require(msg.value > 0);
+
+        depositCount = depositCount + 1;
+        emit Deposit(chain, toChain, msg.sender, toAddr, address(0), 18, msg.value, depositCount, block.number);
+    }
+
+    function depositToken(address token, string memory toChain, bytes memory toAddr, uint amount) public onlyActivated{
+        require(isValidChain[getChainId(toChain)]);
+        require(token != address(0));
+        require(amount > 0);
+
+        uint8 decimal = 0;
+        if(token == tetherAddress){
+            TIERC20(token).transferFrom(msg.sender, address(this), amount);
+            decimal = TIERC20(token).decimals();
+        }else{
+            if(!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert();
+            decimal = IERC20(token).decimals();
+        }
+        
+        require(decimal > 0);
+
+        depositCount = depositCount + 1;
+        emit Deposit(chain, toChain, msg.sender, toAddr, token, decimal, amount, depositCount, block.number);
+    }
+
+    // Fix Data Info
+    ///@param bytes32s [0]:govId, [1]:txHash
+    ///@param uints [0]:amount, [1]:decimals
+    function withdraw(
+        address hubContract,
+        string memory fromChain,
+        bytes memory fromAddr,
+        bytes memory toAddr,
+        bytes memory token,
+        bytes32[] memory bytes32s,
+        uint[] memory uints,
+        uint8[] memory v,
+        bytes32[] memory r,
+        bytes32[] memory s
+    ) public onlyActivated {
+        require(bytes32s.length >= 1);
+        require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));
+        require(uints.length >= 2);
+        require(isValidChain[getChainId(fromChain)]);
+
+        bytes32 whash = sha256(abi.encodePacked(hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints));
+
+        require(!isUsedWithdrawal[whash]);
+        isUsedWithdrawal[whash] = true;
+
+        uint validatorCount = _validate(whash, v, r, s);
+        require(validatorCount >= required);
+
+        address payable _toAddr = bytesToAddress(toAddr);
+        address tokenAddress = bytesToAddress(token);
+        if(tokenAddress == address(0)){
+            if(!_toAddr.send(uints[0])) revert();
+        }else{
+            if(tokenAddress == tetherAddress){
+                TIERC20(tokenAddress).transfer(_toAddr, uints[0]);
+            }
+            else{
+                if(!IERC20(tokenAddress).transfer(_toAddr, uints[0])) revert();
+            }
+        }
+
+        emit Withdraw(hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints);
+    }
+
+    function _validate(bytes32 whash, uint8[] memory v, bytes32[] memory r, bytes32[] memory s) private view returns(uint){
+        uint validatorCount = 0;
+        address[] memory vaList = new address[](owners.length);
+
+        uint i=0;
+        uint j=0;
+
+        for(i; i<v.length; i++){
+            address va = ecrecover(whash,v[i],r[i],s[i]);
+            if(isOwner[va]){
+                for(j=0; j<validatorCount; j++){
+                    require(vaList[j] != va);
+                }
+
+                vaList[validatorCount] = va;
+                validatorCount += 1;
+            }
+        }
+
+        return validatorCount;
+    }
+
+    function bytesToAddress(bytes memory bys) private pure returns (address payable addr) {
+        assembly {
+            addr := mload(add(bys,20))
+        }
+    }
+
+    function () payable external{
+    }
+}
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+D:\LongHe\01-PHD\02-»ùÓÚLLMµÄ¿çÁ´Â©¶´¼ì²â\10-data-deduplicate\dedup_non_vul_bridges\Orbit Bridge\contracts\EthVault.sol
+File type: .sol
+pragma solidity ^0.5.0;
+
+import "./MultiSigWallet.sol";
+
+contract EthVault is MultiSigWallet{
+    string public constant chain = "ETH";
+
+    bool public isActivated = true;
+
+    address payable public implementation;
+    address public tetherAddress;
+
+    uint public depositCount = 0;
+
+    mapping(bytes32 => bool) public isUsedWithdrawal;
+
+    mapping(bytes32 => address) public tokenAddr;
+    mapping(address => bytes32) public tokenSummaries;
+
+    mapping(bytes32 => bool) public isValidChain;
+
+    constructor(address[] memory _owners, uint _required, address payable _implementation, address _tetherAddress) MultiSigWallet(_owners, _required) public {
+        implementation = _implementation;
+        tetherAddress = _tetherAddress;
+
+        // klaytn valid chain default setting
+        isValidChain[sha256(abi.encodePacked(address(this), "KLAYTN"))] = true;
+    }
+
+    function _setImplementation(address payable _newImp) public onlyWallet {
+        require(implementation != _newImp);
+        implementation = _newImp;
+
+    }
+
+    function () payable external {
+        address impl = implementation;
+        require(impl != address(0));
+        assembly {
+            let ptr := mload(0x40)
+            calldatacopy(ptr, 0, calldatasize)
+            let result := delegatecall(gas, impl, ptr, calldatasize, 0, 0)
+            let size := returndatasize
+            returndatacopy(ptr, 0, size)
+
+            switch result
+            case 0 { revert(ptr, size) }
+            default { return(ptr, size) }
+        }
+    }
+}
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+D:\LongHe\01-PHD\02-»ùÓÚLLMµÄ¿çÁ´Â©¶´¼ì²â\10-data-deduplicate\dedup_non_vul_bridges\Orbit Bridge\contracts\EthVaultImpl.sol
+File type: .sol
+/**
+ *Submitted for verification at Etherscan.io on 2023-05-16
+*/
+
+pragma solidity 0.5.0;
+
+library SafeMath {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+
+        return c;
+    }
+
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
+library Address {
+    function isContract(address account) internal view returns (bool) {
+        uint256 size;
+        assembly { size := extcodesize(account) }
+        return size > 0;
+    }
+}
+
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function decimals() external view returns (uint8);
+}
+
+library SafeERC20 {
+    using SafeMath for uint256;
+    using Address for address;
+
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function callOptionalReturn(IERC20 token, bytes memory data) private {
+        require(address(token).isContract(), "SafeERC20: call to non-contract");
+
+        (bool success, bytes memory returndata) = address(token).call(data);
+        require(success, "SafeERC20: low-level call failed");
+
+        if (returndata.length > 0) {
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
+}
+
+interface IERC721 {
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function transferFrom(address from, address to, uint256 tokenId) external;
+    function approve(address to, uint256 tokenId) external;
+    function getApproved(uint256 tokenId) external view returns (address operator);
+    function setApprovalForAll(address operator, bool _approved) external;
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+
+interface IFarm {
+    function orbitVault() external view returns (address);
+    function withdrawAll() external;
+}
+
+interface OrbitBridgeReceiver {
+    function onTokenBridgeReceived(address _token, uint256 _value, bytes calldata _data) external returns(uint);
+	function onNFTBridgeReceived(address _token, uint256 _tokenId, bytes calldata _data) external returns(uint);
+}
+
+library LibCallBridgeReceiver {
+    function callReceiver(bool isFungible, uint gasLimitForBridgeReceiver, address tokenAddress, uint256 _int, bytes memory data, address toAddr) internal returns (bool, bytes memory){
+        bool result;
+        bytes memory callbytes;
+        bytes memory returnbytes;
+        if (isFungible) {
+            callbytes = abi.encodeWithSignature("onTokenBridgeReceived(address,uint256,bytes)", tokenAddress, _int, data);
+        } else {
+            callbytes = abi.encodeWithSignature("onNFTBridgeReceived(address,uint256,bytes)", tokenAddress, _int, data);
+        }
+        if (gasLimitForBridgeReceiver > 0) {
+            (result, returnbytes) = toAddr.call.gas(gasLimitForBridgeReceiver)(callbytes);
+        } else {
+            (result, returnbytes) = toAddr.call(callbytes);
+        }
+
+        return (result, returnbytes);
+    }
+}
+
+contract EthVaultStorage {
+    /////////////////////////////////////////////////////////////////////////
+    // MultiSigWallet.sol
+    uint constant public MAX_OWNER_COUNT = 50;
+    mapping (uint => Transaction) public transactions;
+    mapping (uint => mapping (address => bool)) public confirmations;
+    mapping (address => bool) public isOwner;
+    address[] public owners;
+    uint public required;
+    uint public transactionCount;
+    struct Transaction {
+        address destination;
+        uint value;
+        bytes data;
+        bool executed;
+    }
+    /////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////
+    // EthVault.sol
+    string public constant chain = "ETH";
+    bool public isActivated = true;
+    address payable public implementation;
+    address public tetherAddress;
+    uint public depositCount = 0;
+    mapping(bytes32 => bool) public isUsedWithdrawal;
+    mapping(bytes32 => address) public tokenAddr;
+    mapping(address => bytes32) public tokenSummaries;
+    mapping(bytes32 => bool) public isValidChain;
+    /////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////
+    // EthVault.impl.sol
+    uint public bridgingFee = 0;
+    address payable public feeGovernance;
+    mapping(address => bool) public silentTokenList;
+    mapping(address => address payable) public farms;
+    uint public taxRate; // 0.01% interval
+    address public taxReceiver;
+    uint public gasLimitForBridgeReceiver;
+
+    address public policyAdmin;
+    mapping(bytes32 => uint256) public chainFee;
+    mapping(bytes32 => uint256) public chainFeeWithData;
+
+    mapping(bytes32 => uint256) public chainUintsLength;
+    mapping(bytes32 => uint256) public chainAddressLength;
+
+    address public dai;
+    address public edai;
+
+    mapping(address => bool) public nonTaxable;
+    mapping(address => address) public wrappedDeposit;
+    mapping(address => address) public unwrappedWithdraw;
+    /////////////////////////////////////////////////////////////////////////
+}
+
+contract EthVaultImpl is EthVaultStorage {
+    using SafeERC20 for IERC20;
+    using SafeMath for uint;
+
+    event Deposit(string toChain, address fromAddr, bytes toAddr, address token, uint8 decimal, uint amount, uint depositId, bytes data);
+    event DepositNFT(string toChain, address fromAddr, bytes toAddr, address token, uint tokenId, uint amount, uint depositId, bytes data);
+
+    event Withdraw(string fromChain, bytes fromAddr, bytes toAddr, bytes token, bytes32[] bytes32s, uint[] uints, bytes data);
+    event WithdrawNFT(string fromChain, bytes fromAddr, bytes toAddr, bytes token, bytes32[] bytes32s, uint[] uints, bytes data);
+
+    event BridgeReceiverResult(bool success, bytes fromAddress, address tokenAddress, bytes data);
+    event OnBridgeReceived(bool result, bytes returndata, bytes fromAddr, address tokenAddress, bytes data);
+
+    modifier onlyActivated {
+        require(isActivated);
+        _;
+    }
+
+    modifier onlyWallet {
+        require(msg.sender == address(this));
+        _;
+    }
+
+    modifier onlyPolicyAdmin {
+        require(msg.sender == policyAdmin);
+        _;
+    }
+
+    constructor() public payable { }
+
+    function getVersion() public pure returns(string memory){
+        return "EthVault20230511A";
+    }
+
+    function getChainId(string memory _chain) public view returns(bytes32){
+        return sha256(abi.encodePacked(address(this), _chain));
+    }
+
+    function setUsedWithdrawal(bytes32 whash, bool v) public {
+        require(msg.sender == address(this) || msg.sender == policyAdmin);
+
+        if(msg.sender == policyAdmin) v = true;
+        isUsedWithdrawal[whash] = v;
+    }
+
+    function setValidChain(string memory _chain, bool valid, uint fromAddrLen, uint uintsLen) public onlyWallet {
+        bytes32 chainId = getChainId(_chain);
+        require(chainId != getChainId(chain));
+        isValidChain[chainId] = valid;
+        if(valid){
+            chainAddressLength[chainId] = fromAddrLen;
+            chainUintsLength[chainId] = uintsLen;
+        }
+        else{
+            chainAddressLength[chainId] = 0;
+            chainUintsLength[chainId] = 0;
+        }
+    }
+
+    function setTaxParams(uint _taxRate, address _taxReceiver) public onlyWallet {
+        require(_taxRate < 10000);
+        require(_taxReceiver != address(0));
+        taxRate = _taxRate;
+        taxReceiver = _taxReceiver;
+    }
+
+    function setPolicyAdmin(address _policyAdmin) public onlyWallet {
+        require(_policyAdmin != address(0));
+
+        policyAdmin = _policyAdmin;
+    }
+
+    function changeActivate(bool activate) public onlyPolicyAdmin {
+        isActivated = activate;
+    }
+
+    function setSilentToken(address token, bool v) public onlyPolicyAdmin {
+        require(token != address(0));
+
+        silentTokenList[token] = v;
+    }
+
+    function setFeeGovernance(address payable _feeGovernance) public onlyWallet {
+        require(_feeGovernance != address(0));
+
+        feeGovernance = _feeGovernance;
+    }
+
+    function setChainFee(string memory chainSymbol, uint256 _fee, uint256 _feeWithData) public onlyPolicyAdmin {
+        bytes32 chainId = getChainId(chainSymbol);
+        require(isValidChain[chainId]);
+
+        chainFee[chainId] = _fee;
+        chainFeeWithData[chainId] = _feeWithData;
+    }
+
+    function setGasLimitForBridgeReceiver(uint256 _gasLimitForBridgeReceiver) public onlyPolicyAdmin {
+        gasLimitForBridgeReceiver = _gasLimitForBridgeReceiver;
+    }
+
+    function setNonTaxableAddress(address target, bool valid) public onlyWallet {
+        nonTaxable[target] = valid;
+    }
+
+    function setWrappedAddress(bool set, address token, address wrapped) public onlyWallet {
+        require(token != address(0) && wrapped != address(0));
+        require(token != dai && wrapped != edai);
+
+        if(set){
+            require(wrappedDeposit[token] == address(0) && unwrappedWithdraw[wrapped] == address(0));
+            wrappedDeposit[token] = wrapped;
+            unwrappedWithdraw[wrapped] = token;
+        }
+        else{
+            require(wrappedDeposit[token] == wrapped && unwrappedWithdraw[wrapped] == token);
+            wrappedDeposit[token] = address(0);
+            unwrappedWithdraw[wrapped] = address(0);
+        }
+    }
+
+    function addFarm(address token, address payable proxy) public onlyWallet {
+        require(farms[token] == address(0));
+        require(IFarm(proxy).orbitVault() == address(this));
+        farms[token] = proxy;
+    }
+
+    function removeFarm(address token, address payable newProxy) public onlyWallet {
+        address curFarm = farms[token];
+        require(curFarm != address(0));
+
+        IFarm(curFarm).withdrawAll();
+
+        if(newProxy != address(0)){
+            require(IFarm(newProxy).orbitVault() == address(this));
+        }
+
+        farms[token] = newProxy;
+    }
+
+    function transferToFarm(address token, uint256 amount) public {
+        require(farms[token] != address(0));
+        require(msg.sender == farms[token]);
+
+        _transferToken(token, msg.sender, amount);
+    }
+
+    function deposit(string memory toChain, bytes memory toAddr) payable public {
+        uint256 fee = chainFee[getChainId(toChain)];
+        if(fee != 0 && !nonTaxable[msg.sender]){
+            require(msg.value > fee);
+            _transferToken(address(0), feeGovernance, fee);
+        }
+
+        _depositToken(address(0), toChain, toAddr, !nonTaxable[msg.sender] ? (msg.value).sub(fee) : msg.value, "");
+    }
+
+    function deposit(string memory toChain, bytes memory toAddr, bytes memory data) payable public {
+        require(data.length != 0);
+
+        uint256 fee = chainFeeWithData[getChainId(toChain)];
+        if(fee != 0 && !nonTaxable[msg.sender]){
+            require(msg.value > fee);
+            _transferToken(address(0), feeGovernance, fee);
+        }
+
+        _depositToken(address(0), toChain, toAddr, !nonTaxable[msg.sender] ? (msg.value).sub(fee) : msg.value, data);
+    }
+
+    function depositToken(address token, string memory toChain, bytes memory toAddr, uint amount) public payable {
+        require(token != address(0));
+
+        uint256 fee = chainFee[getChainId(toChain)];
+        if(fee != 0 && !nonTaxable[msg.sender]){
+            require(msg.value >= fee);
+            _transferToken(address(0), feeGovernance, msg.value);
+        }
+
+        _depositToken(token, toChain, toAddr, amount, "");
+    }
+
+    function depositToken(address token, string memory toChain, bytes memory toAddr, uint amount, bytes memory data) public payable {
+        require(token != address(0));
+        require(data.length != 0);
+
+        uint256 fee = chainFeeWithData[getChainId(toChain)];
+        if(fee != 0 && !nonTaxable[msg.sender]){
+            require(msg.value >= fee);
+            _transferToken(address(0), feeGovernance, msg.value);
+        }
+
+        _depositToken(token, toChain, toAddr, amount, data);
+    }
+
+    function _depositToken(address token, string memory toChain, bytes memory toAddr, uint amount, bytes memory data) private onlyActivated {
+        require(isValidChain[getChainId(toChain)]);
+        require(amount != 0);
+        require(!silentTokenList[token] && unwrappedWithdraw[token] == address(0));
+
+        uint8 decimal;
+        if(token == address(0)){
+            decimal = 18;
+        }
+        else{
+            IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+            decimal = IERC20(token).decimals();
+
+            if(token == dai){
+                token = edai;
+            }
+            else if(wrappedDeposit[token] != address(0)){
+                token = wrappedDeposit[token];
+            }
+        }
+        require(decimal > 0);
+
+        if(taxRate > 0 && taxReceiver != address(0) && !nonTaxable[msg.sender]){
+            uint tax = _payTax(token, amount, decimal);
+            amount = amount.sub(tax);
+        }
+
+        depositCount = depositCount + 1;
+        emit Deposit(toChain, msg.sender, toAddr, token, decimal, amount, depositCount, data);
+    }
+
+    function depositNFT(address token, string memory toChain, bytes memory toAddr, uint tokenId) public payable {
+        uint256 fee = chainFee[getChainId(toChain)];
+        if(fee != 0 && !nonTaxable[msg.sender]){
+            require(msg.value >= fee);
+            _transferToken(address(0), feeGovernance, msg.value);
+        }
+
+        _depositNFT(token, toChain, toAddr, tokenId, "");
+    }
+
+    function depositNFT(address token, string memory toChain, bytes memory toAddr, uint tokenId, bytes memory data) public payable {
+        require(data.length != 0);
+
+        uint256 fee = chainFeeWithData[getChainId(toChain)];
+        if(fee != 0 && !nonTaxable[msg.sender]){
+            require(msg.value >= fee);
+            _transferToken(address(0), feeGovernance, msg.value);
+        }
+
+        _depositNFT(token, toChain, toAddr, tokenId, data);
+    }
+
+    function _depositNFT(address token, string memory toChain, bytes memory toAddr, uint tokenId, bytes memory data) private onlyActivated {
+        require(isValidChain[getChainId(toChain)]);
+        require(token != address(0));
+        require(IERC721(token).ownerOf(tokenId) == msg.sender);
+        require(!silentTokenList[token]);
+
+        IERC721(token).transferFrom(msg.sender, address(this), tokenId);
+        require(IERC721(token).ownerOf(tokenId) == address(this));
+
+        depositCount = depositCount + 1;
+        emit DepositNFT(toChain, msg.sender, toAddr, token, tokenId, 1, depositCount, data);
+    }
+
+    // Fix Data Info
+    ///@param bytes32s [0]:govId, [1]:txHash
+    ///@param uints [0]:amount, [1]:decimal
+    function withdraw(
+        address hubContract,
+        string memory fromChain,
+        bytes memory fromAddr,
+        address payable toAddr,
+        address token,
+        bytes32[] memory bytes32s,
+        uint[] memory uints,
+        bytes memory data,
+        uint8[] memory v,
+        bytes32[] memory r,
+        bytes32[] memory s
+    ) public onlyActivated {
+        require(bytes32s.length == 2);
+        require(uints.length == chainUintsLength[getChainId(fromChain)]);
+        require(uints[1] <= 100);
+        require(fromAddr.length == chainAddressLength[getChainId(fromChain)]);
+
+        require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));
+        require(isValidChain[getChainId(fromChain)]);
+
+        {
+        bytes32 whash = sha256(abi.encodePacked(hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints, data));
+
+        require(!isUsedWithdrawal[whash]);
+        isUsedWithdrawal[whash] = true;
+
+        uint validatorCount = _validate(whash, v, r, s);
+        require(validatorCount >= required);
+        }
+
+        emit Withdraw(fromChain, fromAddr, abi.encodePacked(toAddr), abi.encodePacked(token), bytes32s, uints, data);
+
+        if(token == edai){
+            token = dai;
+        }
+        else if(unwrappedWithdraw[token] != address(0)){
+            token = unwrappedWithdraw[token];
+        }
+
+        _transferToken(token, toAddr, uints[0]);
+
+        if(isContract(toAddr) && data.length != 0){
+            (bool result, bytes memory returndata) = LibCallBridgeReceiver.callReceiver(true, gasLimitForBridgeReceiver, token, uints[0], data, toAddr);
+            emit BridgeReceiverResult(result, fromAddr, token, data);
+            emit OnBridgeReceived(result, returndata, fromAddr, token, data);
+        }
+    }
+
+    // Fix Data Info
+    ///@param bytes32s [0]:govId, [1]:txHash
+    ///@param uints [0]:amount, [1]:tokenId
+    function withdrawNFT(
+        address hubContract,
+        string memory fromChain,
+        bytes memory fromAddr,
+        address payable toAddr,
+        address token,
+        bytes32[] memory bytes32s,
+        uint[] memory uints,
+        bytes memory data,
+        uint8[] memory v,
+        bytes32[] memory r,
+        bytes32[] memory s
+    ) public onlyActivated {
+        require(bytes32s.length == 2);
+        require(uints.length == chainUintsLength[getChainId(fromChain)]);
+        require(fromAddr.length == chainAddressLength[getChainId(fromChain)]);
+
+        require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));
+        require(isValidChain[getChainId(fromChain)]);
+
+        {
+        bytes32 whash = sha256(abi.encodePacked("NFT", hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints, data));
+
+        require(!isUsedWithdrawal[whash]);
+        isUsedWithdrawal[whash] = true;
+
+        uint validatorCount = _validate(whash, v, r, s);
+        require(validatorCount >= required);
+        }
+
+        require(IERC721(token).ownerOf(uints[1]) == address(this));
+        IERC721(token).transferFrom(address(this), toAddr, uints[1]);
+        require(IERC721(token).ownerOf(uints[1]) == toAddr);
+
+        if(isContract(toAddr) && data.length != 0){
+            (bool result, bytes memory returndata) = LibCallBridgeReceiver.callReceiver(false, gasLimitForBridgeReceiver, token, uints[1], data, toAddr);
+            emit BridgeReceiverResult(result, fromAddr, token, data);
+            emit OnBridgeReceived(result, returndata, fromAddr, token, data);
+        }
+
+        emit WithdrawNFT(fromChain, fromAddr, abi.encodePacked(toAddr), abi.encodePacked(token), bytes32s, uints, data);
+    }
+
+    function _validate(bytes32 whash, uint8[] memory v, bytes32[] memory r, bytes32[] memory s) private view returns(uint){
+        uint validatorCount = 0;
+        address[] memory vaList = new address[](owners.length);
+
+        uint i=0;
+        uint j=0;
+
+        for(i; i<v.length; i++){
+            address va = ecrecover(whash,v[i],r[i],s[i]);
+            if(isOwner[va]){
+                for(j=0; j<validatorCount; j++){
+                    require(vaList[j] != va);
+                }
+
+                vaList[validatorCount] = va;
+                validatorCount += 1;
+            }
+        }
+
+        return validatorCount;
+    }
+
+    function _payTax(address token, uint amount, uint8 decimal) private returns (uint tax) {
+        tax = amount.mul(taxRate).div(10000);
+        if(tax > 0){
+            depositCount = depositCount + 1;
+            emit Deposit("ORBIT", msg.sender, abi.encodePacked(taxReceiver), token, decimal, tax, depositCount, "");
+        }
+    }
+
+    function _transferToken(address token, address payable destination, uint amount) private {
+        if(token == address(0)){
+            require((address(this)).balance >= amount);
+            (bool transfered,) = destination.call.value(amount)("");
+            require(transfered);
+        }
+        else{
+            require(IERC20(token).balanceOf(address(this)) >= amount);
+            IERC20(token).safeTransfer(destination, amount);
+        }
+    }
+
+    function isContract(address _addr) private view returns (bool){
+        uint32 size;
+        assembly {
+            size := extcodesize(_addr)
+        }
+        return (size > 0);
+    }
+
+    function bytesToAddress(bytes memory bys) public pure returns (address payable addr) {
+        assembly {
+            addr := mload(add(bys,20))
+        }
+    }
+
+    function () payable external{
+    }
+}
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+D:\LongHe\01-PHD\02-»ùÓÚLLMµÄ¿çÁ´Â©¶´¼ì²â\10-data-deduplicate\dedup_non_vul_bridges\Orbit Bridge\contracts\MultiSigWallet.sol
+File type: .sol
+pragma solidity ^0.5.0;
+
+/// @title Multisignature wallet - Allows multiple parties to agree on transactions before execution.
+/// @author Stefan George - <stefan.george@consensys.net>
+contract MultiSigWallet {
+
+    uint constant public MAX_OWNER_COUNT = 50;
+
+    event Confirmation(address indexed sender, uint indexed transactionId);
+    event Revocation(address indexed sender, uint indexed transactionId);
+    event Submission(uint indexed transactionId);
+    event Execution(uint indexed transactionId);
+    event ExecutionFailure(uint indexed transactionId);
+    event Deposit(address indexed sender, uint value);
+    event OwnerAddition(address indexed owner);
+    event OwnerRemoval(address indexed owner);
+    event RequirementChange(uint required);
+
+    mapping (uint => Transaction) public transactions;
+    mapping (uint => mapping (address => bool)) public confirmations;
+    mapping (address => bool) public isOwner;
+    address[] public owners;
+    uint public required;
+    uint public transactionCount;
+
+    struct Transaction {
+        address destination;
+        uint value;
+        bytes data;
+        bool executed;
+    }
+
+    modifier onlyWallet() {
+        if (msg.sender != address(this))
+            revert("Unauthorized.");
+        _;
+    }
+
+    modifier ownerDoesNotExist(address owner) {
+        if (isOwner[owner])
+            revert("Unauthorized.");
+        _;
+    }
+
+    modifier ownerExists(address owner) {
+        if (!isOwner[owner])
+            revert("Unauthorized.");
+        _;
+    }
+
+    modifier transactionExists(uint transactionId) {
+        if (transactions[transactionId].destination == address(0))
+            revert("Existed transaction id.");
+        _;
+    }
+
+    modifier confirmed(uint transactionId, address owner) {
+        if (!confirmations[transactionId][owner])
+            revert("Not confirmed transaction.");
+        _;
+    }
+
+    modifier notConfirmed(uint transactionId, address owner) {
+        if (confirmations[transactionId][owner])
+            revert("Confirmed transaction.");
+        _;
+    }
+
+    modifier notExecuted(uint transactionId) {
+        if (transactions[transactionId].executed)
+            revert("Executed transaction.");
+        _;
+    }
+
+    modifier notNull(address _address) {
+        if (_address == address(0))
+            revert("Address is null");
+        _;
+    }
+
+    modifier validRequirement(uint ownerCount, uint _required) {
+        if (   ownerCount > MAX_OWNER_COUNT
+            || _required > ownerCount
+            || _required == 0
+            || ownerCount == 0)
+            revert("Invalid requirement");
+        _;
+    }
+
+    /// @dev Fallback function allows to deposit ether.
+    function()
+        external
+        payable
+    {
+        if (msg.value > 0)
+            emit Deposit(msg.sender, msg.value);
+    }
+
+    /*
+     * Public functions
+     */
+    /// @dev Contract constructor sets initial owners and required number of confirmations.
+    /// @param _owners List of initial owners.
+    /// @param _required Number of required confirmations.
+    constructor(address[] memory _owners, uint _required)
+        public
+        validRequirement(_owners.length, _required)
+    {
+        for (uint i=0; i<_owners.length; i++) {
+            if (isOwner[_owners[i]] || _owners[i] == address(0))
+                revert("Invalid owner");
+            isOwner[_owners[i]] = true;
+        }
+        owners = _owners;
+        required = _required;
+    }
+
+    /// @dev Allows to add a new owner. Transaction has to be sent by wallet.
+    /// @param owner Address of new owner.
+    function addOwner(address owner)
+        public
+        onlyWallet
+        ownerDoesNotExist(owner)
+        notNull(owner)
+        validRequirement(owners.length + 1, required)
+    {
+        isOwner[owner] = true;
+        owners.push(owner);
+        emit OwnerAddition(owner);
+    }
+
+    /// @dev Allows to remove an owner. Transaction has to be sent by wallet.
+    /// @param owner Address of owner.
+    function removeOwner(address owner)
+        public
+        onlyWallet
+        ownerExists(owner)
+    {
+        isOwner[owner] = false;
+        for (uint i=0; i<owners.length - 1; i++)
+            if (owners[i] == owner) {
+                owners[i] = owners[owners.length - 1];
+                break;
+            }
+        owners.length -= 1;
+        if (required > owners.length)
+            changeRequirement(owners.length);
+        emit OwnerRemoval(owner);
+    }
+
+    /// @dev Allows to replace an owner with a new owner. Transaction has to be sent by wallet.
+    /// @param owner Address of owner to be replaced.
+    /// @param owner Address of new owner.
+    function replaceOwner(address owner, address newOwner)
+        public
+        onlyWallet
+        ownerExists(owner)
+        ownerDoesNotExist(newOwner)
+    {
+        for (uint i=0; i<owners.length; i++)
+            if (owners[i] == owner) {
+                owners[i] = newOwner;
+                break;
+            }
+        isOwner[owner] = false;
+        isOwner[newOwner] = true;
+        emit OwnerRemoval(owner);
+        emit OwnerAddition(newOwner);
+    }
+
+    /// @dev Allows to change the number of required confirmations. Transaction has to be sent by wallet.
+    /// @param _required Number of required confirmations.
+    function changeRequirement(uint _required)
+        public
+        onlyWallet
+        validRequirement(owners.length, _required)
+    {
+        required = _required;
+        emit RequirementChange(_required);
+    }
+
+    /// @dev Allows an owner to submit and confirm a transaction.
+    /// @param destination Transaction target address.
+    /// @param value Transaction ether value.
+    /// @param data Transaction data payload.
+    /// @return Returns transaction ID.
+    function submitTransaction(address destination, uint value, bytes memory data)
+        public
+        returns (uint transactionId)
+    {
+        transactionId = addTransaction(destination, value, data);
+        confirmTransaction(transactionId);
+    }
+
+    /// @dev Allows an owner to confirm a transaction.
+    /// @param transactionId Transaction ID.
+    function confirmTransaction(uint transactionId)
+        public
+        ownerExists(msg.sender)
+        transactionExists(transactionId)
+        notConfirmed(transactionId, msg.sender)
+    {
+        confirmations[transactionId][msg.sender] = true;
+        emit Confirmation(msg.sender, transactionId);
+        executeTransaction(transactionId);
+    }
+
+    /// @dev Allows an owner to revoke a confirmation for a transaction.
+    /// @param transactionId Transaction ID.
+    function revokeConfirmation(uint transactionId)
+        public
+        ownerExists(msg.sender)
+        confirmed(transactionId, msg.sender)
+        notExecuted(transactionId)
+    {
+        confirmations[transactionId][msg.sender] = false;
+        emit Revocation(msg.sender, transactionId);
+    }
+
+    /// @dev Allows anyone to execute a confirmed transaction.
+    /// @param transactionId Transaction ID.
+    function executeTransaction(uint transactionId)
+        public
+        notExecuted(transactionId)
+    {
+        if (isConfirmed(transactionId)) {
+            Transaction storage txn = transactions[transactionId];
+            txn.executed = true;
+            (bool result, ) = txn.destination.call.value(txn.value)(txn.data);
+            if (result)
+                emit Execution(transactionId);
+            else {
+                emit ExecutionFailure(transactionId);
+                txn.executed = false;
+            }
+        }
+    }
+
+    /// @dev Returns the confirmation status of a transaction.
+    /// @param transactionId Transaction ID.
+    /// @return Confirmation status.
+    function isConfirmed(uint transactionId)
+        public
+        view
+        returns (bool)
+    {
+        uint count = 0;
+        for (uint i=0; i<owners.length; i++) {
+            if (confirmations[transactionId][owners[i]])
+                count += 1;
+            if (count == required)
+                return true;
+        }
+    }
+
+    /*
+     * Internal functions
+     */
+    /// @dev Adds a new transaction to the transaction mapping, if transaction does not exist yet.
+    /// @param destination Transaction target address.
+    /// @param value Transaction ether value.
+    /// @param data Transaction data payload.
+    /// @return Returns transaction ID.
+    function addTransaction(address destination, uint value, bytes memory data)
+        public
+        notNull(destination)
+        returns (uint transactionId)
+    {
+        transactionId = transactionCount;
+        transactions[transactionId] = Transaction({
+            destination: destination,
+            value: value,
+            data: data,
+            executed: false
+        });
+        transactionCount += 1;
+        emit Submission(transactionId);
+    }
+
+    /*
+     * Web3 call functions
+     */
+    /// @dev Returns number of confirmations of a transaction.
+    /// @param transactionId Transaction ID.
+    /// @return Number of confirmations.
+    function getConfirmationCount(uint transactionId)
+        public
+        view
+        returns (uint count)
+    {
+        for (uint i=0; i<owners.length; i++)
+            if (confirmations[transactionId][owners[i]])
+                count += 1;
+    }
+
+    /// @dev Returns total number of transactions after filers are applied.
+    /// @param pending Include pending transactions.
+    /// @param executed Include executed transactions.
+    /// @return Total number of transactions after filters are applied.
+    function getTransactionCount(bool pending, bool executed)
+        public
+        view
+        returns (uint count)
+    {
+        for (uint i=0; i<transactionCount; i++)
+            if (   pending && !transactions[i].executed
+                || executed && transactions[i].executed)
+                count += 1;
+    }
+
+    /// @dev Returns list of owners.
+    /// @return List of owner addresses.
+    function getOwners()
+        public
+        view
+        returns (address[] memory)
+    {
+        return owners;
+    }
+
+    /// @dev Returns array with owner addresses, which confirmed transaction.
+    /// @param transactionId Transaction ID.
+    /// @return Returns array of owner addresses.
+    function getConfirmations(uint transactionId)
+        public
+        view
+        returns (address[] memory _confirmations)
+    {
+        address[] memory confirmationsTemp = new address[](owners.length);
+        uint count = 0;
+        uint i;
+        for (i=0; i<owners.length; i++)
+            if (confirmations[transactionId][owners[i]]) {
+                confirmationsTemp[count] = owners[i];
+                count += 1;
+            }
+        _confirmations = new address[](count);
+        for (i=0; i<count; i++)
+            _confirmations[i] = confirmationsTemp[i];
+    }
+
+    /// @dev Returns list of transaction IDs in defined range.
+    /// @param from Index start position of transaction array.
+    /// @param to Index end position of transaction array.
+    /// @param pending Include pending transactions.
+    /// @param executed Include executed transactions.
+    /// @return Returns array of transaction IDs.
+    function getTransactionIds(uint from, uint to, bool pending, bool executed)
+        public
+        view
+        returns (uint[] memory _transactionIds)
+    {
+        uint[] memory transactionIdsTemp = new uint[](transactionCount);
+        uint count = 0;
+        uint i;
+        for (i=0; i<transactionCount; i++)
+            if (   pending && !transactions[i].executed
+                || executed && transactions[i].executed)
+            {
+                transactionIdsTemp[count] = i;
+                count += 1;
+            }
+        _transactionIds = new uint[](to - from);
+        for (i=from; i<to; i++)
+            _transactionIds[i - from] = transactionIdsTemp[i];
+    }
+}
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------
+
+
+D:\LongHe\01-PHD\02-»ùÓÚLLMµÄ¿çÁ´Â©¶´¼ì²â\10-data-deduplicate\dedup_non_vul_bridges\Orbit Bridge\contracts\SafeMath.sol
+File type: .sol
+pragma solidity ^0.5.0;
+
+contract SafeMath {
+    function safeMul(uint a, uint b) internal pure returns(uint) {
+        uint c = a * b;
+        assertion(a == 0 || c / a == b);
+        return c;
+    }
+
+    function safeSub(uint a, uint b) internal pure returns(uint) {
+        assertion(b <= a);
+        return a - b;
+    }
+
+    function safeAdd(uint a, uint b) internal pure returns(uint) {
+        uint c = a + b;
+        assertion(c >= a && c >= b);
+        return c;
+    }
+
+    function safeDiv(uint a, uint b) internal pure returns(uint) {
+        require(b != 0, 'Divide by zero');
+
+        return a / b;
+    }
+
+    function safeCeil(uint a, uint b) internal pure returns (uint) {
+        require(b > 0);
+
+        uint v = a / b;
+
+        if(v * b == a) return v;
+
+        return v + 1;  // b cannot be 1, so v <= a / 2
+    }
+
+    function assertion(bool flag) internal pure {
+        if (!flag) revert('Assertion fail.');
+    }
+}
+
+
+--------------------------------------------------
+File End
+--------------------------------------------------

@@ -1,0 +1,246 @@
+{
+  "contract": "ElkNet Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "ElkNet Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenRedeem2"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "stake",
+              "file_name": "FarmingRewards.sol",
+              "key_ops": [
+                "require(amount > 0, \"Cannot stake 0\");",
+                "_totalSupply = _totalSupply + amount;",
+                "_balances[msg.sender] = _balances[msg.sender] + amount;",
+                "lastStakedTime[msg.sender] = block.timestamp;",
+                "stakingToken.safeTransferFrom(msg.sender, address(this), amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "ElkRouter.sol",
+                  "key_ops": [
+                    "require(success && (data.length == 0 || abi.decode(data, (bool)), \"TransferHelper: TRANSFER_FROM_FAILED\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenRedeem2": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "FarmingRewards.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_withdraw",
+                  "file_name": "FarmingRewards.sol",
+                  "key_ops": [
+                    "require(amount > 0, \"Cannot withdraw 0\");",
+                    "uint256 balance = _balances[msg.sender];",
+                    "require(amount <= balance, \"Cannot withdraw more than account balance\");",
+                    "_totalSupply = _totalSupply - amount;",
+                    "uint256 collectedFee = fee(msg.sender, amount);",
+                    "_balances[msg.sender] = balance - amount;",
+                    "uint256 withdrawableBalance = amount - collectedFee;",
+                    "stakingToken.safeTransfer(msg.sender, withdrawableBalance);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "safeTransfer",
+                      "file_name": "ElkRouter.sol",
+                      "key_ops": [
+                        "require(success && (data.length == 0 || abi.decode(data, (bool)), \"SafeERC20: low-level call failed\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "ElkPair.sol",
+              "key_ops": [
+                "uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee",
+                "if (_totalSupply == 0) ",
+                "require(liquidity > 0, \"Elk: INSUFFICIENT_LIQUIDITY_MINTED\");",
+                "_mint(to, liquidity);",
+                "_update(balance0, balance1, _reserve0, _reserve1);",
+                "if (feeOn) kLast = uint(reserve0).mul(reserve1);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "ElkPair.sol",
+                  "key_ops": [
+                    "totalSupply = totalSupply.add(value);",
+                    "balanceOf[to] = balanceOf[to].add(value);",
+                    "emit Transfer(address(0), to, value);"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_update",
+                  "file_name": "ElkPair.sol",
+                  "key_ops": [
+                    "require(balance0 <= uint112(-1) && balance1 <= uint112(-1), \"Elk: OVERFLOW\");",
+                    "uint32 blockTimestamp = uint32(block.timestamp % 2**32);",
+                    "uint32 timeElapsed = blockTimestamp - blockTimestampLast;",
+                    "if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) ",
+                    "emit Sync(reserve0, reserve1);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "ElkPair.sol",
+              "key_ops": [
+                "(uint112 _reserve0, uint112 _reserve1,) = getReserves();",
+                "address _token0 = token0;",
+                "address _token1 = token1;",
+                "uint balance0 = IERC20(_token0).balanceOf(address(this));",
+                "uint balance1 = IERC20(_token1).balanceOf(address(this));",
+                "uint liquidity = balanceOf[address(this)];",
+                "bool feeOn = _mintFee(_reserve0, _reserve1);",
+                "uint _totalSupply = totalSupply; ",
+                "amount0 = liquidity.mul(balance0) / _totalSupply; ",
+                "amount1 = liquidity.mul(balance1) / _totalSupply; ",
+                "require(amount0 > 0 && amount1 > 0, \"Elk: INSUFFICIENT_LIQUIDITY_BURNED\");",
+                "_burn(address(this), liquidity);",
+                "_safeTransfer(_token0, to, amount0);",
+                "_safeTransfer(_token1, to, amount1);",
+                "balance0 = IERC20(_token0).balanceOf(address(this));",
+                "balance1 = IERC20(_token1).balanceOf(address(this));",
+                "_update(balance0, balance1, _reserve0, _reserve1);",
+                "if (feeOn) kLast = uint(reserve0).mul(reserve1);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "ElkPair.sol",
+                  "key_ops": [
+                    "balanceOf[from] = balanceOf[from].sub(value);",
+                    "totalSupply = totalSupply.sub(value);",
+                    "emit Transfer(from, address(0), value);"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_safeTransfer",
+                  "file_name": "ElkPair.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value);",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool), \"Elk: TRANSFER_FAILED\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "FarmingRewards.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "withdraw",
+                  "file_name": "FarmingRewards.sol",
+                  "key_ops": [
+                    "require(amount > 0, \"Cannot withdraw 0\");",
+                    "uint256 balance = _balances[msg.sender];",
+                    "require(amount <= balance, \"Cannot withdraw more than account balance\");",
+                    "_totalSupply = _totalSupply - amount;",
+                    "uint256 collectedFee = fee(msg.sender, amount);",
+                    "_balances[msg.sender] = balance - amount;",
+                    "uint256 withdrawableBalance = amount - collectedFee;",
+                    "stakingToken.safeTransfer(msg.sender, withdrawableBalance);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "safeTransfer",
+                      "file_name": "ElkRouter.sol",
+                      "key_ops": [
+                        "require(success && (data.length == 0 || abi.decode(data, (bool), \"SafeERC20: low-level call failed\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "Staked2": {
+            "0": {
+              "func_name": "stake",
+              "file_name": "FarmingRewards.sol",
+              "key_ops": [
+                "require(amount > 0, \"Cannot stake 0\");",
+                "_totalSupply = _totalSupply + amount;",
+                "_balances[msg.sender] = _balances[msg.sender] + amount;",
+                "stakingToken.safeTransferFrom(msg.sender, address(this), amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "ElkRouter.sol",
+                  "key_ops": [
+                    "require(success && (data.length == 0 || abi.decode(data, (bool), \"TransferHelper: TRANSFER_FROM_FAILED\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

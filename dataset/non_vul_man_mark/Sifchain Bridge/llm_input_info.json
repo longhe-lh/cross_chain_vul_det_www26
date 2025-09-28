@@ -1,0 +1,53 @@
+{
+    "src_chain": {
+        "LogLock1": [
+            {
+                "lock": "function lock(\n bytes memory _recipient,\n address _token,\n uint256 _amount\n ) public payable onlyEthTokenWhiteList(_token) validSifAddress(_recipient) whenNotPaused {\n string memory symbol;\n \n if (msg.value > 0) {\n require(\n _token == address(0),\n \"!address(0)\"\n );\n require(\n msg.value == _amount,\n \"incorrect eth amount\"\n );\n symbol = \"eth\";\n \n } else {\n IERC20 tokenToTransfer = IERC20(_token);\n tokenToTransfer.safeTransferFrom(\n msg.sender,\n address(this),\n _amount\n );\n symbol = BridgeToken(_token).symbol();\n }\n if (_amount > maxTokenAmount[symbol]) {\n revert(\"Amount being transferred is over the limit\");\n }\n lockFunds(msg.sender, _recipient, _token, symbol, _amount);\n }"
+            },
+            {
+                "lockFunds": "function lockFunds(\n address payable _sender,\n bytes memory _recipient,\n address _token,\n string memory _symbol,\n uint256 _amount\n ) internal {\n lockBurnNonce = lockBurnNonce.add(1);\n \n lockedTokenList[_symbol] = _token;\n lockedFunds[_token] = lockedFunds[_token].add(_amount);\n emit LogLock(_sender, _recipient, _token, _symbol, _amount, lockBurnNonce);\n }"
+            }
+        ],
+        "LogBurn2": [
+            {
+                "burn": "function burn(\n bytes memory _recipient,\n address _token,\n uint256 _amount\n ) public validSifAddress(_recipient) onlyCosmosTokenWhiteList(_token) whenNotPaused {\n string memory symbol = BridgeToken(_token).symbol();\n if (_amount > maxTokenAmount[symbol]) {\n revert(\"Amount being transferred is over the limit for this token\");\n }\n BridgeToken(_token).burnFrom(msg.sender, _amount);\n burnFunds(msg.sender, _recipient, _token, symbol, _amount);\n }"
+            },
+            {
+                "burnFunds": "function burnFunds(\n address payable _sender,\n bytes memory _recipient,\n address _token,\n string memory _symbol,\n uint256 _amount\n ) internal {\n lockBurnNonce = lockBurnNonce.add(1);\n emit LogBurn(_sender, _recipient, _token, _symbol, _amount, lockBurnNonce);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "NewProphecyClaim": [
+            {
+                "newProphecyClaim": "function newProphecyClaim(\n ClaimType _claimType,\n bytes memory _cosmosSender,\n uint256 _cosmosSenderSequence,\n address payable _ethereumReceiver,\n string memory _symbol,\n uint256 _amount\n ) public onlyValidator {\n uint256 _prophecyID = uint256(keccak256(abi.encodePacked(_claimType, _cosmosSender, _cosmosSenderSequence, _ethereumReceiver, _symbol, _amount)));\n (bool prophecyCompleted, , ) = getProphecyThreshold(_prophecyID);\n require(!prophecyCompleted, \"prophecyCompleted\");\n if (oracleClaimValidators[_prophecyID] == 0) {\n string memory symbol;\n if (_claimType == ClaimType.Burn) {\n symbol = BridgeBank(bridgeBank).safeLowerToUpperTokens(_symbol);\n require(\n BridgeBank(bridgeBank).getLockedFunds(symbol) >= _amount,\n \"Not enough locked assets to complete the proposed prophecy\"\n );\n address tokenAddress = BridgeBank(bridgeBank).getLockedTokenAddress(symbol);\n if (tokenAddress == address(0) && uint256(keccak256(abi.encodePacked(symbol))) != uint256(keccak256(\"eth\"))) {\n revert(\"Invalid token address\");\n }\n } else if (_claimType == ClaimType.Lock) {\n symbol = concat(COSMOS_NATIVE_ASSET_PREFIX, _symbol); \n symbol = BridgeBank(bridgeBank).safeLowerToUpperTokens(symbol);\n address bridgeTokenAddress = BridgeBank(bridgeBank).getBridgeToken(symbol);\n if (bridgeTokenAddress == address(0)) {\n \n BridgeBank(bridgeBank).createNewBridgeToken(symbol);\n }\n } else {\n revert(\"Invalid claim type, only burn and lock are supported.\");\n }\n emit LogNewProphecyClaim(\n _prophecyID,\n _claimType,\n _ethereumReceiver,\n symbol,\n _amount\n );\n }\n bool claimComplete = newOracleClaim(_prophecyID, msg.sender);\n if (claimComplete) {\n address tokenAddress;\n if (_claimType == ClaimType.Lock) {\n _symbol = concat(COSMOS_NATIVE_ASSET_PREFIX, _symbol);\n _symbol = BridgeBank(bridgeBank).safeLowerToUpperTokens(_symbol);\n tokenAddress = BridgeBank(bridgeBank).getBridgeToken(_symbol);\n } else {\n _symbol = BridgeBank(bridgeBank).safeLowerToUpperTokens(_symbol);\n tokenAddress = BridgeBank(bridgeBank).getLockedTokenAddress(_symbol);\n }\n completeProphecyClaim(\n _prophecyID,\n tokenAddress,\n _claimType,\n _ethereumReceiver,\n _symbol,\n _amount\n );\n }\n }"
+            },
+            {
+                "newOracleClaim": "function newOracleClaim(\n uint256 _prophecyID,\n address validatorAddress\n ) internal\n returns (bool)\n {\n \n require(\n !hasMadeClaim[_prophecyID][validatorAddress],\n \"Cannot make duplicate oracle claims from the same address.\"\n );\n hasMadeClaim[_prophecyID][validatorAddress] = true;\n \n oracleClaimValidators[_prophecyID] = oracleClaimValidators[_prophecyID].add(\n this.getValidatorPower(validatorAddress)\n );\n emit LogNewOracleClaim(\n _prophecyID,\n validatorAddress\n );\n \n (bool valid, , ) = getProphecyThreshold(_prophecyID);\n return valid;\n }"
+            }
+        ],
+        "ProphecyCompleted": [
+            {
+                "mintNewBridgeTokens": "function mintNewBridgeTokens(\n address payable _intendedRecipient,\n address _bridgeTokenAddress,\n string memory _symbol,\n uint256 _amount\n ) internal {\n require(\n controlledBridgeTokens[_symbol] == _bridgeTokenAddress,\n \"Token must be a controlled bridge token\"\n );\n \n require(\n BridgeToken(_bridgeTokenAddress).mint(_intendedRecipient, _amount),\n \"Attempted mint of bridge tokens failed\"\n );\n emit LogBridgeTokenMint(\n _bridgeTokenAddress,\n _symbol,\n _amount,\n _intendedRecipient\n );\n }"
+            },
+            {
+                "unlock": "function unlock(\n address payable _recipient,\n string memory _symbol,\n uint256 _amount\n ) public onlyCosmosBridge whenNotPaused {\n \n require(\n getLockedFunds(_symbol) >= _amount,\n \"!Bank funds\"\n );\n \n address tokenAddress = lockedTokenList[_symbol];\n if (tokenAddress == address(0)) {\n require(\n ((address(this)).balance) >= _amount,\n \"Insufficient ethereum balance for delivery.\"\n );\n } else {\n require(\n BridgeToken(tokenAddress).balanceOf(address(this)) >= _amount,\n \"Insufficient ERC20 token balance for delivery.\"\n );\n }\n unlockFunds(_recipient, tokenAddress, _symbol, _amount);\n }"
+            },
+            {
+                "unlockFunds": "function unlockFunds(\n address payable _recipient,\n address _token,\n string memory _symbol,\n uint256 _amount\n ) internal {\n \n lockedFunds[_token] = lockedFunds[_token].sub(_amount);\n \n if (_token == address(0)) {\n (bool success,) = _recipient.call.value(_amount)(\"\");\n require(success, \"error sending ether\");\n } else {\n IERC20 tokenToTransfer = IERC20(_token);\n tokenToTransfer.safeTransfer(_recipient, _amount);\n }\n emit LogUnlock(_recipient, _token, _symbol, _amount);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "LogBridgeTokenMint1": [
+            {
+                "mintNewBridgeTokens": "function mintNewBridgeTokens(\n address payable _intendedRecipient,\n address _bridgeTokenAddress,\n string memory _symbol,\n uint256 _amount\n ) internal {\n require(\n controlledBridgeTokens[_symbol] == _bridgeTokenAddress,\n \"Token must be a controlled bridge token\"\n );\n \n require(\n BridgeToken(_bridgeTokenAddress).mint(_intendedRecipient, _amount),\n \"Attempted mint of bridge tokens failed\"\n );\n emit LogBridgeTokenMint(\n _bridgeTokenAddress,\n _symbol,\n _amount,\n _intendedRecipient\n );\n }"
+            }
+        ],
+        "LogUnlock2": [
+            {
+                "unlockFunds": "function unlockFunds(\n address payable _recipient,\n address _token,\n string memory _symbol,\n uint256 _amount\n ) internal {\n \n lockedFunds[_token] = lockedFunds[_token].sub(_amount);\n \n if (_token == address(0)) {\n (bool success,) = _recipient.call.value(_amount)(\"\");\n require(success, \"error sending ether\");\n } else {\n IERC20 tokenToTransfer = IERC20(_token);\n tokenToTransfer.safeTransfer(_recipient, _amount);\n }\n emit LogUnlock(_recipient, _token, _symbol, _amount);\n }"
+            }
+        ]
+    }
+}

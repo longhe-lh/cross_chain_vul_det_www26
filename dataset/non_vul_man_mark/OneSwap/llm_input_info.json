@@ -1,0 +1,39 @@
+{
+    "src_chain": {
+        "Locksend1": [
+            {
+                "lockSend": "function lockSend(address to, uint amount, address token, uint32 unlockTime) public override beforeUnlockTime(unlockTime) {\n require(amount != 0, \"LockSend: LOCKED_AMOUNT_SHOULD_BE_NONZERO\");\n bytes32 key = _getLockedSendKey(msg.sender, to, token, unlockTime);\n function _safeTransferToMe(...) {...}\nfunction add(...) {...}\n_safeTransferToMe(token, msg.sender, amount);\n lockSendInfos[key] = lockSendInfos[key].add(amount);\n emit Locksend(msg.sender, to, token, amount, unlockTime);\n }"
+            },
+            {
+                "_safeTransferToMe": "function _safeTransferToMe(address token, address from, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(_SELECTOR2, from, address(this), value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_TO_ME_FAILED\");\n }"
+            }
+        ],
+        "Unlock2": [
+            {
+                "unlock": "function unlock(address from, address to, address token, uint32 unlockTime) public override afterUnlockTime(unlockTime) {\n bytes32 key = _getLockedSendKey(from, to, token, unlockTime);\n uint amount = lockSendInfos[key];\n require(amount != 0, \"LockSend: UNLOCK_AMOUNT_SHOULD_BE_NONZERO\");\n delete lockSendInfos[key];\n function _safeTransfer(...) {...}\n_safeTransfer(token, to, amount);\n emit Unlock(from, to, token, amount, unlockTime);\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(address token, address to, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(_SELECTOR, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_FAILED\");\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Unlock1": [
+            {
+                "unlock": "function unlock(address from, address to, address token, uint32 unlockTime) public override afterUnlockTime(unlockTime) {\n bytes32 key = _getLockedSendKey(from, to, token, unlockTime);\n uint amount = lockSendInfos[key];\n require(amount != 0, \"LockSend: UNLOCK_AMOUNT_SHOULD_BE_NONZERO\");\n delete lockSendInfos[key];\n function _safeTransfer(...) {...}\n_safeTransfer(token, to, amount);\n emit Unlock(from, to, token, amount, unlockTime);\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(address token, address to, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(_SELECTOR, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_FAILED\");\n }"
+            }
+        ],
+        "Locksend2": [
+            {
+                "lockSend": "function lockSend(address to, uint amount, address token, uint32 unlockTime) public override beforeUnlockTime(unlockTime) {\n require(amount != 0, \"LockSend: LOCKED_AMOUNT_SHOULD_BE_NONZERO\");\n bytes32 key = _getLockedSendKey(msg.sender, to, token, unlockTime);\n function _safeTransferToMe(...) {...}\nfunction add(...) {...}\n_safeTransferToMe(token, msg.sender, amount);\n lockSendInfos[key] = lockSendInfos[key].add(amount);\n emit Locksend(msg.sender, to, token, amount, unlockTime);\n }"
+            },
+            {
+                "_safeTransferToMe": "function _safeTransferToMe(address token, address from, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(_SELECTOR2, from, address(this), value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_TO_ME_FAILED\");\n }"
+            }
+        ]
+    }
+}

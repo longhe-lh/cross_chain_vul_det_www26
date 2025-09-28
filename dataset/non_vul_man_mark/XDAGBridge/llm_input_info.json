@@ -1,0 +1,17 @@
+{
+    "src_chain": {
+        "CrossERC20XDAG1": [
+            {
+                "receiveTokens": "function receiveTokens(uint256 amount, string memory to)\n external\n override\n returns (bool)\n {\n address sender = _msgSender();\n BridgeToken(erc20XDAG).transferFrom(\n _msgSender(),\n address(this),\n amount\n );\n \n \n \n \n \n \n \n uint256 burnAmount = amount - 0;\n BridgeToken(erc20XDAG).burn(address(this), burnAmount);\n emit CrossERC20XDAG(sender, burnAmount, to);\n return true;\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "AcceptedCrossTransfer1": [
+            {
+                "acceptTransfer": "function acceptTransfer(\n address receiver,\n uint256 amount,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex\n ) external override returns (bool) {\n require(receiver != NULL_ADDRESS, \"Bridge: Receiver is null\");\n require(amount > 0, \"Bridge: Amount 0\");\n require(blockHash != NULL_HASH, \"Bridge: BlockHash is null\");\n require(transactionHash != NULL_HASH, \"Bridge: Transaction is null\");\n bytes32 compiledId =\n getTransactionId(\n blockHash,\n transactionHash,\n receiver,\n amount,\n logIndex\n );\n require(!processed[compiledId], \"Bridge: Already processed\");\n processed[compiledId] = true;\n BridgeToken(erc20XDAG).mint(receiver, amount); \n return true;\n }"
+            }
+        ]
+    }
+}

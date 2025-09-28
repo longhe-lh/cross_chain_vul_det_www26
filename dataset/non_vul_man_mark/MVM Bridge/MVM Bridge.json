@@ -1,0 +1,164 @@
+{
+  "contract": "MVM Brige",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "MVM Brige": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Vault1",
+          "Bound2",
+          "Through3"
+        ],
+        "rel_chain": [
+          "relay_event"
+        ],
+        "det_chain": [
+          "Through1",
+          "Bound2",
+          "Vault3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Vault1": {
+            "0": {
+              "func_name": "receive",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "emit Vault(msg.sender, msg.value / BASE);"
+              ],
+              "child": {}
+            }
+          },
+          "Bound2": {
+            "0": {
+              "func_name": "bind",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(receiver != address(0), \"invalid address\");",
+                "bridges[msg.sender] = receiver;"
+              ],
+              "child": {}
+            }
+          },
+          "Through3": {
+            "0": {
+              "func_name": "pass",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(receiver != address(0), \"no address bound\");",
+                "require(amount > 0, \"too small\");",
+                "asset = canonical(asset);",
+                "IERC20(asset).transferFrom(msg.sender, receiver, amount);",
+                "emit Through(asset, msg.sender, receiver, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "canonical",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "uint256 id = uint256(uint160(asset));",
+                    "address another = Factory(FACTORY).contracts(id);",
+                    "if (another != address(0)) { return another; }"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "passXIN",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "IERC20(XIN).transferFrom(msg.sender, address(this), amount);",
+                    "payable(receiver).transfer(amount * BASE);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "relay_event": {
+            "0": {
+              "func_name": "release",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(amount > 0, \"value too small\");",
+                "require(bound == address(0) || receiver == bound, \"bound not match\");",
+                "IERC20(XIN).transferWithExtra(receiver, amount, input);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Through1": {
+            "0": {
+              "func_name": "release",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "IERC20(XIN).transferWithExtra(receiver, amount, input);",
+                "emit Through(XIN, msg.sender, receiver, amount);"
+              ],
+              "child": {}
+            }
+          },
+          "Bound2": {
+            "0": {
+              "func_name": "bind",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "bridges[msg.sender] = receiver;",
+                "emit Bound(msg.sender, receiver);"
+              ],
+              "child": {}
+            }
+          },
+          "Vault3": {
+            "0": {
+              "func_name": "vault",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "asset = canonical(asset);",
+                "require(asset == XIN, \"only XIN accepted\");",
+                "IERC20(asset).transferFrom(msg.sender, address(this), amount);",
+                "emit Vault(msg.sender, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "canonical",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "uint256 id = uint256(uint160(asset));",
+                    "address another = Factory(FACTORY).contracts(id);",
+                    "if (another != address(0)) { return another; }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

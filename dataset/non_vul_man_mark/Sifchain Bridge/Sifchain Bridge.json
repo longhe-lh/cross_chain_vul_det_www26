@@ -1,0 +1,195 @@
+{
+  "contract": "Sifichain Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Sifichain Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "LogLock1",
+          "LogBurn2"
+        ],
+        "rel_chain": [
+          "NewProphecyClaim",
+          "ProphecyCompleted"
+        ],
+        "det_chain": [
+          "LogBridgeTokenMint1",
+          "LogUnlock2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "LogLock1": {
+            "0": {
+              "func_name": "lock",
+              "file_name": "BridgeBank.sol",
+              "key_ops": [
+                "require(_token == address(0),\"!address(0)\");",
+                "require(msg.value == _amount,\"incorrect eth amount\");",
+                "tokenToTransfer.safeTransferFrom(msg.sender, address(this), _amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "lockFunds",
+                  "file_name": "EthereumBank.sol",
+                  "key_ops": [
+                    "lockedFunds[_token] = lockedFunds[_token].add(_amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "LogBurn2": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBank.sol",
+              "key_ops": [
+                "if (_amount > maxTokenAmount[symbol]) { revert(\"Amount being transferred is over the limit for this token\"); }",
+                "BridgeToken(_token).burnFrom(msg.sender, _amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burnFunds",
+                  "file_name": "EthereumBank.sol",
+                  "key_ops": [
+                    "emit LogBurn(_sender, _recipient, _token, _symbol, _amount, lockBurnNonce);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "NewProphecyClaim": {
+            "0": {
+              "func_name": "newProphecyClaim",
+              "file_name": "CosmosBridge.sol",
+              "key_ops": [
+                "require(!prophecyCompleted, \"prophecyCompleted\");",
+                "require(BridgeBank(bridgeBank).getLockedFunds(symbol) >= _amount,\"Not enough locked assets to complete the proposed prophecy\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "newOracleClaim",
+                  "file_name": "Oracle.sol",
+                  "key_ops": [
+                    "hasMadeClaim[_prophecyID][validatorAddress] = true;",
+                    "oracleClaimValidators[_prophecyID] = oracleClaimValidators[_prophecyID].add(this.getValidatorPower(validatorAddress));",
+                    "require(!hasMadeClaim[_prophecyID][validatorAddress],\"Cannot make duplicate oracle claims from the same address.\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ProphecyCompleted": {
+            "0": {
+              "func_name": "completeProphecyClaim",
+              "file_name": "CosmosBridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "issueBridgeTokens",
+                  "file_name": "CosmosBridge.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "mintBridgeTokens",
+                      "file_name": "BridgeBank.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "func_name": "mintNewBridgeTokens",
+                          "file_name": "CosmosBank.sol",
+                          "key_ops": [
+                            "require(BridgeToken(_bridgeTokenAddress).mint(_intendedRecipient, _amount), \"Attempted mint of bridge tokens failed\");"
+                          ],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "unlockTokens",
+                  "file_name": "CosmosBridge.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "unlock",
+                      "file_name": "BridgeBank.sol",
+                      "key_ops": [
+                        "require(getLockedFunds(_symbol) >= _amount, \"!Bank funds\");",
+                        "require(((address(this)).balance) >= _amount, \"Insufficient ethereum balance for delivery.\");",
+                        "require(BridgeToken(tokenAddress).balanceOf(address(this)) >= _amount, \"Insufficient ERC20 token balance for delivery.\");"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "unlockFunds",
+                          "file_name": "EthereumBank.sol",
+                          "key_ops": [
+                            "lockedFunds[_token] = lockedFunds[_token].sub(_amount);",
+                            "(bool success,) = _recipient.call.value(_amount)(\"\"); require(success, \"error sending ether\");",
+                            "tokenToTransfer.safeTransfer(_recipient, _amount);"
+                          ],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Cosmos",
+        "events": {
+          "LogBridgeTokenMint1": {
+            "0": {
+              "func_name": "mintNewBridgeTokens",
+              "file_name": "CosmosBank.sol",
+              "key_ops": [
+                "require(controlledBridgeTokens[_symbol] == _bridgeTokenAddress,\"Token must be a controlled bridge token\");",
+                "require(BridgeToken(_bridgeTokenAddress).mint(_intendedRecipient, _amount), \"Attempted mint of bridge tokens failed\");"
+              ],
+              "child": {}
+            }
+          },
+          "LogUnlock2": {
+            "0": {
+              "func_name": "unlockFunds",
+              "file_name": "EthereumBank.sol",
+              "key_ops": [
+                "lockedFunds[_token] = lockedFunds[_token].sub(_amount);",
+                "(bool success,) = _recipient.call.value(_amount)(\"\"); require(success, \"error sending ether\");",
+                "tokenToTransfer.safeTransfer(_recipient, _amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

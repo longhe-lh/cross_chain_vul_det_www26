@@ -1,0 +1,308 @@
+{
+    "contract": "Kintsugi",
+    "source_code_path": "../contracts/",
+    "type": "",
+    "vulnerable_entry_function": {
+        "file": "",
+        "name": "",
+        "signature": "",
+        "lines": "",
+        "attack_type": "",
+        "vul_reason": "",
+        "code_snippet": ""
+    },
+    "detail": "",
+    "blg": {
+        "Kintsugi": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "CollectionMinted1"
+                ],
+                "rel_chain": [
+                    "render"
+                ],
+                "det_chain": [
+                    "CollectionMinted1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "source_chain",
+                "events": {
+                    "CollectionMinted1": {
+                        "0": {
+                            "func_name": "purchaseFor",
+                            "file_name": "Kohi.sol",
+                            "key_ops": [
+                                "require(!_msgSender().isContract(), \"cannot purchase from contract\")",
+                                "require(msg.value >= collections[collectionId].priceInWei, \"insufficient funds sent to purchase\")",
+                                "require(allowedToMint, \"mint not approved\")",
+                                "mint(collectionId, _msgSender(), recipient)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "mint",
+                                    "file_name": "Kohi.sol",
+                                    "key_ops": [
+                                        "require(collections[collectionId].seed != 0, \"seed not set\")",
+                                        "require(collection.active, \"collection inactive\")",
+                                        "require(collection.minted + 1 <= collection.mintedMax, \"minted max tokens\")",
+                                        "require(collection.mintedMaxPerOwner == 0 || ownerMints[collectionId][minter] < collection.mintedMaxPerOwner, \"minter exceeds max mints\")"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_safeMint",
+                                            "file_name": "ERC721.sol",
+                                            "key_ops": [
+                                                "require(_checkOnERC721Received(address(0), to, tokenId, _data),\"ERC721: transfer to non ERC721Receiver implementer\");"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_mint",
+                                                    "file_name": "ERC721.sol",
+                                                    "key_ops": [
+                                                        "require(to != address(0), \"ERC721: mint to the zero address\")",
+                                                        "require(!_exists(tokenId), \"ERC721: token already minted\")"
+                                                    ],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "relay_chain",
+                "events": {
+                    "render": {
+                        "0": {
+                            "func_name": "render",
+                            "file_name": "Kintsugi.sol",
+                            "key_ops": [
+                                "require(msg.sender == _owner || msg.sender == _executor, \"denied\")",
+                                "require(args.index != -1, \"rendering is finished\")",
+                                "require(args.index >= 0 && args.index < 64, \"index must be in range 0-63\")",
+                                "require(args.stage >= 0 && args.stage < 104, \"stage must be in range 0-103\")",
+                                "require(args.seed != 0, \"seed not specified\")"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "background_stage",
+                                    "file_name": "Kintsugi.sol",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "background",
+                                            "file_name": "ProcessingV1.sol",
+                                            "key_ops": [
+                                                "GraphicsV1.setPixel(result, f.chunk.chunkWidth, int256(x), int256(y), color)"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "func_name": "hatch_stage",
+                                    "file_name": "Kintsugi.sol",
+                                    "key_ops": [
+                                        "require(hatch.opacity > 0, \"opacity not set\")",
+                                        "require(hatch.spacing > 0, \"spacing not set\")",
+                                        "require(hatch.color > 0, \"color not set\")"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "draw",
+                                            "file_name": "HatchDraw.sol",
+                                            "key_ops": [],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "line",
+                                                    "file_name": "ProcessingV1.sol",
+                                                    "key_ops": [
+                                                        "int256 dx = MathV1.abs(x1 - x0);",
+                                                        "int256 dy = MathV1.abs(y1 - y0);",
+                                                        "if (x0 == x1 && y0 == y1) break;"
+                                                    ],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "2": {
+                                    "func_name": "watercolor_stage",
+                                    "file_name": "Kintsugi.sol",
+                                    "key_ops": [
+                                        "require(watercolors.stackCount > 0, \"stackCount not set\")",
+                                        "require(watercolors.stackColors.length > 0, \"stackColors not set\")"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "buildStackList",
+                                            "file_name": "WatercolorLayer.sol",
+                                            "key_ops": [
+                                                "require(p.stackCount > 0 && p.stackCount < 5, \"invalid stack count\")"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "createPolyStack",
+                                                    "file_name": "WatercolorLayer.sol",
+                                                    "key_ops": [
+                                                        "int32 variance = RandomV1.next(prng, int32(Fix64V1.div(f.r, 10 * Fix64V1.ONE) >> 32), int32(Fix64V1.div(f.r, 4 * Fix64V1.ONE) >> 32))"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "deform",
+                                                            "file_name": "WatercolorLayer.sol",
+                                                            "key_ops": [
+                                                                "if (pointCount < 2) { return (newPoints, 0); }"
+                                                            ],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "subdivide",
+                                                                    "file_name": "WatercolorLayer.sol",
+                                                                    "key_ops": [],
+                                                                    "child": {
+                                                                        "0": {
+                                                                            "func_name": "subdivide_midpoint",
+                                                                            "file_name": "WatercolorLayer.sol",
+                                                                            "key_ops": [
+                                                                                "int64 mid = Fix64V1.div(Fix64V1.add(t1, t2), Fix64V1.TWO);",
+                                                                                "int64 g = RandomV1.nextGaussian(prng);",
+                                                                                "int64 n = Fix64V1.add(mid, Fix64V1.mul(g, f.variance));"
+                                                                            ],
+                                                                            "child": {}
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "3": {
+                                    "func_name": "kintsugi_stage",
+                                    "file_name": "Kintsugi.sol",
+                                    "key_ops": [
+                                        "require(kintsugi.layers > 0, \"layers not set\")"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "draw",
+                                            "file_name": "KintsugiDraw.sol",
+                                            "key_ops": [
+                                                "if (f.p.iteration >= f.p.layers) { break; }"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "update",
+                                                    "file_name": "KintsugiDraw.sol",
+                                                    "key_ops": [
+                                                        "set.dead = true;"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "update",
+                                                            "file_name": "ParticleV1.sol",
+                                                            "key_ops": [
+                                                                "p.frames++;",
+                                                                "if (p.frames >= p._lifetime) { p.dead = true; return; }"
+                                                            ],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                },
+                                                "1": {
+                                                    "func_name": "draw",
+                                                    "file_name": "KintsugiDraw.sol",
+                                                    "key_ops": [
+                                                        "if (set.dead) { return; }"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "step",
+                                                            "file_name": "KintsugiDraw.sol",
+                                                            "key_ops": [
+                                                                "if (p.frames < 40) { return; }"
+                                                            ],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "line",
+                                                                    "file_name": "ProcessingV1.sol",
+                                                                    "key_ops": [
+                                                                        "int256 dx = MathV1.abs(x1 - x0);",
+                                                                        "int256 dy = MathV1.abs(y1 - y0);"
+                                                                    ],
+                                                                    "child": {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "destination_chain",
+                "events": {
+                    "CollectionMinted1": {
+                        "0": {
+                            "func_name": "purchaseFor",
+                            "file_name": "Kohi.sol",
+                            "key_ops": [
+                                "require(!_msgSender().isContract(), \"cannot purchase from contract\")",
+                                "require(msg.value >= collections[collectionId].priceInWei, \"insufficient funds sent to purchase\")"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "mint",
+                                    "file_name": "Kohi.sol",
+                                    "key_ops": [
+                                        "require(collections[collectionId].seed != 0, \"seed not set\")",
+                                        "require(collection.active, \"collection inactive\")",
+                                        "require(collection.minted + 1 <= collection.mintedMax, \"minted max tokens\")",
+                                        "require(collection.mintedMaxPerOwner == 0 || ownerMints[collectionId][minter] < collection.mintedMaxPerOwner, \"minter exceeds max mints\")"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_safeMint",
+                                            "file_name": "ERC721.sol",
+                                            "key_ops": [
+                                                "require(_checkOnERC721Received(address(0), to, tokenId, _data),\"ERC721: transfer to non ERC721Receiver implementer\");"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_mint",
+                                                    "file_name": "ERC721.sol",
+                                                    "key_ops": [
+                                                        "require(to != address(0), \"ERC721: mint to the zero address\")",
+                                                        "require(!_exists(tokenId),\"ERC721: token already minted\")"
+                                                    ],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

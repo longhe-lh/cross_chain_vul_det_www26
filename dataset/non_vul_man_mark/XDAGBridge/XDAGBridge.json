@@ -1,0 +1,82 @@
+
+
+{
+  "contract": "XDAGBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg":{
+  "XDAGBridge": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [
+        "CrossERC20XDAG1"
+      ],
+      "rel_chain": [],
+      "det_chain": [
+        "AcceptedCrossTransfer1"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "Ethereum (or ERC20 Chain)",
+      "events": {
+        "CrossERC20XDAG1": {
+          "0": {
+            "func_name": "receiveTokens",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "BridgeToken(erc20XDAG).transferFrom(_msgSender(), address(this), amount)",
+              "BridgeToken(erc20XDAG).burn(address(this), burnAmount)"
+            ],
+            "child": {}
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "",
+      "events": {}
+    },
+    "det_chain": {
+      "chain_name": "Destination Chain (e.g., XDAG)",
+      "events": {
+        "AcceptedCrossTransfer1": {
+          "0": {
+            "func_name": "acceptTransfer",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "require(receiver != NULL_ADDRESS, \"Bridge: Receiver is null\")",
+              "require(amount > 0, \"Bridge: Amount 0\")",
+              "require(blockHash != NULL_HASH, \"Bridge: BlockHash is null\")",
+              "require(transactionHash != NULL_HASH, \"Bridge: Transaction is null\")",
+              "require(!processed[compiledId], \"Bridge: Already processed\")",
+              "processed[compiledId] = true",
+              "BridgeToken(erc20XDAG).mint(receiver, amount)"
+            ],
+            "child": {
+              "0": {
+                "func_name": "getTransactionId",
+                "file_name": "Bridge.sol",
+                "key_ops": [
+                         ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+,
+  "cag": []
+}

@@ -1,0 +1,43 @@
+{
+    "src_chain": {
+        "TokenLocked1": [
+            {
+                "lockAndRemoteIssuing": "function lockAndRemoteIssuing(\n address token,\n address recipient,\n uint256 amount\n ) external payable whenNotPaused {\n uint256 balanceBefore = IERC20(token).balanceOf(address(this));\n require(\n IERC20(token).transferFrom(msg.sender, address(this), amount),\n \"Backing:transfer tokens failed\"\n );\n uint256 balanceAfter = IERC20(token).balanceOf(address(this));\n require(\n balanceBefore + amount == balanceAfter,\n \"Backing:Transfer amount is invalid\"\n );\n _lockAndRemoteIssuing(token, recipient, amount, msg.value, false);\n }"
+            },
+            {
+                "_lockAndRemoteIssuing": "function _lockAndRemoteIssuing(\n address token,\n address recipient,\n uint256 amount,\n uint256 prepaid,\n bool isNative\n ) internal {\n bytes memory issueMappingToken = abi.encodeWithSelector(\n IErc20MappingTokenFactory.issueMappingToken.selector,\n token,\n recipient,\n amount\n );\n (uint256 transferId, uint256 fee) = _sendMessage(\n issueMappingToken,\n prepaid\n );\n bytes32 lockMessageHash = hash(\n abi.encodePacked(transferId, token, msg.sender, amount)\n );\n lockedMessages[transferId] = LockedInfo(lockMessageHash, false);\n emit TokenLocked(\n transferId,\n isNative,\n token,\n msg.sender,\n recipient,\n amount,\n fee\n );\n }"
+            }
+        ],
+        "TokenLocked2": [
+            {
+                "lockAndRemoteIssuing": "function lockAndRemoteIssuing(\n uint32 remoteSpecVersion,\n uint256 remoteReceiveGasLimit,\n address token,\n address recipient,\n uint256 amount\n ) external payable whenNotPaused {\n require(\n IERC20(token).transferFrom(msg.sender, address(this), amount),\n \"Backing:transfer tokens failed\"\n );\n _lockAndRemoteIssuing(\n remoteSpecVersion,\n remoteReceiveGasLimit,\n token,\n recipient,\n amount,\n msg.value,\n false\n );\n }"
+            },
+            {
+                "_lockAndRemoteIssuing": "function _lockAndRemoteIssuing(\n uint32 remoteSpecVersion,\n uint256 remoteReceiveGasLimit,\n address token,\n address recipient,\n uint256 amount,\n uint256 prepaid,\n bool isNative\n ) internal {\n bytes memory issueMappingToken = abi.encodeWithSelector(\n IErc20MappingTokenFactory.issueMappingToken.selector,\n token,\n recipient,\n amount\n );\n (uint256 transferId, uint256 totalFee) = _sendMessage(\n remoteSpecVersion,\n remoteReceiveGasLimit,\n issueMappingToken,\n prepaid\n );\n require(\n lockedMessages[transferId].hash == bytes32(0),\n \"backing: message exist\"\n );\n bytes32 lockMessageHash = hash(\n abi.encodePacked(transferId, token, msg.sender, amount)\n );\n lockedMessages[transferId] = LockedInfo(lockMessageHash, false);\n emit TokenLocked(\n transferId,\n isNative,\n token,\n msg.sender,\n recipient,\n amount,\n totalFee\n );\n }"
+            }
+        ],
+        "TokenLocked3": [
+            {
+                "lockAndRemoteIssuing": "function lockAndRemoteIssuing(\n address token,\n address recipient,\n uint256[] calldata ids,\n uint256[] calldata amounts\n ) external payable whenNotPaused {\n require(\n registeredTokens[token],\n \"Erc1155Backing:the token is not registered\"\n );\n IERC1155(token).safeBatchTransferFrom(\n msg.sender,\n address(this),\n ids,\n amounts,\n \"\"\n );\n bytes memory issueMappingToken = abi.encodeWithSelector(\n IErc1155MappingTokenFactory.issueMappingToken.selector,\n token,\n recipient,\n ids,\n amounts\n );\n uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{\n value: msg.value\n }(remoteMappingTokenFactory, issueMappingToken);\n lockMessages[messageId] = LockedInfo(token, msg.sender, ids, amounts);\n emit TokenLocked(messageId, token, recipient, ids, amounts);\n }"
+            }
+        ],
+        "TokenLocked4": [
+            {
+                "lockAndRemoteIssuing": "function lockAndRemoteIssuing(\n address token,\n address recipient,\n uint256[] calldata ids\n ) external payable whenNotPaused {\n TokenInfo memory info = registeredTokens[token];\n require(\n info.token != address(0),\n \"Erc721Backing:the token is not registed\"\n );\n bytes[] memory attrs = new bytes[](ids.length);\n for (uint idx = 0; idx < ids.length; idx++) {\n IERC721(token).transferFrom(msg.sender, address(this), ids[idx]);\n if (info.serializer != address(0)) {\n attrs[idx] = IErc721AttrSerializer(info.serializer).serialize(\n ids[idx]\n );\n }\n }\n bytes memory issueMappingToken = abi.encodeWithSelector(\n IErc721MappingTokenFactory.issueMappingToken.selector,\n token,\n recipient,\n ids,\n attrs\n );\n uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{\n value: msg.value\n }(remoteMappingTokenFactory, issueMappingToken);\n lockMessages[messageId] = LockedInfo(token, msg.sender, ids);\n emit TokenLocked(messageId, token, recipient, ids);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "CallResult": [
+            {
+                "execute": "function execute(\n bytes32 _commandId,\n string calldata _sourceChain,\n string calldata _sourceAddress,\n bytes calldata _payload\n ) external {\n \n require(\n gateway.validateContractCall(\n _commandId,\n _sourceChain,\n _sourceAddress,\n keccak256(_payload)\n ),\n \"invalid contract call\"\n );\n require(\n _sourceAddress.toAddress() == trustedRemotes[_sourceChain],\n \"invalid remote messager\"\n );\n \n (\n address remoteAppAddress,\n address localAppAddress,\n bytes memory message\n ) = abi.decode(_payload, (address, address, bytes));\n bytes32 key = keccak256(\n abi.encodePacked(_sourceChain, localAppAddress)\n );\n require(\n remoteAppAddress == remoteAppSenders[key],\n \"invalid remote address\"\n );\n \n (bool success, ) = localAppAddress.call(message);\n emit CallResult(_sourceChain, _sourceAddress, success);\n }"
+            }
+        ],
+        "CallerUnMatched": [
+            {
+                "receiveMessage": "function receiveMessage(\n uint256 _srcAppChainId,\n address _remoteAppAddress,\n address _localAppAddress,\n bytes memory _message\n ) external onlyMsgline {\n uint256 srcChainId = _fromChainId();\n RemoteMessager memory remoteMessager = remoteMessagers[_srcAppChainId];\n require(\n srcChainId == remoteMessager.msglineRemoteChainId,\n \"invalid remote chainid\"\n );\n require(\n remoteMessager.messager == _xmsgSender(),\n \"invalid remote messager\"\n );\n bytes32 key = keccak256(abi.encodePacked(srcChainId, _localAppAddress));\n \n if (_remoteAppAddress != remoteAppSenders[key]) {\n emit CallerUnMatched(_srcAppChainId, _remoteAppAddress);\n return;\n }\n (bool success, ) = _localAppAddress.call(_message);\n \n emit CallResult(_srcAppChainId, success);\n }"
+            }
+        ]
+    },
+    "det_chain": {}
+}

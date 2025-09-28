@@ -1,0 +1,229 @@
+{
+  "contract": "ChainPort",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "ChainPort": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokensFreezed1",
+          "TokensUnfreezed2"
+        ],
+        "rel_chain": [
+          "CreatedPendingWithdrawal",
+          "WithdrawalApproved",
+          "WithdrawalRejected"
+        ],
+        "det_chain": [
+          "TokensUnfreezed1",
+          "TokensFreezed2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokensFreezed1": {
+            "0": {
+              "func_name": "freezeToken",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(result, \"Transfer did not go through.\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "ChainportToken.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "transferFrom",
+                      "file_name": "ChainportToken.sol",
+                      "key_ops": [
+                        "require(sender != address(0), \"ERC20: transfer from the zero address\")",
+                        "require(recipient != address(0), \"ERC20: transfer to the zero address\")",
+                        "_balances[sender] = _balances[sender].sub(amount, \"ERC20: transfer amount exceeds balance\")",
+                        "_balances[recipient] = _balances[recipient].add(amount)",
+                        "emit Transfer(sender, recipient, amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "TokensUnfreezed2": {
+            "0": {
+              "func_name": "releaseTokens",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(isTokenHavingPendingWithdrawal[token] == false)",
+                "require(isSignatureUsed[signature] == false)",
+                "isSignatureUsed[signature] = true",
+                "require(isMessageValid == true, \"Error: Signature is not valid.\")",
+                "require(result, \"Transfer did not go through.\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "ChainportToken.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_transfer",
+                      "file_name": "ChainportToken.sol",
+                      "key_ops": [
+                        "require(recipient != address(0), \"ERC20: transfer to the zero address\")",
+                        "_balances[sender] = _balances[sender].sub(amount, \"ERC20: transfer amount exceeds balance\")",
+                        "_balances[recipient] = _balances[recipient].add(amount)",
+                        "emit Transfer(sender, recipient, amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "CreatedPendingWithdrawal": {
+            "0": {
+              "func_name": "releaseTokens",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(isTokenHavingPendingWithdrawal[token] == false)",
+                "require(isSignatureUsed[signature] == false)",
+                "isSignatureUsed[signature] = true",
+                "require(isMessageValid == true, \"Error: Signature is not valid.\")"
+              ],
+              "child": {}
+            }
+          },
+          "WithdrawalApproved": {
+            "0": {
+              "func_name": "approveWithdrawalAndTransferFunds",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(isTokenHavingPendingWithdrawal[token] == true)",
+                "require(result, \"Transfer did not go through.\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "ChainportToken.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_transfer",
+                      "file_name": "ChainportToken.sol",
+                      "key_ops": [
+                        "require(recipient != address(0), \"ERC20: transfer to the zero address\")",
+                        "_balances[sender] = _balances[sender].sub(amount, \"ERC20: transfer amount exceeds balance\")",
+                        "_balances[recipient] = _balances[recipient].add(amount)",
+                        "emit Transfer(sender, recipient, amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "WithdrawalRejected": {
+            "0": {
+              "func_name": "rejectWithdrawal",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(isTokenHavingPendingWithdrawal[token] == true)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokensUnfreezed1": {
+            "0": {
+              "func_name": "releaseTokens",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(isTokenHavingPendingWithdrawal[token] == false)",
+                "require(isSignatureUsed[signature] == false)",
+                "isSignatureUsed[signature] = true",
+                "require(isMessageValid == true, \"Error: Signature is not valid.\")",
+                "require(result, \"Transfer did not go through.\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "ChainportToken.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_transfer",
+                      "file_name": "ChainportToken.sol",
+                      "key_ops": [
+                        "require(recipient != address(0), \"ERC20: transfer to the zero address\")",
+                        "_balances[sender] = _balances[sender].sub(amount, \"ERC20: transfer amount exceeds balance\")",
+                        "_balances[recipient] = _balances[recipient].add(amount)",
+                        "emit Transfer(sender, recipient, amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "TokensFreezed2": {
+            "0": {
+              "func_name": "freezeToken",
+              "file_name": "ChainportBridgeEth.sol",
+              "key_ops": [
+                "require(result, \"Transfer did not go through.\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "ChainportToken.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_transfer",
+                      "file_name": "ChainportToken.sol",
+                      "key_ops": [
+                        "require(recipient != address(0), \"ERC20: transfer to the zero address\")",
+                        "_balances[sender] = _balances[sender].sub(amount, \"ERC20: transfer amount exceeds balance\")",
+                        "_balances[recipient] = _balances[recipient].add(amount)",
+                        "emit Transfer(sender, recipient, amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,217 @@
+{
+  "contract": "Hop.Exchange",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Hop.Exchange": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TransferSentToL21",
+          "TransferRootBonded2"
+        ],
+        "rel_chain": [
+          "setTransferRoot",
+          "distribute"
+        ],
+        "det_chain": [
+          "Withdrew1",
+          "WithdrawalBonded2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum Mainnet (L1)",
+        "events": {
+          "TransferSentToL21": {
+            "0": {
+              "func_name": "sendToL2",
+              "file_name": "L1_Bridge.sol",
+              "key_ops": [
+                "require(messengerWrapper != IMessengerWrapper(0), \"L1_BRG: chainId not supported\");",
+                "require(isChainIdPaused[chainId] == false, \"L1_BRG: Sends to this chainId are paused\");",
+                "require(amount > 0, \"L1_BRG: Must transfer a non-zero amount\");",
+                "require(amount >= relayerFee, \"L1_BRG: Relayer fee cannot exceed amount\");",
+                "_transferToBridge(msg.sender, amount)",
+                "chainBalance[chainId] = chainBalance[chainId].add(amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TransferRootBonded2": {
+            "0": {
+              "func_name": "bondTransferRoot",
+              "file_name": "L1_Bridge.sol",
+              "key_ops": [
+                "require(transferRootCommittedAt[destinationChainId][transferRootId] == 0,\"L1_BRG: TransferRoot has already been confirmed\");",
+                "require(transferBonds[transferRootId].createdAt == 0, \"L1_BRG: TransferRoot has already been bonded\");",
+                "_distributeTransferRoot(rootHash, destinationChainId, totalAmount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_distributeTransferRoot",
+                  "file_name": "L1_Bridge.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_setTransferRoot",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "emit TransferRootSet(rootHash, totalAmount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Relay Chain (Layer-2 Communication)",
+        "events": {
+          "setTransferRoot": {
+            "0": {
+              "func_name": "_setTransferRoot",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(_transferRoots[transferRootId].total == 0, \"BRG: Transfer root already set\")",
+                "require(totalAmount > 0, \"BRG: Cannot set TransferRoot totalAmount of 0\")",
+                "_transferRoots[transferRootId] = TransferRoot(totalAmount, 0, block.timestamp)",
+                "emit TransferRootSet(rootHash, totalAmount)"
+              ],
+              "child": {}
+            }
+          },
+          "distribute": {
+            "0": {
+              "func_name": "_distributeTransferRoot",
+              "file_name": "L1_Bridge.sol",
+              "key_ops": [
+                "chainBalance[chainId] = chainBalance[chainId].add(totalAmount)",
+                "messengerWrapper.sendCrossDomainMessage(setTransferRootMessage)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendCrossDomainMessage",
+                  "file_name": "IMessengerWrapper.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Layer-2 Network (e.g., Arbitrum, Optimism)",
+        "events": {
+          "Withdrew1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(rootHash.verify(transferId, transferIdTreeIndex, siblings, totalLeaves), \"BRG: Invalid transfer proof\")",
+                "_addToAmountWithdrawn(transferRootId, amount)",
+                "_fulfillWithdraw(transferId, recipient, amount, uint256(0))"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_fulfillWithdraw",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_markTransferSpent",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "require(!_spentTransferIds[transferId], \"BRG: The transfer has already been withdrawn\")",
+                        "_spentTransferIds[transferId] = true"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_transferFromBridge",
+                      "file_name": "Accounting.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "WithdrawalBonded2": {
+            "0": {
+              "func_name": "bondWithdrawal",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "_bondWithdrawal(transferId, amount)",
+                "_fulfillWithdraw(transferId, recipient, amount, bonderFee)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_bondWithdrawal",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(_bondedWithdrawalAmounts[msg.sender][transferId] == 0, \"BRG: Withdrawal has already been bonded\")",
+                    "_addDebit(msg.sender, amount)",
+                    "_bondedWithdrawalAmounts[msg.sender][transferId] = amount",
+                    "emit WithdrawalBonded(transferId, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_addDebit",
+                      "file_name": "Accounting.sol",
+                      "key_ops": [
+                        "_debit[bonder] = _debit[bonder].add(amount)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "_fulfillWithdraw",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "_markTransferSpent(transferId)",
+                    "_transferFromBridge(recipient, amount.sub(bonderFee))",
+                    "_transferFromBridge(msg.sender, bonderFee)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_markTransferSpent",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "require(!_spentTransferIds[transferId], \"BRG: The transfer has already been withdrawn\")",
+                        "_spentTransferIds[transferId] = true"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_transferFromBridge",
+                      "file_name": "Accounting.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

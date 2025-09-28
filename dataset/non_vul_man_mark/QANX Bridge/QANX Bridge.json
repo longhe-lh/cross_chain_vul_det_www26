@@ -1,0 +1,119 @@
+{
+  "contract": "QANX Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "QANX Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenLocked1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenUnlocked1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokenLocked1": {
+            "0": {
+              "func_name": "bridgeSend",
+              "file_name": "BridgeQANX.sol",
+              "key_ops": [
+                "require(_qanx.transferFrom(msg.sender, address(this), amount))"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transferFrom",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "_spendAllowance(from, spender, amount);",
+                    "_transfer(sender, recipient, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_transfer",
+                      "file_name": "ERC20.sol",
+                      "key_ops": [
+                        "require(from != address(0), \"ERC20: transfer from the zero address\")",
+                        "require(to != address(0), \"ERC20: transfer to the zero address\")",
+                        "require(fromBalance >= amount, \"ERC20: transfer amount exceeds balance\");",
+                        "_balances[from] = fromBalance - amount",
+                        "_balances[to] += amount"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenUnlocked1": {
+            "0": {
+              "func_name": "bridgeWithdraw",
+              "file_name": "BridgeQANX.sol",
+              "key_ops": [
+                "require(verifySignature(txid, signature, amount), \"ERR_SIG\")",
+                "feesCollected += fee",
+                "require(_qanx.transfer(beneficiary, amount - fee), \"ERR_TXN\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "verifySignature",
+                  "file_name": "BridgeQANX.sol",
+                  "key_ops": [
+                    "return amount < signers[ecrecover(txid, v, r, s)]"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "transfer",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "_transfer(owner, to, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_transfer",
+                      "file_name": "ERC20.sol",
+                      "key_ops": [
+                        "require(from != address(0), \"ERC20: transfer from the zero address\")",
+                        "require(to != address(0), \"ERC20: transfer to the zero address\")",
+                        "_balances[from] = fromBalance - amount",
+                        "_balances[to] += amount",
+                        "require(fromBalance >= amount, \"ERC20: transfer amount exceeds balance\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

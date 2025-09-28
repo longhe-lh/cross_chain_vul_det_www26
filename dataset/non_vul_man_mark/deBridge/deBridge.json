@@ -1,0 +1,142 @@
+{
+  "contract": "deBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "deBridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "send1",
+          "claim1"
+        ],
+        "rel_chain": [
+          "submit1"
+        ],
+        "det_chain": [
+          "claim1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "send1": {
+            "0": {
+              "func_name": "send",
+              "file_name": "DeBridgeGate.sol",
+              "key_ops": [
+                "_send(_permit, _tokenAddress, _amount, _chainIdTo, _useAssetFee)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_send",
+                  "file_name": "DeBridgeGate.sol",
+                  "key_ops": [
+                    "_validateToken(_tokenAddress)",
+                    "_useAssetFee = true;",
+                    "_amount = token.balanceOf(address(this)) - balanceBefore;",
+                    "if (_amount < totalFee) revert TransferAmountNotCoverFees();",
+                    "debridge.balance += amountAfterFee;"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_validateToken",
+                      "file_name": "DeBridgeGate.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "claim1": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "DeBridgeGate.sol",
+              "key_ops": [
+                "_checkConfirmations(submissionId, _debridgeId, _amount, _signatures);",
+                "if (isSubmissionUsed[submissionId]) revert SubmissionUsed();",
+                "isSubmissionUsed[submissionId] = true;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_checkConfirmations",
+                  "file_name": "DeBridgeGate.sol",
+                  "key_ops": [
+                    "if (isBlockedSubmission[_submissionId]) revert SubmissionBlocked();",
+                    "ISignatureVerifier(signatureVerifier).submit(debridgeId, _signatures, _amount >= getAmountThreshold[_debridgeId] ? excessConfirmations : 0);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "submit1": {
+            "0": {
+              "func_name": "submit",
+              "file_name": "SignatureVerifier.sol",
+              "key_ops": [
+                "if (getOracleInfo[oracle].isValid)",
+                "emit Confirmed(_submissionId, oracle);",
+                "if (confirmations >= needConfirmations && currentRequiredOraclesCount >= requiredOraclesCount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "claim1": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "DeBridgeGate.sol",
+              "key_ops": [
+                "_claim(_debridgeId, _receiver, _amount, _chainIdFrom, _autoParams);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_claim",
+                  "file_name": "DeBridgeGate.sol",
+                  "key_ops": [
+                    "if (isNativeToken)",
+                    "_mintOrTransfer(_token, _receiver, _amount, isNativeToken);",
+                    "if (_autoParams.data.length > 0) "
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_mintOrTransfer",
+                      "file_name": "DeBridgeGate.sol",
+                      "key_ops": [
+                        "if (_amount > 0)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

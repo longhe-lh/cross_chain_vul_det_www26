@@ -1,0 +1,166 @@
+{
+  "contract": "Oswap CrossChain Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Oswap CrossChain Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "NewOrder1",
+          "RequestCancelOrder2",
+          "RequestAmendOrder3"
+        ],
+        "rel_chain": [
+          "Execute"
+        ],
+        "det_chain": [
+          "Swap1",
+          "VoidOrder2",
+          "OrderCanceled3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "NewOrder1": {
+            "0": {
+              "func_name": "newOrder",
+              "file_name": "IOSWAP_BridgeVault.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "RequestCancelOrder2": {
+            "0": {
+              "func_name": "requestCancelOrder",
+              "file_name": "IOSWAP_BridgeVault.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "RequestAmendOrder3": {
+            "0": {
+              "func_name": "requestAmendOrder",
+              "file_name": "IOSWAP_BridgeVault.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Execute": {
+            "0": {
+              "func_name": "execute",
+              "file_name": "OSWAP_SideChainVotingExecutor.sol",
+              "key_ops": [
+                "require(params.length > 0, \"Invalid params length\");",
+                "bytes32 hash = executeHash(params, nonce);",
+                "trollRegistry.verifySignatures(msg.sender, signatures, hash, nonce);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "verifySignatures",
+                  "file_name": "OSWAP_SideChainTrollRegistry.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Swap1": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "OSWAP_BridgeVault.sol",
+              "key_ops": [
+                "require(swapOrderStatus[orderId] == OrderStatus.NotSpecified,\"BridgeVault: Order already processed\");",
+                "require(trollRegistry.isSuperTroll(msg.sender, true), \"not a super troll\");",
+                "require(lastKnownBalance() >= amount, \"BridgeVault: insufficient balance\");",
+                "swapOrderStatus[orderId] = OrderStatus.Executed;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_verifyStakedValue",
+                  "file_name": "OSWAP_BridgeVaultTrollRegistry.sol",
+                  "key_ops": [
+                    "require(!usedNonce[paramsHash], \"nonce used\");",
+                    "usedNonce[paramsHash] = true;",
+                    "require(generalTrollCount >= generalTrollMinCount, \"OSWAP_BridgeVault: Mininum general troll count not met\");",
+                    "require(superTrollCount >= superTrollMinCount, \"OSWAP_BridgeVault: Mininum super troll count not met\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "VoidOrder2": {
+            "0": {
+              "func_name": "voidOrder",
+              "file_name": "OSWAP_BridgeVault.sol",
+              "key_ops": [
+                "require(swapOrderStatus[orderId] == OrderStatus.NotSpecified,\"BridgeVault: Order already processed\");",
+                "swapOrderStatus[orderId] = OrderStatus.Cancelled;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_verifyStakedValue",
+                  "file_name": "OSWAP_BridgeVaultTrollRegistry.sol",
+                  "key_ops": [
+                    "require(!usedNonce[paramsHash], \"nonce used\");",
+                    "usedNonce[paramsHash] = true;",
+                    "require(generalTrollCount >= generalTrollMinCount, \"OSWAP_BridgeVault: Mininum general troll count not met\");",
+                    "require(superTrollCount >= superTrollMinCount, \"OSWAP_BridgeVault: Mininum super troll count not met\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "OrderCanceled3": {
+            "0": {
+              "func_name": "cancelOrder",
+              "file_name": "OSWAP_BridgeVault.sol",
+              "key_ops": [
+                "require(orderStatus[orderId] == OrderStatus.Pending || orderStatus[orderId] == OrderStatus.RequestAmend, \"BridgeVault: cancel not requested\");",
+                "orderRefunds[orderId] = refundAmount;",
+                "orderStatus[orderId] = OrderStatus.RefundApproved;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_verifyStakedValue",
+                  "file_name": "OSWAP_BridgeVaultTrollRegistry.sol",
+                  "key_ops": [
+                    "require(!usedNonce[paramsHash], \"nonce used\");",
+                    "usedNonce[paramsHash] = true;",
+                    "require(generalTrollCount >= generalTrollMinCount, \"OSWAP_BridgeVault: Mininum general troll count not met\");",
+                    "require(superTrollCount >= superTrollMinCount, \"OSWAP_BridgeVault: Mininum super troll count not met\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

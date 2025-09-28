@@ -1,0 +1,178 @@
+{
+    "contract": "AcrossBridge",
+    "source_code_path": "../contracts/",
+    "type": "",
+    "vulnerable_entry_function": {
+        "file": "",
+        "name": "",
+        "signature": "",
+        "lines": "",
+        "attack_type": "",
+        "vul_reason": "",
+        "code_snippet": ""
+    },
+    "detail": "",
+    "blg": {
+        "AcrossBridge": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "FundsDeposited1",
+                    "RequestedSpeedUpDeposit2"
+                ],
+                "rel_chain": [
+                    "ProposeRootBundle",
+                    "RelayedRootBundle",
+                    "executeRelayerRefundLeaf",
+                    "executeSlowRelayLeaf"
+                ],
+                "det_chain": [
+                    "FilledRelay1",
+                    "TokensBridged2"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "Ethereum",
+                "events": {
+                    "FundsDeposited1": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "SpokePool.sol",
+                            "key_ops": [
+                                "require(enabledDepositRoutes[originToken][destinationChainId], \"Disabled route\")",
+                                "require(relayerFeePct < 0.5e18, \"invalid relayer fee\")",
+                                "require(getCurrentTime() >= quoteTimestamp - depositQuoteTimeBuffer && getCurrentTime() <= quoteTimestamp + depositQuoteTimeBuffer, \"invalid quote time\")",
+                                "IERC20(originToken).safeTransferFrom(msg.sender, address(this), amount)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_emitDeposit",
+                                    "file_name": "SpokePool.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "RequestedSpeedUpDeposit2": {
+                        "0": {
+                            "func_name": "speedUpDeposit",
+                            "file_name": "SpokePool.sol",
+                            "key_ops": [
+                                "require(newRelayerFeePct < 0.5e18, \"invalid relayer fee\")"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_verifyUpdateRelayerFeeMessage",
+                                    "file_name": "SpokePool.sol",
+                                    "key_ops": [
+                                        "bytes32 expectedDepositorMessageHash = keccak256(abi.encode(\"ACROSS-V2-FEE-1.0\", newRelayerFeePct, depositId, originChainId))",
+                                        "bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(expectedDepositorMessageHash)",
+                                        "_verifyDepositorUpdateFeeMessage(depositor, ethSignedMessageHash, depositorSignature)"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_verifyDepositorUpdateFeeMessage",
+                                            "file_name": "SpokePool.sol",
+                                            "key_ops": [
+                                                "require(depositor == ECDSA.recover(ethSignedMessageHash, depositorSignature), \"invalid signature\")"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "Arbitrum",
+                "events": {
+                    "ProposeRootBundle": {
+                        "0": {
+                            "func_name": "proposeRootBundle",
+                            "file_name": "HubPool.sol",
+                            "key_ops": [
+                                "require(poolRebalanceLeafCount > 0, \"Bundle must have at least 1 leaf\")",
+                                "bondToken.safeTransferFrom(msg.sender, address(this), bondAmount)",
+                                "delete rootBundleProposal"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "RelayedRootBundle": {
+                        "0": {
+                            "func_name": "relayRootBundle",
+                            "file_name": "SpokePool.sol",
+                            "key_ops": [
+                                "rootBundles.push()",
+                                "MerkleLib.verifyRelayerRefund(rootBundle.relayerRefundRoot, relayerRefundLeaf, proof)",
+                                "MerkleLib.setClaimed(rootBundle.claimedBitmap, relayerRefundLeaf.leafId)"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "Optimism",
+                "events": {
+                    "FilledRelay1": {
+                        "0": {
+                            "func_name": "fillRelay",
+                            "file_name": "SpokePool.sol",
+                            "key_ops": [],
+                            "child": {
+                                "func_name": "_fillRelay",
+                                "file_name": "SpokePool.sol",
+                                "key_ops": [
+                                    "require(relayerFeePct < 0.5e18 && relayData.realizedLpFeePct < 0.5e18, \"invalid fees\")",
+                                    "require(relayFills[relayHash] < relayData.amount, \"relay filled\")",
+                                    "IERC20(relayData.destinationToken).safeTransferFrom(msg.sender, relayData.recipient, amountToSend)"
+                                ],
+                                "child": {
+                                    "0": {
+                                        "func_name": "_computeAmountPreFees",
+                                        "file_name": "SpokePool.sol",
+                                        "key_ops": [],
+                                        "child": {}
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "TokensBridged2": {
+                        "0": {
+                            "func_name": "executeRelayerRefundLeaf",
+                            "file_name": "SpokePool.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "_executeRelayerRefundLeaf",
+                                    "file_name": "SpokePool.sol",
+                                    "key_ops": [
+                                        "require(MerkleLib.verifyRelayerRefund(rootBundle.relayerRefundRoot, relayerRefundLeaf, proof), \"Bad Proof\")",
+                                        "MerkleLib.setClaimed(rootBundle.claimedBitmap, relayerRefundLeaf.leafId)",
+                                        "IERC20(relayerRefundLeaf.l2TokenAddress).safeTransfer(relayerRefundLeaf.refundAddresses[i], amount)"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "verifyRelayerRefund",
+                                            "file_name": "MerkleLib.sol",
+                                            "key_ops": [
+                                                "MerkleProof.verify(proof, root, keccak256(abi.encode(refund)))"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

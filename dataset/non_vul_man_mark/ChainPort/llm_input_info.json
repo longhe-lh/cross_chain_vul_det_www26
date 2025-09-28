@@ -1,0 +1,58 @@
+{
+    "src_chain": {
+        "TokensFreezed1": [
+            {
+                "freezeToken": "function freezeToken(\n address token,\n uint256 amount\n ) public isNotFrozen onlyIfAmountGreaterThanZero(amount) {\n IERC20 ercToken = IERC20(token);\n\n bool result = ercToken.transferFrom(\n address(msg.sender),\n address(this),\n amount\n );\n\n require(result, \"Transfer did not go through.\");\n\n emit TokensFreezed(token, msg.sender, amount);\n }"
+            },
+            {
+                "transferFrom": "function transferFrom(\n address sender,\n address recipient,\n uint256 amount\n ) public virtual override returns (bool) {\n _transfer(sender, recipient, amount);\n\n _approve(\n sender,\n _msgSender(),\n _allowances[sender][_msgSender()].sub(\n amount,\n \"ERC20: transfer amount exceeds allowance\"\n )\n );\n\n return true;\n }"
+            }
+        ],
+        "TokensUnfreezed2": [
+            {
+                "releaseTokens": "function releaseTokens(\n bytes memory signature,\n address token,\n uint256 amount,\n uint256 nonce\n ) public isNotFrozen onlyIfAmountGreaterThanZero(amount) {\n require(\n isTokenHavingPendingWithdrawal[token] == false,\n \"Token is currently having pending withdrawal.\"\n );\n\n require(isSignatureUsed[signature] == false, \"Signature already used\");\n\n isSignatureUsed[signature] = true;\n\n \n\n address beneficiary = msg.sender;\n\n \n\n bool isMessageValid = signatureValidator.verifyWithdraw(\n signature,\n token,\n amount,\n beneficiary,\n nonce\n );\n\n \n\n require(isMessageValid == true, \"Error: Signature is not valid.\");\n\n if (\n isAboveThreshold(token, amount) && isAssetProtected[token] == true\n ) {\n PendingWithdrawal memory p = PendingWithdrawal({\n amount: amount,\n beneficiary: beneficiary,\n unlockingTime: now.add(freezeLength)\n });\n\n tokenToPendingWithdrawal[token] = p;\n\n isTokenHavingPendingWithdrawal[token] = true;\n\n \n\n emit CreatedPendingWithdrawal(\n token,\n beneficiary,\n amount,\n p.unlockingTime\n );\n } else {\n bool result = IERC20(token).transfer(beneficiary, amount);\n\n require(result, \"Transfer did not go through.\");\n\n emit TokensUnfreezed(token, beneficiary, amount);\n }\n }"
+            },
+            {
+                "_transfer": "function _transfer(\n address sender,\n address recipient,\n uint256 amount\n ) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n _beforeTokenTransfer(sender);\n\n _balances[sender] = _balances[sender].sub(\n amount,\n \"ERC20: transfer amount exceeds balance\"\n );\n\n _balances[recipient] = _balances[recipient].add(amount);\n\n emit Transfer(sender, recipient, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "CreatedPendingWithdrawal": [
+            {
+                "releaseTokens": "function releaseTokens(\n bytes memory signature,\n address token,\n uint256 amount,\n uint256 nonce\n ) public isNotFrozen onlyIfAmountGreaterThanZero(amount) {\n require(\n isTokenHavingPendingWithdrawal[token] == false,\n \"Token is currently having pending withdrawal.\"\n );\n\n require(isSignatureUsed[signature] == false, \"Signature already used\");\n\n isSignatureUsed[signature] = true;\n\n \n\n address beneficiary = msg.sender;\n\n \n\n bool isMessageValid = signatureValidator.verifyWithdraw(\n signature,\n token,\n amount,\n beneficiary,\n nonce\n );\n\n \n\n require(isMessageValid == true, \"Error: Signature is not valid.\");\n\n if (\n isAboveThreshold(token, amount) && isAssetProtected[token] == true\n ) {\n PendingWithdrawal memory p = PendingWithdrawal({\n amount: amount,\n beneficiary: beneficiary,\n unlockingTime: now.add(freezeLength)\n });\n\n tokenToPendingWithdrawal[token] = p;\n\n isTokenHavingPendingWithdrawal[token] = true;\n\n \n\n emit CreatedPendingWithdrawal(\n token,\n beneficiary,\n amount,\n p.unlockingTime\n );\n } else {\n bool result = IERC20(token).transfer(beneficiary, amount);\n\n require(result, \"Transfer did not go through.\");\n\n emit TokensUnfreezed(token, beneficiary, amount);\n }\n }"
+            }
+        ],
+        "WithdrawalApproved": [
+            {
+                "approveWithdrawalAndTransferFunds": "function approveWithdrawalAndTransferFunds(\n address token\n ) public onlyChainportCongress isNotFrozen {\n require(isTokenHavingPendingWithdrawal[token] == true);\n\n \n\n PendingWithdrawal memory p = tokenToPendingWithdrawal[token];\n\n \n\n bool result = IERC20(token).transfer(p.beneficiary, p.amount);\n\n require(result, \"Transfer did not go through.\");\n\n \n\n emit TokensUnfreezed(token, p.beneficiary, p.amount);\n\n emit WithdrawalApproved(token, p.beneficiary, p.amount);\n\n \n\n delete tokenToPendingWithdrawal[token];\n\n isTokenHavingPendingWithdrawal[token] = false;\n }"
+            },
+            {
+                "_transfer": "function _transfer(\n address sender,\n address recipient,\n uint256 amount\n ) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n _beforeTokenTransfer(sender);\n\n _balances[sender] = _balances[sender].sub(\n amount,\n \"ERC20: transfer amount exceeds balance\"\n );\n\n _balances[recipient] = _balances[recipient].add(amount);\n\n emit Transfer(sender, recipient, amount);\n }"
+            }
+        ],
+        "WithdrawalRejected": [
+            {
+                "rejectWithdrawal": "function rejectWithdrawal(\n address token\n ) public onlyChainportCongress isNotFrozen {\n require(isTokenHavingPendingWithdrawal[token] == true);\n\n \n\n PendingWithdrawal memory p = tokenToPendingWithdrawal[token];\n\n emit WithdrawalRejected(token, p.beneficiary, p.amount);\n\n \n\n delete tokenToPendingWithdrawal[token];\n\n isTokenHavingPendingWithdrawal[token] = false;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokensUnfreezed1": [
+            {
+                "releaseTokens": "function releaseTokens(\n bytes memory signature,\n address token,\n uint256 amount,\n uint256 nonce\n ) public isNotFrozen onlyIfAmountGreaterThanZero(amount) {\n require(\n isTokenHavingPendingWithdrawal[token] == false,\n \"Token is currently having pending withdrawal.\"\n );\n\n require(isSignatureUsed[signature] == false, \"Signature already used\");\n\n isSignatureUsed[signature] = true;\n\n \n\n address beneficiary = msg.sender;\n\n \n\n bool isMessageValid = signatureValidator.verifyWithdraw(\n signature,\n token,\n amount,\n beneficiary,\n nonce\n );\n\n \n\n require(isMessageValid == true, \"Error: Signature is not valid.\");\n\n if (\n isAboveThreshold(token, amount) && isAssetProtected[token] == true\n ) {\n PendingWithdrawal memory p = PendingWithdrawal({\n amount: amount,\n beneficiary: beneficiary,\n unlockingTime: now.add(freezeLength)\n });\n\n tokenToPendingWithdrawal[token] = p;\n\n isTokenHavingPendingWithdrawal[token] = true;\n\n \n\n emit CreatedPendingWithdrawal(\n token,\n beneficiary,\n amount,\n p.unlockingTime\n );\n } else {\n bool result = IERC20(token).transfer(beneficiary, amount);\n\n require(result, \"Transfer did not go through.\");\n\n emit TokensUnfreezed(token, beneficiary, amount);\n }\n }"
+            },
+            {
+                "_transfer": "function _transfer(\n address sender,\n address recipient,\n uint256 amount\n ) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n _beforeTokenTransfer(sender);\n\n _balances[sender] = _balances[sender].sub(\n amount,\n \"ERC20: transfer amount exceeds balance\"\n );\n\n _balances[recipient] = _balances[recipient].add(amount);\n\n emit Transfer(sender, recipient, amount);\n }"
+            }
+        ],
+        "TokensFreezed2": [
+            {
+                "freezeToken": "function freezeToken(\n address token,\n uint256 amount\n ) public isNotFrozen onlyIfAmountGreaterThanZero(amount) {\n IERC20 ercToken = IERC20(token);\n\n bool result = ercToken.transferFrom(\n address(msg.sender),\n address(this),\n amount\n );\n\n require(result, \"Transfer did not go through.\");\n\n emit TokensFreezed(token, msg.sender, amount);\n }"
+            },
+            {
+                "_transfer": "function _transfer(\n address sender,\n address recipient,\n uint256 amount\n ) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n _beforeTokenTransfer(sender);\n\n _balances[sender] = _balances[sender].sub(\n amount,\n \"ERC20: transfer amount exceeds balance\"\n );\n\n _balances[recipient] = _balances[recipient].add(amount);\n\n emit Transfer(sender, recipient, amount);\n }"
+            }
+        ]
+    }
+}

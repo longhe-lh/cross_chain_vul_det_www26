@@ -1,0 +1,94 @@
+{
+  "contract": "PolkaBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "PolkaBridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenRedeem2"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "purchaseIDO",
+              "file_name": "PolkaBridgeLaunchPad.sol",
+              "key_ops": [
+                "require(pools[poolIndex].IsActived && !pools[poolIndex].IsStoped,\"invalid pool\");",
+                "require(block.timestamp >= pools[poolIndex].Begin && block.timestamp <= pools[poolIndex].End, \"invalid time\")",
+                "require(whitelist[pid][msg.sender].IsWhitelist && whitelist[pid][msg.sender].IsActived, \"invalid user\")",
+                "require(ethAmount <= pools[poolIndex].MaxPurchase,\"invalid maximum contribute\");",
+                "require(remainToken > pools[poolIndex].MinimumTokenSoldout,\"IDO sold out\");",
+                "require(remainToken >= tokenAmount, \"IDO sold out\");",
+                "require(polkaBridgeToken.balanceOf(msg.sender) >=pools[poolIndex].AmountPBRRequire,\"must hold enough PBR\");"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeem2": {
+            "0": {
+              "func_name": "claimToken",
+              "file_name": "PolkaBridgeLaunchPad.sol",
+              "key_ops": [
+                "require(userBalance > 0, \"invalid claim\");",
+                "require(block.timestamp >= pools[poolIndex].End.add(pools[poolIndex].LockDuration), \"not on time for claiming token\")"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Polkadot",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "withdrawToken",
+              "file_name": "RewardPool.sol",
+              "key_ops": [
+                "require(sender != address(0), \"ERC20: transfer from the zero address\");",
+                "require(recipient != address(0), \"ERC20: transfer to the zero address\");"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "mintNFT",
+              "file_name": "PolkaBridgeNFT.sol",
+              "key_ops": [
+                "_mint(recipient_, id_, amount_, '')"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

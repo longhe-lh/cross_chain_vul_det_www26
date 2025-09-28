@@ -1,0 +1,166 @@
+{
+  "contract": "Strudel Finance",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Strudel Finance": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "SourceChain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "FastExitHandler.sol",
+              "key_ops": [
+                "require(_owner == msg.sender, \"owner different from msg.sender\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "FastExitHandler.sol",
+                  "key_ops": [
+                    "require(address(token) != address(0), \"Token color already registered\");",
+                    "require(_amountOrTokenId > 0 || _color > 32769, \"no 0 deposits for fungible tokens\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "proofOpReturnAndMint",
+              "file_name": "VbtcToken.sol",
+              "key_ops": [
+                "return _provideProof(_header, _proof, _version, _locktime, _index, _crossingOutputIndex, _vin, _vout);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_provideProof",
+                  "file_name": "VbtcToken.sol",
+                  "key_ops": [
+                    "knownOutpoints[outpoint] = true;",
+                    "require(!knownOutpoints[outpoint], \"already processed outputs\");",
+                    "(account, amount) = doPayouts(_vout.ref(0).tryAsVout(), _crossingOutputIndex);",
+                    "emit Crossing(txId, account, amount, _crossingOutputIndex);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "doPayouts",
+                      "file_name": "VbtcToken.sol",
+                      "key_ops": [
+                        "require(amount > 0, \"output has 0 value\");",
+                        "require(opReturnPayload.len() == ADDR_LEN + 3,\"invalid op-return payload length\");",
+                        "require(bytes3(opReturnPayload.index(0, 3)) == PROTOCOL_ID,\"invalid protocol id\");",
+                        "strudel.mint(account, rewardAmount);",
+                        "strudel.mint(owner(), rewardAmount.div(devFundDivRate));"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "challengeYoungestInput",
+              "file_name": "FastExitHandlerMigration.sol",
+              "key_ops": [
+                "require(exits[utxoId].amount > 0, \"There is no exit for this UTXO\");",
+                "require(txHash == exitingTx.ins[_inputIndex].outpoint.hash,\"Given output is not referenced in exiting tx\");",
+                "msg.sender.transfer(exitMapping[utxoId].stake);",
+                "require(exits[utxoId].priorityTimestamp < youngerInputTimestamp,\"Challenged input should be older\");",
+                "require(youngerInputTimestamp > 0,\"The referenced period was not submitted to bridge\");",
+                "delete exitMapping[utxoId];"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "startExit",
+              "file_name": "FastExitHandlerMigration.sol",
+              "key_ops": [
+                "tokens[out.color].insert(priority);",
+                "require(msg.value >= exitStake,\"Not enough ether sent to pay for exit stake\");",
+                "require(timestamp > 0,\"The referenced period was not submitted to bridge\");",
+                "require(out.owner == msg.sender, \"Only UTXO owner can start exit\");",
+                "require(exits[utxoId].amount == 0,\"The exit for UTXO has already been started\");",
+                "require(!exits[utxoId].finalized,\"The exit for UTXO has already been finalized\");",
+                "require(inputTxHash == exitingTx.ins[_inputIndex].outpoint.hash,\"Input from the proof is not referenced in exiting tx\");",
+                "require(exitingTx.txType == TxLib.TxType.Deposit,\"Expected deposit tx\");",
+                "emit ExitStarted(pr.txHash, _outputIndex, out.color, out.owner, out.value, _proof[0]);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "insert",
+                  "file_name": "FastExitHandlerMigration.sol",
+                  "key_ops": [
+                    "self.heapList.push(k);",
+                    "self.currentSize = self.currentSize.add(1);",
+                    "percUp(self, self.currentSize);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "finalizeExits",
+              "file_name": "FastExitHandlerMigration.sol",
+              "key_ops": [
+                "require(tokens[_color].currentSize > 0, \"Queue empty for color.\");",
+                "address(uint160(currentExit.owner)).send(currentExit.stake);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transferFrom",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,52 @@
+{
+    "src_chain": {
+        "Sent1": [
+            {
+                "_send": "function _send(\n address operator,\n address from,\n address to,\n uint256 amount,\n bytes memory userData,\n bytes memory operatorData,\n bool requireReceptionAck\n )\n internal\n {\n require(from != address(0), \"ERC777: send from zero address\");\n require(to != address(0), \"ERC777: send to zero address\");\n _callTokensToSend(operator, from, to, amount, userData, operatorData);\n _move(operator, from, to, amount, userData, operatorData);\n _callTokensReceived(operator, from, to, amount, userData, operatorData, requireReceptionAck);\n }"
+            },
+            {
+                "_move": "function _move(\n address operator,\n address from,\n address to,\n uint256 amount,\n bytes memory userData,\n bytes memory operatorData\n )\n internal\n {\n _balances[from] = _balances[from].sub(amount, \"ERC777: transfer amount exceeds balance\");\n _balances[to] = _balances[to].add(amount);\n emit Sent(operator, from, to, amount, userData, operatorData);\n emit Transfer(from, to, amount);\n }"
+            }
+        ],
+        "Burned2": [
+            {
+                "burn": "function burn(address usr, uint wad) external {\n require(balanceOf[usr] >= wad, \"Dai/insufficient-balance\");\n if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {\n require(allowance[usr][msg.sender] >= wad, \"Dai/insufficient-allowance\");\n allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad);\n }\n function sub(...) {...}\nbalanceOf[usr] = sub(balanceOf[usr], wad);\n totalSupply = sub(totalSupply, wad);\n emit Transfer(usr, address(0), wad);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Voted": [
+            {
+                "_voteTransaction": "function _voteTransaction(\n address originalTokenAddress,\n address receiver,\n uint256 amount,\n string memory symbol,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex,\n uint8 decimals,\n uint256 granularity,\n bytes memory userData\n ) internal onlyMember returns (bool) {\n \n require(\n initStageDone == true,\n \"Federation: Cannot process TX while initStageDone == false\"\n );\n bytes32 transactionId = getTransactionId(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity\n );\n if (processed[transactionId]) return true;\n \n \n \n \n \n \n \n \n \n if (\n processTransaction(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n )\n ) {\n \n \n return true;\n }\n return true;\n }"
+            },
+            {
+                "processTransaction": "function processTransaction(\n address originalTokenAddress,\n address receiver,\n uint256 amount,\n string memory symbol,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex,\n uint8 decimals,\n uint256 granularity,\n bytes memory userData\n ) internal returns (bool) {\n bytes32 transactionIdU = getTransactionIdU(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n if (processed[transactionIdU]) return true;\n if (votes[transactionIdU][_msgSender()]) return true;\n function _msgSender(...) {...}\nvotes[transactionIdU][_msgSender()] = true;\n \n emit Voted(\n _msgSender(),\n transactionIdU,\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n uint256 transactionCount = getTransactionCount(transactionIdU);\n if (transactionCount >= required && transactionCount >= members.length / 2 + 1) {\n processed[transactionIdU] = true;\n bool acceptTransfer = bridge.acceptTransferAt(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n require(acceptTransfer, \"Federation: Bridge acceptTransfer error\");\n emit Executed(transactionIdU);\n return true;\n }\n }"
+            }
+        ],
+        "Signed": [
+            {
+                "_executeTransaction": "function _executeTransaction(\n address originalTokenAddress,\n address receiver,\n uint256 amount,\n string memory symbol,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex,\n uint8 decimals,\n uint256 granularity,\n bytes memory userData,\n SignatureInfo[] memory signaturesInfos\n ) internal onlyMember returns (bool) {\n \n require(\n initStageDone == true,\n \"Federation: Cannot process TX while initStageDone == false\"\n );\n bytes32 transactionId = getTransactionId(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity\n );\n if (processed[transactionId]) return true;\n \n \n \n \n \n \n \n \n \n if (\n processSignedTransaction(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData,\n signaturesInfos\n )\n ) {\n \n \n return true;\n }\n return true;\n }"
+            },
+            {
+                "processSignedTransaction": "function processSignedTransaction(\n address originalTokenAddress,\n address receiver,\n uint256 amount,\n string memory symbol,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex,\n uint8 decimals,\n uint256 granularity,\n bytes memory userData,\n SignatureInfo[] memory signaturesInfos\n ) internal returns (bool) {\n bytes32 transactionIdU = getTransactionIdU(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n if (processed[transactionIdU]) return true;\n \n function _msgSender(...) {...}\nvotes[transactionIdU][_msgSender()] = true;\n uint256 memberValidations = 1;\n emit Signed(transactionIdU, _msgSender());\n for (uint256 i; i < signaturesInfos.length; i += 1) {\n require(\n signaturesInfos[i].deadline > block.timestamp,\n \"Some signature is not valid anymore\"\n );\n uint256 chainId;\n assembly {\n chainId := chainid()\n }\n bytes32 hash = keccak256(\n abi.encodePacked(\n \"\\x19Ethereum Signed Message:\\n116\",\n abi.encodePacked(\n transactionIdU,\n chainId,\n address(this),\n signaturesInfos[i].deadline\n )\n )\n );\n address signer = ECDSA.recover(hash, signaturesInfos[i].signature);\n require(isMember[signer], \"Signature doesn't match any member\");\n if (!votes[transactionIdU][signer]) {\n votes[transactionIdU][signer] = true;\n memberValidations += 1;\n emit Signed(transactionIdU, signer);\n }\n }\n require(\n memberValidations >= required && memberValidations >= members.length / 2 + 1,\n \"Not enough validations\"\n );\n processed[transactionIdU] = true;\n releaseTokensOnBridge(\n transactionIdU,\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n emit Executed(transactionIdU);\n return true;\n }"
+            }
+        ],
+        "Executed": [
+            {
+                "releaseTokensOnBridge": "function releaseTokensOnBridge(\n bytes32 transactionIdU,\n address originalTokenAddress,\n address receiver,\n uint256 amount,\n string memory symbol,\n bytes32 blockHash,\n bytes32 transactionHash,\n uint32 logIndex,\n uint8 decimals,\n uint256 granularity,\n bytes memory userData\n ) private {\n emit Voted(\n _msgSender(),\n transactionIdU,\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n bool acceptTransfer = bridge.acceptTransferAt(\n originalTokenAddress,\n receiver,\n amount,\n symbol,\n blockHash,\n transactionHash,\n logIndex,\n decimals,\n granularity,\n userData\n );\n require(acceptTransfer, \"Federation: Bridge acceptTransfer error\");\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Minted1": [
+            {
+                "_mint": "function _mint(\n address operator,\n address account,\n uint256 amount,\n bytes memory userData,\n bytes memory operatorData\n )\n internal\n {\n require(account != address(0), \"ERC777: mint to zero address\");\n \n _totalSupply = _totalSupply.add(amount);\n _balances[account] = _balances[account].add(amount);\n _callTokensReceived(operator, address(0), account, amount, userData, operatorData, true);\n emit Minted(operator, account, amount, userData, operatorData);\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "Transfer2": [
+            {
+                "transfer": "function transfer(address _to, uint _value) public onlyPayloadSize(2 * 32) {\n uint fee = (_value.mul(basisPointsRate)).div(10000);\n if (fee > maximumFee) {\n fee = maximumFee;\n }\n uint sendAmount = _value.sub(fee);\n function sub(...) {...}\nfunction add(...) {...}\nbalances[msg.sender] = balances[msg.sender].sub(_value);\n balances[_to] = balances[_to].add(sendAmount);\n if (fee > 0) {\n balances[owner] = balances[owner].add(fee);\n Transfer(msg.sender, owner, fee);\n }\n Transfer(msg.sender, _to, sendAmount);\n }"
+            }
+        ]
+    }
+}

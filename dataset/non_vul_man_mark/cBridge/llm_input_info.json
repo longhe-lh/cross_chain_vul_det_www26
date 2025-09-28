@@ -1,0 +1,38 @@
+{
+    "src_chain": {
+        "Send1": [
+            {
+                "send": "function send(\n address _receiver,\n address _token,\n uint256 _amount,\n uint64 _dstChainId,\n uint64 _nonce,\n uint32 _maxSlippage \n ) external nonReentrant whenNotPaused {\n bytes32 transferId = _send(\n _receiver,\n _token,\n _amount,\n _dstChainId,\n _nonce,\n _maxSlippage\n );\n IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);\n emit Send(\n transferId,\n msg.sender,\n _receiver,\n _token,\n _amount,\n _dstChainId,\n _nonce,\n _maxSlippage\n );\n }"
+            },
+            {
+                "_send": "function _send(\n address _receiver,\n address _token,\n uint256 _amount,\n uint64 _dstChainId,\n uint64 _nonce,\n uint32 _maxSlippage\n ) private returns (bytes32) {\n require(_amount > minSend[_token], \"amount too small\");\n require(\n maxSend[_token] == 0 || _amount <= maxSend[_token],\n \"amount too large\"\n );\n require(_maxSlippage > minimalMaxSlippage, \"max slippage too small\");\n bytes32 transferId = keccak256(\n \n abi.encodePacked(\n msg.sender,\n _receiver,\n _token,\n _amount,\n _dstChainId,\n _nonce,\n uint64(block.chainid)\n )\n );\n require(transfers[transferId] == false, \"transfer exists\");\n transfers[transferId] = true;\n return transferId;\n }"
+            }
+        ],
+        "Relay1": [
+            {
+                "relay": "function relay(\n bytes calldata _relayRequest,\n bytes[] calldata _sigs,\n address[] calldata _signers,\n uint256[] calldata _powers\n ) external whenNotPaused {\n bytes32 domain = keccak256(\n abi.encodePacked(block.chainid, address(this), \"Relay\")\n );\n verifySigs(\n abi.encodePacked(domain, _relayRequest),\n _sigs,\n _signers,\n _powers\n );\n PbBridge.Relay memory request = PbBridge.decRelay(_relayRequest);\n bytes32 transferId = keccak256(\n abi.encodePacked(\n request.sender,\n request.receiver,\n request.token,\n request.amount,\n request.srcChainId,\n request.dstChainId,\n request.srcTransferId\n )\n );\n require(transfers[transferId] == false, \"transfer exists\");\n transfers[transferId] = true;\n _updateVolume(request.token, request.amount);\n uint256 delayThreshold = delayThresholds[request.token];\n if (delayThreshold > 0 && request.amount > delayThreshold) {\n _addDelayedTransfer(\n transferId,\n request.receiver,\n request.token,\n request.amount\n );\n } else {\n _sendToken(request.receiver, request.token, request.amount);\n }\n emit Relay(\n transferId,\n request.sender,\n request.receiver,\n request.token,\n request.amount,\n request.srcChainId,\n request.srcTransferId\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Relay": []
+    },
+    "det_chain": {
+        "WithdrawDone1": [
+            {
+                "withdraw": "function withdraw(\n bytes calldata _wdmsg,\n bytes[] calldata _sigs,\n address[] calldata _signers,\n uint256[] calldata _powers\n ) external whenNotPaused {\n bytes32 domain = keccak256(\n abi.encodePacked(block.chainid, address(this), \"WithdrawMsg\")\n );\n verifySigs(abi.encodePacked(domain, _wdmsg), _sigs, _signers, _powers);\n \n PbPool.WithdrawMsg memory wdmsg = PbPool.decWithdrawMsg(_wdmsg);\n bytes32 wdId = keccak256(\n abi.encodePacked(\n wdmsg.chainid,\n wdmsg.seqnum,\n wdmsg.receiver,\n wdmsg.token,\n wdmsg.amount\n )\n );\n require(withdraws[wdId] == false, \"withdraw already succeeded\");\n withdraws[wdId] = true;\n _updateVolume(wdmsg.token, wdmsg.amount);\n uint256 delayThreshold = delayThresholds[wdmsg.token];\n if (delayThreshold > 0 && wdmsg.amount > delayThreshold) {\n _addDelayedTransfer(\n wdId,\n wdmsg.receiver,\n wdmsg.token,\n wdmsg.amount\n );\n } else {\n function _sendToken(...) {...}\n_sendToken(wdmsg.receiver, wdmsg.token, wdmsg.amount);\n }\n emit WithdrawDone(\n wdId,\n wdmsg.seqnum,\n wdmsg.receiver,\n wdmsg.token,\n wdmsg.amount,\n wdmsg.refid\n );\n }"
+            },
+            {
+                "_sendToken": "function _sendToken(\n address _receiver,\n address _token,\n uint256 _amount\n ) internal {\n if (_token == nativeWrap) {\n \n function withdraw(...) {...}\nIWETH(nativeWrap).withdraw(_amount);\n (bool sent, ) = _receiver.call{value: _amount, gas: 50000}(\"\");\n require(sent, \"failed to send native token\");\n } else {\n IERC20(_token).safeTransfer(_receiver, _amount);\n }\n }"
+            }
+        ],
+        "Mint1": [
+            {
+                "mint": "function mint(\n bytes calldata _request,\n bytes[] calldata _sigs,\n address[] calldata _signers,\n uint256[] calldata _powers\n ) external whenNotPaused {\n bytes32 domain = keccak256(\n abi.encodePacked(block.chainid, address(this), \"Mint\")\n );\n sigsVerifier.verifySigs(\n abi.encodePacked(domain, _request),\n _sigs,\n _signers,\n _powers\n );\n PbPegged.Mint memory request = PbPegged.decMint(_request);\n bytes32 mintId = keccak256(\n \n abi.encodePacked(\n request.account,\n request.token,\n request.amount,\n request.depositor,\n request.refChainId,\n request.refId\n )\n );\n require(records[mintId] == false, \"record exists\");\n records[mintId] = true;\n _updateVolume(request.token, request.amount);\n uint256 delayThreshold = delayThresholds[request.token];\n if (delayThreshold > 0 && request.amount > delayThreshold) {\n _addDelayedTransfer(\n mintId,\n request.account,\n request.token,\n request.amount\n );\n } else {\n function mint(...) {...}\nIPeggedToken(request.token).mint(request.account, request.amount);\n }\n emit Mint(\n mintId,\n request.token,\n request.account,\n request.amount,\n request.refChainId,\n request.refId,\n request.depositor\n );\n }"
+            },
+            {
+                "_updateVolume": "function _updateVolume(address _token, uint256 _amount) internal {\n if (epochLength == 0) {\n return;\n }\n uint256 cap = epochVolumeCaps[_token];\n if (cap == 0) {\n return;\n }\n uint256 volume = epochVolumes[_token];\n uint256 timestamp = block.timestamp;\n uint256 epochStartTime = (timestamp / epochLength) * epochLength;\n if (lastOpTimestamps[_token] < epochStartTime) {\n volume = _amount;\n } else {\n volume += _amount;\n }\n require(volume <= cap, \"volume exceeds cap\");\n epochVolumes[_token] = volume;\n lastOpTimestamps[_token] = timestamp;\n }"
+            }
+        ]
+    }
+}

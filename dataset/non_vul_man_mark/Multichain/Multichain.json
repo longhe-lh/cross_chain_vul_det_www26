@@ -1,0 +1,250 @@
+{
+  "contract": "Multichain",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Multichain": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "LogAnySwapOut1",
+          "LogAnySwapTradeTokensForTokens2",
+          "LogAnySwapTradeTokensForNative3"
+        ],
+        "rel_chain": [
+          "mint",
+          "burn",
+          "depositVault",
+          "withdrawVault"
+        ],
+        "det_chain": [
+          "LogAnySwapIn1",
+          "LogAnySwapInUnderlying2",
+          "LogAnySwapInAuto3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "LogAnySwapOut1": {
+            "0": {
+              "func_name": "anySwapOut",
+              "file_name": "AnyswapV3Router.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_anySwapOut",
+                  "file_name": "AnyswapV3Router.sol",
+                  "key_ops": [
+                    "AnyswapV1ERC20(token).burn(from, amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "LogAnySwapTradeTokensForTokens2": {
+            "0": {
+              "func_name": "anySwapOutExactTokensForTokens",
+              "file_name": "AnyswapV3Router.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "LogAnySwapTradeTokensForNative3": {
+            "0": {
+              "func_name": "anySwapOutExactTokensForNative",
+              "file_name": "AnyswapV3Router.sol",
+              "key_ops": [
+                "AnyswapV1ERC20(path[0]).burn(msg.sender, amountIn)",
+                "emit LogAnySwapTradeTokensForNative(path, msg.sender, to, amountIn, amountOutMin, cID(), toChainID)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "AnyswapV4ERC20.sol",
+              "key_ops": [
+                "_mint(to, amount)",
+                "emit Transfer(address(0), account, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "AnyswapV4ERC20.sol",
+                  "key_ops": [
+                    "require(account != address(0))",
+                    "_totalSupply += amount",
+                    "balanceOf[account] += amount"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "burn": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "AnyswapV4ERC20.sol",
+              "key_ops": [
+                "_burn(from, amount)",
+                "require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "AnyswapV4ERC20.sol",
+                  "key_ops": [
+                    "require(account != address(0), \"ERC20: burn from the zero address\");",
+                    "balanceOf[account] -= amount",
+                    "_totalSupply -= amount"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "depositVault": {
+            "0": {
+              "func_name": "depositVault",
+              "file_name": "AnyswapV4ERC20.sol",
+              "key_ops": [
+                "_deposit(amount, to)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "AnyswapV4ERC20.sol",
+                  "key_ops": [
+                    "require(underlying != address(0) && underlying != address(this))",
+                    "_mint(to, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_mint",
+                      "file_name": "AnyswapV4ERC20.sol",
+                      "key_ops": [
+                        "require(account != address(0))",
+                        "_totalSupply += amount",
+                        "balanceOf[account] += amount"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "withdrawVault": {
+            "0": {
+              "func_name": "withdrawVault",
+              "file_name": "AnyswapV4ERC20.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_withdraw",
+                  "file_name": "AnyswapV4ERC20.sol",
+                  "key_ops": [
+                    "_burn(from, amount)",
+                    "IERC20(underlying).safeTransfer(to, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_burn",
+                      "file_name": "AnyswapV4ERC20.sol",
+                      "key_ops": [
+                        "require(account != address(0))",
+                        "balanceOf[account] -= amount",
+                        "_totalSupply -= amount"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "BinanceSmartChain",
+        "events": {
+          "LogAnySwapIn1": {
+            "0": {
+              "func_name": "anySwapIn",
+              "file_name": "AnyswapV3Router.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_anySwapIn",
+                  "file_name": "AnyswapV3Router.sol",
+                  "key_ops": [
+                    "AnyswapV1ERC20(token).mint(to, amount)",
+                    "emit LogAnySwapIn(txs, token, to, amount, fromChainID, cID())"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "LogAnySwapInUnderlying2": {
+            "0": {
+              "func_name": "anySwapInUnderlying",
+              "file_name": "AnyswapV3Router.sol",
+              "key_ops": [
+                "AnyswapV1ERC20(token).withdrawVault(to, amount, to)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_anySwapIn",
+                  "file_name": "AnyswapV3Router.sol",
+                  "key_ops": [
+                    "AnyswapV1ERC20(token).mint(to, amount)",
+                    "emit LogAnySwapIn(txs, token, to, amount, fromChainID, cID())"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "LogAnySwapInAuto3": {
+            "0": {
+              "func_name": "anySwapInAuto",
+              "file_name": "AnyswapV3Router.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_anySwapIn",
+                  "file_name": "AnyswapV3Router.sol",
+                  "key_ops": [
+                    "AnyswapV1ERC20(token).mint(to, amount)",
+                    "emit LogAnySwapIn(txs, token, to, amount, fromChainID, cID())"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

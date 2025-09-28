@@ -1,0 +1,22 @@
+{
+    "src_chain": {
+        "LiFiTransferStarted1": [
+            {
+                "startBridgeTokensViaAmarok": "function startBridgeTokensViaAmarok(\n BridgeData calldata _bridgeData,\n AmarokData calldata _amarokData\n )\n external\n payable\n nonReentrant\n refundExcessNative(payable(msg.sender))\n doesNotContainSourceSwaps(_bridgeData)\n validateBridgeData(_bridgeData)\n noNativeAsset(_bridgeData)\n {\n validateDestinationCallFlag(_bridgeData, _amarokData);\n LibAsset.depositAsset(\n _bridgeData.sendingAssetId,\n _bridgeData.minAmount\n );\n function _startBridge(...) {...}\n_startBridge(_bridgeData, _amarokData);\n }"
+            },
+            {
+                "_startBridge": "function _startBridge(\n BridgeData memory _bridgeData,\n AmarokData calldata _amarokData\n ) private {\n \n LibAsset.maxApproveERC20(\n IERC20(_bridgeData.sendingAssetId),\n address(connextHandler),\n _bridgeData.minAmount\n );\n \n connextHandler.xcall{ value: _amarokData.relayerFee }(\n _amarokData.destChainDomainId,\n _amarokData.callTo,\n _bridgeData.sendingAssetId,\n _amarokData.delegate,\n _bridgeData.minAmount,\n _amarokData.slippageTol,\n _amarokData.callData\n );\n emit LiFiTransferStarted(_bridgeData);\n }"
+            },
+            {
+                "maxApproveERC20": "function maxApproveERC20(\n IERC20 assetId,\n address spender,\n uint256 amount\n ) internal {\n if (isNativeAsset(address(assetId))) {\n return;\n }\n if (spender == NULL_ADDRESS) {\n revert NullAddrIsNotAValidSpender();\n }\n if (assetId.allowance(address(this), spender) < amount) {\n SafeERC20.safeApprove(IERC20(assetId), spender, 0);\n SafeERC20.safeApprove(IERC20(assetId), spender, MAX_UINT);\n }\n }"
+            },
+            {
+                "depositAsset": "function depositAsset(address assetId, uint256 amount) internal {\n if (amount == 0) revert InvalidAmount();\n if (isNativeAsset(assetId)) {\n if (msg.value < amount) revert InvalidAmount();\n } else {\n uint256 balance = IERC20(assetId).balanceOf(msg.sender);\n if (balance < amount) revert InsufficientBalance(amount, balance);\n transferFromERC20(assetId, msg.sender, address(this), amount);\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "LiFiTransferCompleted1": []
+    }
+}

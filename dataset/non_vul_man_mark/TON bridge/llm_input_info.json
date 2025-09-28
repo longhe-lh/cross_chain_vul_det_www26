@@ -1,0 +1,85 @@
+{
+    "src_chain": {
+        "SwapEthToTon1": [
+            {
+                "burn": "function burn(uint256 amount, TonAddress memory addr) external {\n require(allowBurn, \"Burn is currently disabled\");\n _burn(msg.sender, amount);\n emit SwapEthToTon(msg.sender, addr.workchain, addr.address_hash, amount);\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: burn from the zero address\");\n _beforeTokenTransfer(account, address(0), amount);\n uint256 accountBalance = _balances[account];\n require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n _balances[account] = accountBalance - amount;\n _totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n }"
+            }
+        ],
+        "SwapTonToEth2": [
+            {
+                "mint": "function mint(SwapData memory sd) internal {\n _mint(sd.receiver, sd.amount);\n emit SwapTonToEth(sd.tx.address_.workchain, sd.tx.address_.address_hash, sd.tx.tx_hash, sd.tx.lt, sd.receiver, sd.amount);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _beforeTokenTransfer(address(0), account, amount);\n _totalSupply += amount;\n _balances[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "voteForMinting": [
+            {
+                "voteForMinting": "function voteForMinting(SwapData memory data, Signature[] memory signatures) override public {\n bytes32 _id = getSwapDataId(data);\n function generalVote(...) {...}\nfunction executeMinting(...) {...}\ngeneralVote(_id, signatures);\n executeMinting(data);\n }"
+            },
+            {
+                "generalVote": "function generalVote(bytes32 digest, Signature[] memory signatures) internal {\n \n \n require(signatures.length >= 2 * oraclesSet.length / 3, \"Not enough signatures\");\n require(!finishedVotings[digest], \"Vote is already finished\");\n uint signum = signatures.length;\n uint last_signer = 0;\n for(uint i=0; i<signum; i++) {\n address signer = signatures[i].signer;\n require(isOracle[signer], \"Unauthorized signer\");\n uint next_signer = uint(signer);\n require(next_signer > last_signer, \"Signatures are not sorted\");\n last_signer = next_signer;\n checkSignature(digest, signatures[i]);\n }\n finishedVotings[digest] = true;\n }"
+            },
+            {
+                "checkSignature": "function checkSignature(bytes32 digest, Signature memory sig) public pure {\n if (sig.signature.length != 65) {\n revert(\"ECDSA: invalid signature length\");\n }\n \n bytes32 r;\n bytes32 s;\n uint8 v;\n bytes memory signature = sig.signature;\n \n \n \n assembly {\n r := mload(add(signature, 0x20))\n s := mload(add(signature, 0x40))\n v := byte(0, mload(add(signature, 0x60)))\n }\n if (\n uint256(s) >\n 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0\n ) {\n revert(\"ECDSA: invalid signature 's' value\");\n }\n if (v != 27 && v != 28) {\n revert(\"ECDSA: invalid signature 'v' value\");\n }\n bytes memory prefix = \"\\x19Ethereum Signed Message:\\n32\";\n bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, digest));\n require(ecrecover(prefixedHash, v, r, s) == sig.signer, \"Wrong signature\");\n }"
+            },
+            {
+                "executeMinting": "function executeMinting(SwapData memory data) internal {\n mint(data);\n }"
+            },
+            {
+                "mint": "function mint(SwapData memory sd) internal {\n _mint(sd.receiver, sd.amount);\n emit SwapTonToEth(sd.tx.address_.workchain, sd.tx.address_.address_hash, sd.tx.tx_hash, sd.tx.lt, sd.receiver, sd.amount);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _beforeTokenTransfer(address(0), account, amount);\n _totalSupply += amount;\n _balances[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "voteForNewOracleSet": [
+            {
+                "voteForNewOracleSet": "function voteForNewOracleSet(int oracleSetHash, address[] memory newOracles, Signature[] memory signatures) override public {\n bytes32 _id = getNewSetId(oracleSetHash, newOracles);\n require(newOracles.length > 2, \"New set is too short\");\n function generalVote(...) {...}\nfunction updateOracleSet(...) {...}\ngeneralVote(_id, signatures);\n updateOracleSet(oracleSetHash, newOracles);\n }"
+            },
+            {
+                "generalVote": "function generalVote(bytes32 digest, Signature[] memory signatures) internal {\n \n \n require(signatures.length >= 2 * oraclesSet.length / 3, \"Not enough signatures\");\n require(!finishedVotings[digest], \"Vote is already finished\");\n uint signum = signatures.length;\n uint last_signer = 0;\n for(uint i=0; i<signum; i++) {\n address signer = signatures[i].signer;\n require(isOracle[signer], \"Unauthorized signer\");\n uint next_signer = uint(signer);\n require(next_signer > last_signer, \"Signatures are not sorted\");\n last_signer = next_signer;\n checkSignature(digest, signatures[i]);\n }\n finishedVotings[digest] = true;\n }"
+            },
+            {
+                "checkSignature": "function checkSignature(bytes32 digest, Signature memory sig) public pure {\n if (sig.signature.length != 65) {\n revert(\"ECDSA: invalid signature length\");\n }\n \n bytes32 r;\n bytes32 s;\n uint8 v;\n bytes memory signature = sig.signature;\n \n \n \n assembly {\n r := mload(add(signature, 0x20))\n s := mload(add(signature, 0x40))\n v := byte(0, mload(add(signature, 0x60)))\n }\n if (\n uint256(s) >\n 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0\n ) {\n revert(\"ECDSA: invalid signature 's' value\");\n }\n if (v != 27 && v != 28) {\n revert(\"ECDSA: invalid signature 'v' value\");\n }\n bytes memory prefix = \"\\x19Ethereum Signed Message:\\n32\";\n bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, digest));\n require(ecrecover(prefixedHash, v, r, s) == sig.signer, \"Wrong signature\");\n }"
+            },
+            {
+                "updateOracleSet": "function updateOracleSet(int oracleSetHash, address[] memory newSet) internal {\n uint oldSetLen = oraclesSet.length;\n for(uint i = 0; i < oldSetLen; i++) {\n isOracle[oraclesSet[i]] = false;\n }\n oraclesSet = newSet;\n uint newSetLen = oraclesSet.length;\n for(uint i = 0; i < newSetLen; i++) {\n require(!isOracle[newSet[i]], \"Duplicate oracle in Set\");\n isOracle[newSet[i]] = true;\n }\n emit NewOracleSet(oracleSetHash, newSet);\n }"
+            }
+        ],
+        "voteForSwitchBurn": [
+            {
+                "voteForSwitchBurn": "function voteForSwitchBurn(bool newBurnStatus, int nonce, Signature[] memory signatures) override public {\n bytes32 _id = getNewBurnStatusId(newBurnStatus, nonce);\n function generalVote(...) {...}\ngeneralVote(_id, signatures);\n allowBurn = newBurnStatus;\n }"
+            },
+            {
+                "generalVote": "function generalVote(bytes32 digest, Signature[] memory signatures) internal {\n \n \n require(signatures.length >= 2 * oraclesSet.length / 3, \"Not enough signatures\");\n require(!finishedVotings[digest], \"Vote is already finished\");\n uint signum = signatures.length;\n uint last_signer = 0;\n for(uint i=0; i<signum; i++) {\n address signer = signatures[i].signer;\n require(isOracle[signer], \"Unauthorized signer\");\n uint next_signer = uint(signer);\n require(next_signer > last_signer, \"Signatures are not sorted\");\n last_signer = next_signer;\n checkSignature(digest, signatures[i]);\n }\n finishedVotings[digest] = true;\n }"
+            },
+            {
+                "checkSignature": "function checkSignature(bytes32 digest, Signature memory sig) public pure {\n if (sig.signature.length != 65) {\n revert(\"ECDSA: invalid signature length\");\n }\n \n bytes32 r;\n bytes32 s;\n uint8 v;\n bytes memory signature = sig.signature;\n \n \n \n assembly {\n r := mload(add(signature, 0x20))\n s := mload(add(signature, 0x40))\n v := byte(0, mload(add(signature, 0x60)))\n }\n if (\n uint256(s) >\n 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0\n ) {\n revert(\"ECDSA: invalid signature 's' value\");\n }\n if (v != 27 && v != 28) {\n revert(\"ECDSA: invalid signature 'v' value\");\n }\n bytes memory prefix = \"\\x19Ethereum Signed Message:\\n32\";\n bytes32 prefixedHash = keccak256(abi.encodePacked(prefix, digest));\n require(ecrecover(prefixedHash, v, r, s) == sig.signer, \"Wrong signature\");\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "SwapTonToEth1": [
+            {
+                "mint": "function mint(SwapData memory sd) internal {\n _mint(sd.receiver, sd.amount);\n emit SwapTonToEth(sd.tx.address_.workchain, sd.tx.address_.address_hash, sd.tx.tx_hash, sd.tx.lt, sd.receiver, sd.amount);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _beforeTokenTransfer(address(0), account, amount);\n _totalSupply += amount;\n _balances[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "SwapEthToTon2": [
+            {
+                "burn": "function burn(uint256 amount, TonAddress memory addr) external {\n require(allowBurn, \"Burn is currently disabled\");\n _burn(msg.sender, amount);\n emit SwapEthToTon(msg.sender, addr.workchain, addr.address_hash, amount);\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: burn from the zero address\");\n _beforeTokenTransfer(account, address(0), amount);\n uint256 accountBalance = _balances[account];\n require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n _balances[account] = accountBalance - amount;\n _totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n }"
+            }
+        ]
+    }
+}

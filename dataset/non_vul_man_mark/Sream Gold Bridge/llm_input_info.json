@@ -1,0 +1,61 @@
+{
+    "src_chain": {
+        "TokenMappedERC201": [
+            {
+                "mapToken": "function mapToken(address rootToken, address _bridgeToken) public {\n \n require(rootToBridgeTokens[rootToken] == address(0x0), \"FxERC20RootTunnel: ALREADY_MAPPED\");\n \n bytes memory message = abi.encode(MAP_TOKEN, abi.encode(rootToken, _bridgeToken));\n _sendMessageToBridge(message);\n \n rootToBridgeTokens[rootToken] = _bridgeToken;\n emit TokenMappedERC20(rootToken, _bridgeToken);\n }"
+            },
+            {
+                "sendMessageToBridge": "function sendMessageToBridge(address _receiver, bytes calldata _data) public override {\n bytes memory data = abi.encode(msg.sender, _receiver, _data);\n stateSender.syncState(fxBridge, data);\n }"
+            }
+        ],
+        "FxWithdrawERC202": [
+            {
+                "_processMessageFromBridge": "function _processMessageFromBridge(bytes memory data) internal override {\n (address rootToken, address bridgeToken, address to, uint256 amount) = abi.decode(\n data,\n (address, address, address, uint256)\n );\n \n require(rootToBridgeTokens[rootToken] == bridgeToken, \"FxERC20RootTunnel: INVALID_MAPPING_ON_EXIT\");\n \n IERC20(rootToken).safeTransfer(to, amount);\n emit FxWithdrawERC20(rootToken, bridgeToken, to, amount);\n }"
+            }
+        ],
+        "FxDepositERC203": [
+            {
+                "deposit": "function deposit(\n address rootToken,\n address bridgeToken,\n address user,\n uint256 amount,\n bytes memory data\n ) public {\n \n if (rootToBridgeTokens[rootToken] == address(0x0)) {\n mapToken(rootToken, bridgeToken);\n }\n \n IERC20(rootToken).safeTransferFrom(\n msg.sender, \n address(this), \n amount\n );\n \n bytes memory message = abi.encode(DEPOSIT, abi.encode(rootToken, msg.sender, user, amount, data));\n _sendMessageToBridge(message);\n emit FxDepositERC20(rootToken, msg.sender, user, amount);\n }"
+            },
+            {
+                "sendMessageToBridge": "function sendMessageToBridge(address _receiver, bytes calldata _data) public override {\n bytes memory data = abi.encode(msg.sender, _receiver, _data);\n stateSender.syncState(fxBridge, data);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "NewFxMessage": [
+            {
+                "onStateReceive": "function onStateReceive(uint256 stateId, bytes calldata _data) external override {\n require(msg.sender == address(0x0000000000000000000000000000000000001001), \"Invalid sender\");\n (address rootMessageSender, address receiver, bytes memory data) = abi.decode(_data, (address, address, bytes));\n emit NewFxMessage(rootMessageSender, receiver, data);\n IFxMessageProcessor(receiver).processMessageFromRoot(stateId, rootMessageSender, data);\n }"
+            },
+            {
+                "processMessageFromRoot": "function processMessageFromRoot(\n uint256 stateId,\n address rootMessageSender,\n bytes calldata data\n ) external override {\n require(msg.sender == fxBridge, \"FxBaseBridgeTunnel: INVALID_SENDER\");\n _processMessageFromRoot(stateId, rootMessageSender, data);\n }"
+            },
+            {
+                "_processMessageFromRoot": "function _processMessageFromRoot(\n uint256, \n address sender,\n bytes memory data\n ) internal override validateSender(sender) {\n \n (bytes32 syncType, bytes memory syncData) = abi.decode(data, (bytes32, bytes));\n if (syncType == DEPOSIT) {\n function _syncDeposit(...) {...}\n_syncDeposit(syncData);\n } else if (syncType == MAP_TOKEN) {\n _mapToken(syncData);\n } else {\n revert(\"FxERC20BridgeTunnel: INVALID_SYNC_TYPE\");\n }\n }"
+            },
+            {
+                "_syncDeposit": "function _syncDeposit(bytes memory syncData) internal {\n (address rootToken, address depositor, address to, uint256 amount, bytes memory depositData) = abi.decode(\n syncData,\n (address, address, address, uint256, bytes)\n );\n address bridgeToken = rootToBridgeToken[rootToken];\n require(bridgeToken != address(0), \"Bridge Token cannot be zero address\");\n \n IFxERC20 bridgeTokenContract = IFxERC20(bridgeToken);\n bridgeTokenContract.mint(to, amount);\n \n \n if (_isContract(to)) {\n uint256 txGas = 2000000;\n bool success = false;\n bytes memory data = abi.encodeWithSignature(\n \"onTokenTransfer(address,address,address,address,uint256,bytes)\",\n rootToken,\n bridgeToken,\n depositor,\n to,\n amount,\n depositData\n );\n \n assembly {\n success := call(txGas, to, 0, add(data, 0x20), mload(data), 0, 0)\n }\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenMapped1": [
+            {
+                "_mapToken": "function _mapToken(bytes memory syncData) internal {\n (address rootToken,address _bridgeToken) = abi.decode(\n syncData,\n (address,address)\n );\n require(_bridgeToken != address(0x0), \"Not the zeroth address\");\n address bridgeToken = rootToBridgeToken[rootToken];\n \n require(bridgeToken == address(0x0), \"FxERC20BridgeTunnel: ALREADY_MAPPED\");\n \n rootToBridgeToken[rootToken] = _bridgeToken;\n emit TokenMapped(rootToken, _bridgeToken);\n }"
+            }
+        ],
+        "FxWithdraw2": [
+            {
+                "withdraw": "function withdraw(address bridgeToken, uint256 amount) public {\n function _withdraw(...) {...}\n_withdraw(bridgeToken, msg.sender, amount);\n }"
+            },
+            {
+                "_withdraw": "function _withdraw(\n address bridgeToken,\n address receiver,\n uint256 amount\n ) internal {\n IFxERC20 bridgeTokenContract = IFxERC20(bridgeToken);\n \n address rootToken = bridgeTokenContract.connectedToken();\n \n require(\n bridgeToken != address(0x0) && rootToken != address(0x0) && bridgeToken == rootToBridgeToken[rootToken],\n \"FxERC20BridgeTunnel: NO_MAPPED_TOKEN\"\n );\n \n bridgeTokenContract.burn(msg.sender, amount);\n \n _sendMessageToRoot(abi.encode(rootToken, bridgeToken, receiver, amount));\n }"
+            }
+        ],
+        "FxDeposit3": [
+            {
+                "_syncDeposit": "function _syncDeposit(bytes memory syncData) internal {\n (address rootToken, address depositor, address to, uint256 amount, bytes memory depositData) = abi.decode(\n syncData,\n (address, address, address, uint256, bytes)\n );\n address bridgeToken = rootToBridgeToken[rootToken];\n require(bridgeToken != address(0), \"Bridge Token cannot be zero address\");\n \n IFxERC20 bridgeTokenContract = IFxERC20(bridgeToken);\n bridgeTokenContract.mint(to, amount);\n \n \n if (_isContract(to)) {\n uint256 txGas = 2000000;\n bool success = false;\n bytes memory data = abi.encodeWithSignature(\n \"onTokenTransfer(address,address,address,address,uint256,bytes)\",\n rootToken,\n bridgeToken,\n depositor,\n to,\n amount,\n depositData\n );\n \n assembly {\n success := call(txGas, to, 0, add(data, 0x20), mload(data), 0, 0)\n }\n }\n }"
+            }
+        ]
+    }
+}

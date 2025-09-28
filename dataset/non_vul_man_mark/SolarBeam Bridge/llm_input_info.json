@@ -1,0 +1,33 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "depositPool": "function depositPool(\n uint256 _amount,\n uint8 _pid\n ) external override onlyWhenActive nonReentrant {\n UserInfo storage user = userInfo[msg.sender][_pid];\n\n require(_pid < numberPools, \"pool does not exist\");\n\n require(\n poolInfo[_pid].offeringAmount > 0 &&\n poolInfo[_pid].raisingAmount > 0,\n \"Pool not set\"\n );\n\n for (uint8 i = 0; i < numberPools; i++) {\n if (i != _pid) {\n require(\n userInfo[msg.sender][i].amount == 0,\n \"already commited in another pool\"\n );\n }\n }\n\n for (uint256 i = 0; i < NUMBER_VAULT_POOLS; i++) {\n vault.deposit(i, 0);\n }\n\n bool success = getUserEligibility(address(msg.sender));\n\n require(success, \"user not eligible\");\n\n lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);\n\n user.amount += _amount;\n\n if (poolInfo[_pid].baseLimitInLP > 0) {\n uint16 multiplier = getUserMultiplier(msg.sender);\n\n require(\n user.amount <=\n (poolInfo[_pid].baseLimitInLP * uint256(multiplier)),\n \"New amount above user limit\"\n );\n } else {\n uint16 multiplier = getUserMultiplier(msg.sender);\n\n poolInfo[_pid].totalAllocPoints -= userInfo[msg.sender][_pid]\n .allocPoints;\n\n userInfo[msg.sender][_pid].allocPoints =\n user.amount *\n uint256(multiplier);\n\n poolInfo[_pid].totalAllocPoints += userInfo[msg.sender][_pid]\n .allocPoints;\n }\n\n poolInfo[_pid].totalAmountPool += _amount;\n\n emit Deposit(msg.sender, _amount, _pid);\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "harvestPool": "function harvestPool(\n uint8 _pid,\n uint8 _harvestPeriod\n ) external override nonReentrant onlyFinished {\n require(_pid < numberPools, \"pool does not exist\");\n\n require(\n _harvestPeriod < HARVEST_PERIODS,\n \"harvest period out of range\"\n );\n\n require(\n block.number > harvestReleaseBlocks[_harvestPeriod],\n \"not harvest time\"\n );\n\n require(userInfo[msg.sender][_pid].amount > 0, \"did not participate\");\n\n require(\n !userInfo[msg.sender][_pid].claimed[_harvestPeriod],\n \"harvest for period already claimed\"\n );\n\n userInfo[msg.sender][_pid].claimed[_harvestPeriod] = true;\n\n uint256 offeringTokenAmount;\n\n uint256 refundingTokenAmount;\n\n uint256 userTaxOverflow;\n\n (\n offeringTokenAmount,\n refundingTokenAmount,\n userTaxOverflow\n ) = _calcOfferingAndRefundingAmounts(msg.sender, _pid);\n\n if (userTaxOverflow > 0 && !userInfo[msg.sender][_pid].isRefunded) {\n poolInfo[_pid].sumTaxesOverflow += userTaxOverflow;\n }\n\n if (\n refundingTokenAmount > 0 && !userInfo[msg.sender][_pid].isRefunded\n ) {\n userInfo[msg.sender][_pid].isRefunded = true;\n\n lpToken.safeTransfer(address(msg.sender), refundingTokenAmount);\n }\n\n uint256 offeringTokenAmountPerPeriod;\n\n if (offeringTokenAmount > 0) {\n offeringTokenAmountPerPeriod =\n (offeringTokenAmount * harvestReleasePercent[_harvestPeriod]) /\n 1e4;\n\n offeringToken.safeTransfer(\n address(msg.sender),\n offeringTokenAmountPerPeriod\n );\n }\n\n userInfo[msg.sender][_pid].claimed[_harvestPeriod] = true;\n\n emit Harvest(\n msg.sender,\n offeringTokenAmountPerPeriod,\n refundingTokenAmount,\n _pid\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "create": "function create(\n uint256 _value,\n uint256 _days\n ) external override nonReentrant {\n require(_value >= minLockedAmount, \"create: less than min amount\");\n\n require(\n locked[_msgSender()].amount == 0,\n \"create: withdraw old tokens first\"\n );\n\n require(_days >= MINDAYS, \"create: less than min amount of 7 days\");\n\n require(_days <= MAXDAYS, \"create: voting lock can be 4 years max\");\n\n _deposit(_msgSender(), _value, _days);\n }"
+            }
+        ],
+        "withdraw": [
+            {
+                "withdraw": "function withdraw() external override lock {\n LockedBalance storage _locked = locked[_msgSender()];\n\n uint256 _now = block.timestamp;\n\n require(_locked.amount > 0, \"withdraw: nothing to withdraw\");\n\n require(_now >= _locked.end, \"withdraw: user still locked\");\n\n uint256 _amount = _locked.amount;\n\n _locked.end = 0;\n\n _locked.amount = 0;\n\n _burn(_msgSender(), mintedForLock[_msgSender()]);\n\n mintedForLock[_msgSender()] = 0;\n\n IBoringERC20(lockedToken).safeTransfer(_msgSender(), _amount);\n\n emit Withdraw(_msgSender(), _amount);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenMint1": [
+            {
+                "harvestPool": "function harvestPool(\n uint8 _pid,\n uint8 _harvestPeriod\n ) external nonReentrant {\n require(_pid < 2, \"invalid pid\");\n\n require(\n _harvestPeriod < HARVEST_PERIODS,\n \"harvest period out of range\"\n );\n\n require(\n block.timestamp >\n eclipseV2.harvestReleaseTimestamps(_harvestPeriod),\n \"not harvest time\"\n );\n\n require(\n !userInfo[msg.sender][_pid].claimed[_harvestPeriod],\n \"harvest for period already claimed\"\n );\n\n \n\n uint8[] memory _pids = new uint8[](1);\n\n _pids[0] = _pid;\n\n uint256[3][] memory amountPools = eclipseV2\n .viewUserOfferingAndRefundingAmountsForPools(msg.sender, _pids);\n\n uint256 offeringTokenAmount = amountPools[0][0];\n\n uint256 offeringTokenAmountPerPeriod;\n\n require(offeringTokenAmount > 0, \"did not participate\");\n\n userInfo[msg.sender][_pid].claimed[_harvestPeriod] = true;\n\n if (offeringTokenAmount > 0) {\n offeringTokenAmountPerPeriod =\n (offeringTokenAmount *\n eclipseV2.harvestReleasePercent(_harvestPeriod)) /\n 1e4;\n\n offeringTokenAmountPerPeriod =\n offeringTokenAmountPerPeriod *\n exchangeRate;\n\n offeringToken.safeTransfer(\n address(msg.sender),\n offeringTokenAmountPerPeriod\n );\n }\n\n userInfo[msg.sender][_pid].claimed[_harvestPeriod] = true;\n\n emit Harvest(msg.sender, offeringTokenAmountPerPeriod, _pid);\n }"
+            }
+        ]
+    }
+}

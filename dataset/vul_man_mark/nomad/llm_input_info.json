@@ -1,0 +1,40 @@
+{
+    "src_chain": {
+        "Send1": [
+            {
+                "send": "function send(\n address _token,\n uint256 _amount,\n uint32 _destination,\n bytes32 _recipient,\n bool \n ) external {\n \n require(_recipient != bytes32(0), \"!recip\");\n \n (bytes29 _tokenId, bytes32 _detailsHash) = _takeTokens(_token, _amount);\n require(\n _destination == _tokenId.domain(),\n \"sends temporarily disabled\"\n );\n \n bytes29 _action = BridgeMessage.formatTransfer(\n _recipient,\n _amount,\n _detailsHash\n );\n \n _sendTransferMessage(_destination, _tokenId, _action);\n \n emit Send(_token, msg.sender, _destination, _recipient, _amount, false);\n }"
+            },
+            {
+                "_takeTokens": "function _takeTokens(address _token, uint256 _amount)\n internal\n returns (bytes29 _tokenId, bytes32 _detailsHash)\n {\n \n require(_amount > 0, \"!amnt\");\n \n IBridgeToken _t = IBridgeToken(_token);\n \n if (tokenRegistry.isLocalOrigin(_token)) {\n \n \n IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);\n \n _detailsHash = BridgeMessage.getDetailsHash(\n _t.name(),\n _t.symbol(),\n _t.decimals()\n );\n } else {\n \n \n _t.burn(msg.sender, _amount);\n _detailsHash = _t.detailsHash();\n }\n \n (uint32 _domain, bytes32 _id) = tokenRegistry.getTokenId(_token);\n _tokenId = BridgeMessage.formatTokenId(_domain, _id);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Process0": [
+            {
+                "process": "function process(bytes memory _message) public returns (bool _success) {\n \n bytes29 _m = _message.ref(0);\n require(_m.destination() == localDomain, \"!destination\");\n \n bytes32 _messageHash = _m.keccak();\n function acceptableRoot(...) {...}\nrequire(acceptableRoot(messages[_messageHash]), \"!proven\");\n \n require(entered == 1, \"!reentrant\");\n entered = 0;\n \n messages[_messageHash] = LEGACY_STATUS_PROCESSED;\n \n IMessageRecipient(_m.recipientAddress()).handle(\n _m.origin(),\n _m.nonce(),\n _m.sender(),\n _m.body().clone()\n );\n \n emit Process(_messageHash, true, \"\");\n \n entered = 1;\n \n return true;\n }"
+            }
+        ],
+        "Receive1": [
+            {
+                "handle": "function handle(\n uint32 _origin,\n uint32 _nonce,\n bytes32 _sender,\n bytes memory _message\n ) external override onlyReplica onlyRemoteRouter(_origin, _sender) {\n \n bytes29 _msg = _message.ref(0).mustBeMessage();\n bytes29 _tokenId = _msg.tokenId();\n bytes29 _action = _msg.action();\n \n if (_action.isTransfer()) {\n _handleTransfer(_origin, _nonce, _tokenId, _action);\n } else if (_action.isTransferToHook()) {\n _handleTransferToHook(_origin, _nonce, _tokenId, _action);\n } else {\n require(false, \"!valid action\");\n }\n }"
+            },
+            {
+                "_handleTransfer": "function _handleTransfer(\n uint32 _origin,\n uint32 _nonce,\n bytes29 _tokenId,\n bytes29 _action\n ) internal {\n \n address _recipient = _action.evmRecipient();\n \n function _giveTokens(...) {...}\nfunction _dust(...) {...}\n_giveTokens(_origin, _nonce, _tokenId, _action, _recipient);\n \n _dust(_recipient);\n }"
+            },
+            {
+                "_giveTokens": "function _giveTokens(\n uint32 _origin,\n uint32 _nonce,\n bytes29 _tokenId,\n bytes29 _action,\n address _recipient\n ) internal returns (address _token) {\n \n \n \n \n _token = tokenRegistry.ensureLocalToken(\n _tokenId.domain(),\n _tokenId.id()\n );\n \n uint256 _amount = _action.amnt();\n \n if (tokenRegistry.isLocalOrigin(_token)) {\n _giveLocal(_token, _amount, _recipient);\n } else {\n _giveRepr(_token, _amount, _recipient, _action.detailsHash());\n }\n \n emit Receive(\n _originAndNonce(_origin, _nonce),\n _token,\n _recipient,\n address(0),\n _amount\n );\n }"
+            },
+            {
+                "_giveLocal": "function _giveLocal(\n address _token,\n uint256 _amount,\n address _recipient\n ) internal virtual {\n IERC20(_token).safeTransfer(_recipient, _amount);\n }"
+            },
+            {
+                "_giveRepr": "function _giveRepr(\n address _token,\n uint256 _amount,\n address _recipient,\n bytes32 _detailsHash\n ) internal {\n \n \n IBridgeToken(_token).mint(_recipient, _amount);\n \n IBridgeToken(_token).setDetailsHash(_detailsHash);\n }"
+            },
+            {
+                "_dust": "function _dust(address _recipient) internal {\n if (\n _recipient.balance < DUST_AMOUNT &&\n address(this).balance >= DUST_AMOUNT\n ) {\n \n \n \n \n \n \n \n function send(...) {...}\npayable(_recipient).send(DUST_AMOUNT);\n }\n }"
+            }
+        ]
+    }
+}

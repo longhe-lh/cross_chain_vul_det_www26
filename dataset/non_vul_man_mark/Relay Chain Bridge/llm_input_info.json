@@ -1,0 +1,26 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(\n bytes32 resourceID,\n uint8 destinationChainID,\n uint64 depositNonce,\n address depositer,\n bytes calldata data\n ) external override onlyBridge {\n bytes memory recipientAddress;\n uint256 amount;\n uint256 lenRecipientAddress;\n assembly {\n amount := calldataload(0xC4)\n recipientAddress := mload(0x40)\n lenRecipientAddress := calldataload(0xE4)\n mstore(0x40, add(0x20, add(recipientAddress, lenRecipientAddress)))\n calldatacopy(\n recipientAddress, \n 0xE4, \n sub(calldatasize(), 0xE) \n )\n }\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (_burnList[tokenAddress]) {\n burnERC20(tokenAddress, depositer, amount);\n } else {\n lockERC20(tokenAddress, depositer, address(this), amount);\n }\n _depositRecords[destinationChainID][depositNonce] = DepositRecord(\n tokenAddress,\n uint8(lenRecipientAddress),\n destinationChainID,\n resourceID,\n recipientAddress,\n depositer,\n amount\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ProposalVote": [
+            {
+                "voteProposal": "function voteProposal(uint8 chainID, uint64 depositNonce, bytes32 resourceID, bytes calldata data) external onlyRelayers whenNotPaused {\n address handler = _resourceIDToHandlerAddress[resourceID];\n bytes32 dataHash = keccak256(abi.encodePacked(handler, data));\n uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(chainID);\n Proposal storage proposal = _proposals[nonceAndID][dataHash];\n require(_resourceIDToHandlerAddress[resourceID] != address(0), \"no handler for resourceID\");\n require(uint(proposal._status) <= 1, \"proposal already executed\");\n require(!_hasVotedOnProposal[nonceAndID][dataHash][msg.sender], \"relayer already voted\");\n if (uint(proposal._status) == 0) {\n ++_totalProposals;\n _proposals[nonceAndID][dataHash] = Proposal({\n _resourceID : resourceID,\n _dataHash : dataHash,\n _yesVotes : new address[](1),\n _noVotes : new address[](0),\n _status : ProposalStatus.Active,\n _proposedBlock : block.number\n });\n proposal._yesVotes[0] = msg.sender;\n emit ProposalEvent(chainID, depositNonce, ProposalStatus.Active, resourceID, dataHash);\n } else {\n require(dataHash == proposal._dataHash, \"datahash mismatch\");\n proposal._yesVotes.push(msg.sender);\n }\n _hasVotedOnProposal[nonceAndID][dataHash][msg.sender] = true;\n emit ProposalVote(chainID, depositNonce, proposal._status, resourceID);\n \n if (proposal._yesVotes.length >= _relayerThreshold) {\n require(dataHash == proposal._dataHash, \"data doesn't match datahash\");\n proposal._status = ProposalStatus.Executed;\n IDepositExecute depositHandler = IDepositExecute(_resourceIDToHandlerAddress[proposal._resourceID]);\n depositHandler.executeProposal(proposal._resourceID, data);\n emit ProposalEvent(chainID, depositNonce, proposal._status, proposal._resourceID, proposal._dataHash);\n }\n }"
+            },
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint256 amount;\n bytes memory destinationRecipientAddress;\n assembly {\n amount := calldataload(0x64)\n destinationRecipientAddress := mload(0x40)\n let lenDestinationRecipientAddress := calldataload(0x84)\n mstore(0x40, add(0x20, add(destinationRecipientAddress, lenDestinationRecipientAddress)))\n \n calldatacopy(\n destinationRecipientAddress, \n 0x84, \n sub(calldatasize(), 0x84) \n )\n }\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "ProposalEvent1": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external onlyBridge {\n bytes memory metaData;\n assembly {\n \n \n metaData := mload(0x40)\n \n let lenMeta := calldataload(0x64)\n mstore(0x40, add(0x60, add(metaData, lenMeta)))\n \n calldatacopy(\n metaData, \n 0x64, \n sub(calldatasize(), 0x64) \n )\n }\n address contractAddress = _resourceIDToContractAddress[resourceID];\n require(_contractWhitelist[contractAddress], \"provided contractAddress is not whitelisted\");\n bytes4 sig = _contractAddressToExecuteFunctionSignature[contractAddress];\n if (sig != bytes4(0)) {\n bytes memory callData = abi.encodePacked(sig, metaData);\n (bool success,) = contractAddress.call(callData);\n require(success, \"delegatecall to contractAddress failed\");\n }\n }"
+            }
+        ]
+    }
+}

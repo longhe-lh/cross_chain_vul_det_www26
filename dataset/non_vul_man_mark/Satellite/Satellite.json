@@ -1,0 +1,187 @@
+{
+  "contract": "Satellite",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Satellite": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenSent1",
+          "ContractCall2",
+          "ContractCallWithToken3"
+        ],
+        "rel_chain": [
+          "execute"
+        ],
+        "det_chain": [
+          "Executed1",
+          "ContractCallApproved2",
+          "ContractCallApprovedWithMint3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokenSent1": {
+            "0": {
+              "func_name": "sendToken",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "_burnTokenFrom(msg.sender, symbol, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burnTokenFrom",
+                  "file_name": "AxelarGateway.sol",
+                  "key_ops": [
+                    "address tokenAddress = tokenAddresses(symbol)",
+                    "if (tokenAddress == address(0)) revert TokenDoesNotExist(symbol)",
+                    "if (amount == 0) revert InvalidAmount()"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ContractCall2": {
+            "0": {
+              "func_name": "callContract",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "emit ContractCall(msg.sender,destinationChain,destinationContractAddress,keccak256(payload),payload);"
+              ],
+              "child": {}
+            }
+          },
+          "ContractCallWithToken3": {
+            "0": {
+              "func_name": "callContractWithToken",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "_burnTokenFrom(msg.sender, symbol, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burnTokenFrom",
+                  "file_name": "AxelarGateway.sol",
+                  "key_ops": [
+                    "address tokenAddress = tokenAddresses(symbol)",
+                    "if (tokenAddress == address(0)) revert TokenDoesNotExist(symbol)",
+                    "if (amount == 0) revert InvalidAmount()"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "execute": {
+            "0": {
+              "func_name": "execute",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "bool allowOperatorshipTransfer = IAxelarAuth(AUTH_MODULE).validateProof(messageHash, proof)",
+                "if (chainId != block.chainid) revert InvalidChainId()",
+                "if (commandsLength != commands.length || commandsLength != params.length) revert InvalidCommands()"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "validateProof",
+                  "file_name": "AxelarAuthWeighted.sol",
+                  "key_ops": [
+                    "bytes32 operatorsHash = keccak256(abi.encode(operators, weights, threshold))",
+                    "uint256 operatorsEpoch = epochForHash[operatorsHash]",
+                    "if (operatorsEpoch == 0 || epoch - operatorsEpoch >= OLD_KEY_RETENTION) revert InvalidOperators()"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_validateSignatures",
+                      "file_name": "AxelarAuthWeighted.sol",
+                      "key_ops": [
+                        "address signer = ECDSA.recover(messageHash, signatures[i])",
+                        "if (operatorIndex == operatorsLength) revert MalformedSigners()",
+                        "weight += weights[operatorIndex]",
+                        "if (weight >= threshold) return"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Executed1": {
+            "0": {
+              "func_name": "burnToken",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "address tokenAddress = tokenAddresses(symbol)",
+                "if (tokenAddress == address(0)) revert TokenDoesNotExist(symbol)"
+              ],
+              "child": {}
+            }
+          },
+          "ContractCallApproved2": {
+            "0": {
+              "func_name": "approveContractCall",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "_setContractCallApproved(commandId, sourceChain, sourceAddress, contractAddress, payloadHash)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_setContractCallApproved",
+                  "file_name": "AxelarGateway.sol",
+                  "key_ops": [
+                    "_setBool(_getIsContractCallApprovedKey(commandId, sourceChain, sourceAddress, contractAddress, payloadHash), true)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ContractCallApprovedWithMint3": {
+            "0": {
+              "func_name": "approveContractCallWithMint",
+              "file_name": "AxelarGateway.sol",
+              "key_ops": [
+                "_setContractCallApprovedWithMint(commandId, sourceChain, sourceAddress, contractAddress, payloadHash, symbol, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_setContractCallApprovedWithMint",
+                  "file_name": "AxelarGateway.sol",
+                  "key_ops": [
+                    "_setBool(_getIsContractCallApprovedWithMintKey(commandId, sourceChain, sourceAddress, contractAddress, payloadHash, symbol, amount), true)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

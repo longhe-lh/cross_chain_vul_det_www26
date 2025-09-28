@@ -1,0 +1,164 @@
+{
+    "contract": "Synapse",
+    "source_code_path": "../vul_src_code/Synapse_Protocol/",
+    "type": "InconsistentLogicInForkedLibraries",
+    "vulnerable_entry_function": {
+        "file": "metaswap_swaputils.sol",
+        "name": "swap",
+        "signature": "function swap(Swap ,uint8 ,uint8 ,uint256,uint256 )",
+        "lines": "786-840",
+        "attack_type": "Price Manipulation",
+        "vul_reason": "The swap() and swapUnderlying() functions are implemented in two different libraries: SwapUtils and MetaSwapUtils. Both rely on the getXp() function for internal pricing logic. However, getXp() in MetaSwapUtils accounts for the virtual price of LP tokens, while the implementation in SwapUtils does not. This inconsistency leads to a situation where swap() underestimates the value of LP tokens when the virtual price is greater than 1, allowing attackers to receive more LP tokens for less stablecoin input, then redeem them at a higher value via swapUnderlying().",
+        "code_snippet": "(dy, dyFee) = _calculateSwap(self,tokenIndexFrom,tokenIndexTo,dx,balances);"
+    },
+    "detail": "The attack on Nerve's MetaPool was made possible by inconsistent implementations of the getXp() pricing function in two libraries: SwapUtils and MetaSwapUtils. The MetaSwap contract, which was forked from Saddle.Finance (itself a Solidity port of Curve's MetaPool), contained two key swap functions—swap() and swapUnderlying()—used for exchanging between LP tokens and stablecoins. During the attack, swap() underestimated the LP token value due to ignoring the virtual price, while swapUnderlying() calculated it correctly. The attacker repeatedly swapped stablecoins for undervalued LP tokens via swap(), removed liquidity to extract base tokens, and finally used swapUnderlying() to convert base tokens back to more stablecoins at a favorable rate. This loop drained the pool of liquidity. The vulnerability stems from inconsistent logic across forked components and highlights the risk of modifying or porting code without preserving behavioral equivalence. The attacker reportedly profited ~900 BNB. A similar attack had occurred on Synapse’s MetaPool one week earlier, exploiting the same flaw.",
+    "blg": {
+        "nerve": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "swap0",
+                    "swap1",
+                    "swap2",
+                    "TokenDeposit3"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "TokenMint3"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "polygon",
+                "events": {
+                    "swap0": {
+                        "0": {
+                            "func_name": "swap",
+                            "file_name": "metaswap_swaputils.sol",
+                            "key_ops": [
+                                "require(dx <= tokenFrom.balanceOf(msg.sender),\"Cannot swap more than you own\");",
+                                "tokenFrom.safeTransferFrom(msg.sender, address(this), dx);   ",
+                                "require(dy >= minDy, \"Swap didn't result in min tokens\");",
+                                "self.pooledTokens[tokenIndexTo].safeTransfer(msg.sender, dy);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_calculateSwap",
+                                    "file_name": "metaswap_swaputils.sol",
+                                    "key_ops": [
+                                        "require(tokenIndexFrom < xp.length && tokenIndexTo < xp.length,\"Token index out of range\");"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_xp",
+                                            "file_name": "metaswap_swaputils.sol",
+                                            "key_ops": [
+                                                "require(numTokens == precisionMultipliers.length,\"Balances must match multipliers\");"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "event_name": "TokenSwap",
+                                    "file_name": "metaswap_swaputils.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "swap1": {
+                        "0": {
+                            "func_name": "removeLiquidityOneToken",
+                            "file_name": "metaswap_swaputils.sol",
+                            "key_ops": [
+                                "return swapStorage.removeLiquidityOneToken(metaSwapStorage,tokenAmount,tokenIndex,minAmount);"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "swap2": {
+                        "0": {
+                            "func_name": "swapUnderlying",
+                            "file_name": "metaswap_metaswaputils.sol",
+                            "key_ops": [
+                                "require(tokenIndexFrom < maxRange && tokenIndexTo < maxRange,\"Token index out of range\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_updateBaseVirtualPrice",
+                                    "file_name": "metaswap_metaswaputils.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "func_name": "_xp",
+                                    "file_name": "metaswap_metaswaputils.sol",
+                                    "key_ops": [
+                                        "require(numTokens == precisionMultipliers.length,\"Balances must match multipliers\");"
+                                    ],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "TokenSwapUnderlying",
+                                    "file_name": "metaswap_metaswaputils.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "TokenDeposit3": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "SynapseBridge.sol",
+                            "key_ops": [
+                                "token.safeTransferFrom(msg.sender, address(this), amount);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "event_name": "TokenDeposit",
+                                    "file_name": "SynapseBridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "synapse",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "avalanche",
+                "events": {
+                    "TokenMint3": {
+                        "0": {
+                            "func_name": "mint",
+                            "file_name": "SynapseBridge.sol",
+                            "key_ops": [
+                                "require(hasRole(NODEGROUP_ROLE, msg.sender), \"Caller is not a node group\");",
+                                "require(amount > fee, \"Amount must be greater than fee\");",
+                                "require(!kappaMap[kappa], \"Kappa is already present\");",
+                                "token.mint(address(this), amount);",
+                                "IERC20(token).safeTransfer(to, amount.sub(fee));",
+                                "if (chainGasAmount != 0 && address(this).balance > chainGasAmount) {to.call.value(chainGasAmount)(\"\");}"
+                            ],
+                            "child": {
+                                "0": {
+                                    "event_name": "TokenMint",
+                                    "file_name": "SynapseBridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

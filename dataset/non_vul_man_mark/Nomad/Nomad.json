@@ -1,0 +1,123 @@
+{
+  "contract": "Nomad",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Nomad": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Send1"
+        ],
+        "rel_chain": [
+          "Dispatch",
+          "Update"
+        ],
+        "det_chain": [
+          "Receive1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Send1": {
+            "0": {
+              "func_name": "send",
+              "file_name": "BridgeRouter.sol",
+              "key_ops": [
+                "require(_amount > 0, \"!amnt\");",
+                "require(_recipient != bytes32(0), \"!recip\");",
+                "IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);",
+                "_t.burn(msg.sender, _amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "dispatch",
+                  "file_name": "Home.sol",
+                  "key_ops": [
+                    "require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\");",
+                    "nonces[_destinationDomain] = _nonce + 1;"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Dispatch": {
+            "0": {
+              "func_name": "dispatch",
+              "file_name": "Home.sol",
+              "key_ops": [
+                "require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\");",
+                "nonces[_destinationDomain] = _nonce + 1;"
+              ],
+              "child": {}
+            }
+          },
+          "Update": {
+            "0": {
+              "func_name": "update",
+              "file_name": "Replica.sol",
+              "key_ops": [
+                "require(_oldRoot == committedRoot, \"not current update\");",
+                "confirmAt[_newRoot] = block.timestamp + optimisticSeconds;",
+                "committedRoot = _newRoot;",
+                "require(_isUpdaterSignature(_oldRoot, _newRoot, _signature),\"!updater sig\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Receive1": {
+            "0": {
+              "func_name": "handle",
+              "file_name": "BridgeRouter.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_handleTransfer",
+                  "file_name": "BridgeRouter.sol",
+                  "key_ops": [
+                    "if (_lp != address(0)) { _recipient = _lp; delete liquidityProvider[_id]; }",
+                    "IERC20(_token).safeTransfer(_recipient, _amount);",
+                    "IBridgeToken(_token).mint(_recipient, _amount);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "safeTransfer",
+                      "file_name": "SafeERC20.sol",
+                      "key_ops": [
+                        "_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

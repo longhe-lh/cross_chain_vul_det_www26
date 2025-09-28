@@ -1,0 +1,166 @@
+{
+  "contract": "KCC",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "KCC": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "DepositNative1",
+          "DepositToken2"
+        ],
+        "rel_chain": [
+          "WithdrawingNative",
+          "WithdrawingToken"
+        ],
+        "det_chain": [
+          "WithdrawDoneNative1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "DepositNative1": {
+            "0": {
+              "func_name": "depositNative",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(msg.value >= swapFee, \"Bridge:insufficient swap fee\")",
+                "payable(feeTo).transfer(swapFee)",
+                "emit DepositNative(msg.sender, msg.value - swapFee, _targetAddress, chain, swapFee)"
+              ],
+              "child": {}
+            }
+          },
+          "DepositToken2": {
+            "0": {
+              "func_name": "depositToken",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(msg.value == swapFee, \"Bridge:swap fee not equal\")",
+                "payable(feeTo).transfer(swapFee)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "depositTokenLogic",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "(status, returnedData) = token.call(abi.encodeWithSignature(\"transferFrom(address,address,uint256)\", _from, this, _value))",
+                    "require(status && (returnedData.length == 0 || abi.decode(returnedData, (bool))), 'Bridge:deposit failed')"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "WithdrawingNative": {
+            "0": {
+              "func_name": "withdrawNative",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(address(this).balance >= value, \"Bridge:not enough native token\")",
+                "require(taskHash == keccak256((abi.encodePacked(to, value, proof))), \"Bridge:taskHash is wrong\")",
+                "require(!filledTx[taskHash], \"Bridge:tx filled already\")",
+                "uint256 status = logic.supportTask(logic.WITHDRAWTASK(), taskHash, msg.sender, operatorRequireNum)",
+                "to.transfer(value)",
+                "filledTx[taskHash] = true",
+                "logic.removeTask(taskHash)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "supportTask",
+                  "file_name": "BridgeLogic.sol",
+                  "key_ops": [
+                    "require(!store.supporterExists(taskHash, oneAddress), \"BridgeLogic:supporter already exists\")",
+                    "store.addSupporter(taskHash, oneAddress)",
+                    "store.setTaskInfo(taskHash, taskType, theTaskStatus)"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "removeTask",
+                  "file_name": "BridgeLogic.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "WithdrawingToken": {
+            "0": {
+              "func_name": "withdrawToken",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(taskHash == keccak256((abi.encodePacked(to, value, proof))), \"Bridge:taskHash is wrong\")",
+                "require(!filledTx[taskHash], \"Bridge:tx filled already\")",
+                "uint256 status = logic.supportTask(logic.WITHDRAWTASK(), taskHash, msg.sender, operatorRequireNum)",
+                "filledTx[taskHash] = true",
+                "logic.removeTask(taskHash)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "supportTask",
+                  "file_name": "BridgeLogic.sol",
+                  "key_ops": [
+                    "require(!store.supporterExists(taskHash, oneAddress), \"BridgeLogic:supporter already exists\")",
+                    "require(theTaskStatus < TASKDONE, \"BridgeLogic:wrong status\");",
+                    "store.addSupporter(taskHash, oneAddress)",
+                    "store.setTaskInfo(taskHash, taskType, theTaskStatus)"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "removeTask",
+                  "file_name": "BridgeLogic.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "2": {
+                  "func_name": "withdrawTokenLogic",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "(status, returnedData) = token.call(abi.encodeWithSignature(\"transfer(address,uint256)\", _to, _value))",
+                    "require(status && (returnedData.length == 0 || abi.decode(returnedData, (bool))), 'Bridge:withdraw failed')"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "WithdrawDoneNative1": {
+            "0": {
+              "func_name": "withdrawNative",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "emit WithdrawDoneNative(to, value, proof)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

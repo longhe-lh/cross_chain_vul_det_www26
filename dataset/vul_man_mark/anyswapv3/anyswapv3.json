@@ -1,0 +1,217 @@
+{
+    "contract": "AnyswapV3Router",
+    "source_code_path": "../vul_src_code/anyswapv3/",
+    "type": "PrivateKeyLeakage",
+    "vulnerable_entry_function": {
+        "file": "msg.go",
+        "name": "Run",
+        "signature": "func (self *RecvMsg) Run(workid int, ch chan interface{}) bool",
+        "lines": "611-856",
+        "attack_type": "SignatureForging",
+        "vul_reason": "In the SignData processing logic of RecvMsg.Run(), previously stored PrePubData is reused for ECDSA signing without regenerating or updating the nonce k. This results in the reuse of the same R value in multiple signatures, making the private key recoverable through standard ECDSA signature forgery techniques.",
+        "code_snippet": "PutPreSign(pub, pre)"
+    },
+    "detail": "The vulnerability occurred in the off-chain MPC signature system of Anyswap V3 Router. During the processing of incoming SignData messages in RecvMsg.Run(), the function GetPrePubDataBak retrieves previously cached PrePubData which contains signature intermediate states. This PrePubData is reused in the signing function Sign_ec3 without regenerating a new random nonce k, causing multiple ECDSA signatures to share the same R value. As a result, attackers were able to collect valid (r, s, hash) signature tuples with identical R values on multiple chains (Ethereum, BSC, Fantom), and successfully derived the private key of the MPC signer using ECDSA key recovery formulas. Additionally, the function PutPreSign does not enforce strong deduplication or cleanup of old PrePubData, which further increased the risk when the MPC node was restarted. The attacker eventually used the recovered private key to forge signatures and invoke anySwapIn() on destination chains to withdraw assets illegally. Total losses exceeded $6 million.",
+    "blg": {
+        "Anyswap": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "LogAnySwapOut1"
+                ],
+                "rel_chain": [
+                    "sign",
+                    "relayer"
+                ],
+                "det_chain": [
+                    "LogAnySwapIn1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "LogAnySwapOut1": {
+                        "0": {
+                            "func_name": "anySwapOut",
+                            "file_name": "AnyswapV3Router.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "_anySwapOut",
+                                    "file_name": "AnyswapV3Router.sol",
+                                    "key_ops": [
+                                        "AnyswapV1ERC20(token).burn(from, amount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "burn",
+                                            "file_name": "AnyswapV3ERC20.sol",
+                                            "key_ops": [
+                                                "require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");",
+                                                "_burn(from, amount);"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_burn",
+                                                    "file_name": "AnyswapV3ERC20.sol",
+                                                    "key_ops": [
+                                                        "require(account != address(0), \"ERC20: burn from the zero address\");",
+                                                        "balanceOf[account] -= amount;",
+                                                        "_totalSupply -= amount;"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "event_name": "Transfer",
+                                                            "file_name": "AnyswapV3ERC20.sol",
+                                                            "key_ops": [],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "1": {
+                                            "event_name": "LogAnySwapOut",
+                                            "file_name": "AnyswapV3Router.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "anyswap",
+                "events": {
+                    "sign": {
+                        "0": {
+                            "func_name": "Run",
+                            "file_name": "msg.go",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "PutPreSign",
+                                    "file_name": "prepubdata.go",
+                                    "key_ops": [
+                                        "if val == nil {return}",
+                                        "if v != nil && strings.EqualFold(v.Key, val.Key)"
+                                    ],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "relayer": {
+                        "0": {
+                            "func_name": "StartSwapJob",
+                            "file_name": "swap.go",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "startSwapProducer",
+                                    "file_name": "swap.go",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "processRouterSwap",
+                                            "file_name": "swap.go",
+                                            "key_ops": [
+                                                "if router.IsChainIDPaused(swap.FromChainID) || router.IsChainIDPaused(swap.ToChainID) {return errChainIsPaused}",
+                                                "if cachedSwapTasks.Contains(swap.Key) {return errAlreadySwapped}",
+                                                "if isBlacked(swap)",
+                                                "args.SwapInfo, err = mongodb.ConvertFromSwapInfo(&res.SwapInfo)"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "dispatchSwapTask",
+                                                    "file_name": "swap.go",
+                                                    "key_ops": [
+                                                        "if !args.SwapType.IsValidType() {return fmt.Errorf(\"unknown router swap type %d\", args.SwapType)}"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "startSwapConsumer",
+                                                            "file_name": "swap.go",
+                                                            "key_ops": [],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "doSwap",
+                                                                    "file_name": "swap.go",
+                                                                    "key_ops": [
+                                                                        "sentTxHash, err := sendSignedTransaction(resBridge, signedTx, args)"
+                                                                    ],
+                                                                    "child": {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "Fantom",
+                "events": {
+                    "LogAnySwapIn1": {
+                        "0": {
+                            "func_name": "anySwapIn",
+                            "file_name": "AnyswapV3Router.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "_anySwapIn",
+                                    "file_name": "AnyswapV3Router.sol",
+                                    "key_ops": [
+                                        "AnyswapV3ERC20(token).mint(to, amount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "mint",
+                                            "file_name": "AnyswapV3ERC20.sol",
+                                            "key_ops": [],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_mint",
+                                                    "file_name": "AnyswapV3ERC20.sol",
+                                                    "key_ops": [
+                                                        "require(account != address(0), \"ERC20: mint to the zero address\");",
+                                                        "_totalSupply += amount;",
+                                                        "balanceOf[account] += amount;"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "event_name": "Transfer",
+                                                            "file_name": "AnyswapV3ERC20.sol",
+                                                            "key_ops": [],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "1": {
+                                            "event_name": "LogAnySwapIn",
+                                            "file_name": "AnyswapV3Router.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

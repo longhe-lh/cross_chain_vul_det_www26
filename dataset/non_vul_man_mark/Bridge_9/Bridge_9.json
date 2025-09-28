@@ -1,0 +1,88 @@
+{
+  "contract": "Bridge_9",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_9": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "token.burn(to,tokenId);",
+                "nonce++;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [
+                    "_burn(tokenId);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "require(processedNonces[otherChainNonce] == false, 'transfer already processed');",
+                "processedNonces[otherChainNonce] = true;",
+                "token.mint(to);",
+                "nonce++;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "mint",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [
+                    "uint256 tokenId = _tokenIdCounter.current();",
+                    "_tokenIdCounter.increment();",
+                    "_safeMint(to, tokenId);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

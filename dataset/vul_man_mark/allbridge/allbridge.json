@@ -1,0 +1,149 @@
+{
+    "contract": "Allbridge",
+    "source_code_path": "../vul_src_code/allbridge/",
+    "type": "Price manipulation via flash loan",
+    "vulnerable_entry_function": {
+        "file": "Bridge.sol",
+        "name": "swapToVUsd",
+        "signature": "function swapToVUsd(address user, uint256 amount)",
+        "lines": "2460-2481",
+        "attack_type": "oracle manipulation",
+        "vul_reason": "Uses the difference in BUSD/USDT pool balances to calculate exchange rates. An attacker can manipulate prices by performing large deposits and swaps, thereby skewing pool ratios.",
+        "code_snippet": "if (vUsdBalance > vUsdNewAmount) {result = vUsdBalance - vUsdNewAmount;}"
+    },
+    "detail": "The attacker took out a 7.5 million BUSD flash loan, then made large deposits and swaps in the BUSD–vUSD and USDT–vUSD pools to manipulate exchange rates. They then swapped assets in the reverse direction to gain profits of approximately 550,000 BUSD before repaying the flash loan.",
+    "blg": {
+        "Allbridge": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "SwappedVUsd0",
+                    "TokensSent1"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "SwappedFromVUsd1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "SwappedVUsd0": {
+                        "0": {
+                            "func_name": "swap",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "require(address(tokenPool) != address(0), \"Router: no pool\");",
+                                "require(address(receiveTokenPool) != address(0), \"Router: no pool\");",
+                                "receiveTokenPool.swapFromVUsd(recipient, vUsdAmount);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "swapToVUsd",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "token.safeTransferFrom(user, address(this), amount);",
+                                        "_addRewards(fee);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "SwappedToVUsd",
+                                            "file_name": "Bridge.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "func_name": "swapFromVUsd",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "token.safeTransfer(user, result);",
+                                        "_addRewards(fee);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "SwappedFromVUsd",
+                                            "file_name": "Bridge.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "TokensSent1": {
+                        "0": {
+                            "func_name": "sendTokens",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "require(destinationChainId != sourceChainId,\"Bridge: wrong destination chain\");",
+                                "require(otherBridgeTokens[destinationChainId][receiveToken],\"Bridge: unknown chain or token\");",
+                                "require(!wasMessageSent, \"Bridge: tokens already sent\");",
+                                "require(msg.value >= bridgeTransactionCost + messageTransactionCost,\"Bridge: not enough fee\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "event_name": "TokensSent",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "allbridge",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "SwappedFromVUsd1": {
+                        "0": {
+                            "func_name": "receiveTokens",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "require(otherBridges[sourceChainId] != bytes32(0), \"Bridge: source not registered\");",
+                                "require(!wasMessageProcessed, \"Bridge: message processed\");",
+                                "require(this.hasReceivedMessage(messageWithSender, messenger), \"Bridge: no message\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "receiveAndSwap",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "require(address(tokenPool) != address(0), \"Router: no pool\");",
+                                        "tokenPool.swapFromVUsd(recipient, vUsdAmount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "swapFromVUsd",
+                                            "file_name": "Bridge.sol",
+                                            "key_ops": [
+                                                "token.safeTransfer(user, result);",
+                                                "_addRewards(fee);"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "event_name": "SwappedFromVUsd",
+                                                    "file_name": "Bridge.sol",
+                                                    "key_ops": [],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

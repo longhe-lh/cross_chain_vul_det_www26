@@ -1,0 +1,29 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "mint": "function mint(address to) external lock returns (uint liquidity) {\n\n (uint112 _reserve0, uint112 _reserve1,) = getReserves(); \n\n uint balance0 = IERC20(token0).balanceOf(address(this));\n\n uint balance1 = IERC20(token1).balanceOf(address(this));\n\n uint amount0 = balance0.sub(_reserve0);\n\n uint amount1 = balance1.sub(_reserve1);\n\n\n\n bool feeOn = _mintFee(_reserve0, _reserve1);\n\n uint _totalSupply = totalSupply; \n\n if (_totalSupply == 0) {\n\n liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);\n\n _mint(address(0), MINIMUM_LIQUIDITY); \n\n } else {\n\n liquidity = Math.min(amount0.mul(_totalSupply) / _reserve0, amount1.mul(_totalSupply) / _reserve1);\n\n }\n\n require(liquidity > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED');\n\n function _mint(...) {...}\nfunction _update(...) {...}\n_mint(to, liquidity);\n\n\n\n _update(balance0, balance1, _reserve0, _reserve1);\n\n if (feeOn) kLast = uint(reserve0).mul(reserve1); \n\n emit Mint(msg.sender, amount0, amount1);\n\n }"
+            },
+            {
+                "_mint": "function _mint(address to, uint value) internal {\n\n function add(...) {...}\ntotalSupply = totalSupply.add(value);\n\n balanceOf[to] = balanceOf[to].add(value);\n\n emit Transfer(address(0), to, value);\n\n }"
+            },
+            {
+                "_update": "function _update(uint balance0, uint balance1, uint112 _reserve0, uint112 _reserve1) private {\n\n require(balance0 <= uint112(-1) && balance1 <= uint112(-1), 'UniswapV2: OVERFLOW');\n\n uint32 blockTimestamp = uint32(block.timestamp % 2**32);\n\n uint32 timeElapsed = blockTimestamp - blockTimestampLast; \n\n if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {\n\n \n\n price0CumulativeLast += uint(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) * timeElapsed;\n\n price1CumulativeLast += uint(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) * timeElapsed;\n\n }\n\n reserve0 = uint112(balance0);\n\n reserve1 = uint112(balance1);\n\n blockTimestampLast = blockTimestamp;\n\n emit Sync(reserve0, reserve1);\n\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "burn": "function burn(address to) external lock returns (uint amount0, uint amount1) {\n\n (uint112 _reserve0, uint112 _reserve1,) = getReserves(); \n\n address _token0 = token0; \n\n address _token1 = token1; \n\n uint balance0 = IERC20(_token0).balanceOf(address(this));\n\n uint balance1 = IERC20(_token1).balanceOf(address(this));\n\n uint liquidity = balanceOf[address(this)];\n\n\n\n bool feeOn = _mintFee(_reserve0, _reserve1);\n\n uint _totalSupply = totalSupply; \n\n amount0 = liquidity.mul(balance0) / _totalSupply; \n\n amount1 = liquidity.mul(balance1) / _totalSupply; \n\n require(amount0 > 0 && amount1 > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED');\n\n function _burn(...) {...}\nfunction _safeTransfer(...) {...}\n_burn(address(this), liquidity);\n\n _safeTransfer(_token0, to, amount0);\n\n _safeTransfer(_token1, to, amount1);\n\n balance0 = IERC20(_token0).balanceOf(address(this));\n\n balance1 = IERC20(_token1).balanceOf(address(this));\n\n\n\n _update(balance0, balance1, _reserve0, _reserve1);\n\n if (feeOn) kLast = uint(reserve0).mul(reserve1); \n\n emit Burn(msg.sender, amount0, amount1, to);\n\n }"
+            },
+            {
+                "_burn": "function _burn(address from, uint value) internal {\n\n function sub(...) {...}\nbalanceOf[from] = balanceOf[from].sub(value);\n\n totalSupply = totalSupply.sub(value);\n\n emit Transfer(from, address(0), value);\n\n }"
+            },
+            {
+                "_safeTransfer": "function _safeTransfer(address token, address to, uint value) private {\n\n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));\n\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'UniswapV2: TRANSFER_FAILED');\n\n }"
+            }
+        ]
+    }
+}

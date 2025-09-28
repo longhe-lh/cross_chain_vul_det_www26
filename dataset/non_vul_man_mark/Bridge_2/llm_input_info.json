@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "Swap1": [
+            {
+                "swap": "function swap(\n address _tokenFrom,\n address _tokenTo,\n uint256 _amount,\n uint256 _chainId\n ) external {\n if (_tokenFrom == address(0x0) || _tokenTo == address(0x0))\n revert ZeroAddress();\n if (!chains[block.chainid].tokens[_tokenFrom])\n revert IncorrectAction(_tokenFrom, false);\n if (!chains[_chainId].tokens[_tokenTo])\n revert IncorrectAction(_tokenTo, false);\n _nonce++;\n ITokenForBridge(_tokenFrom).burn(msg.sender, _amount);\n emit Swap(_tokenTo, msg.sender, _amount, _nonce);\n }"
+            },
+            {
+                "burn": "function burn(uint256 _tokenId) public {\n require(msg.sender == ownerOf(_tokenId), \"not owner of the token\");\n uint256 amount = auraAmounts[_tokenId];\n auraAmounts[_tokenId] = 0;\n IERC20(auraAddress).transfer(msg.sender, amount);\n _burn(_tokenId);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenMint1": [
+            {
+                "reedem": "function reedem(\n address _tokenTo,\n address _to,\n uint256 _amount,\n uint256 _nonce_,\n bytes memory _signature\n ) external {\n bytes32 signedHash = keccak256(\n abi.encodePacked(_tokenTo, _to, _amount, _nonce_)\n );\n bytes32 messageHash = signedHash.toEthSignedMessageHash();\n address messageSender = messageHash.recover(_signature);\n if (messageSender != validator) revert IncorrectSignature();\n ITokenForBridge(_tokenTo).mint(_to, _amount);\n }"
+            },
+            {
+                "mint": "function mint(uint256 _amount) public {\n require(_amount > 0, \"invalid amount\");\n uint256 tokenId = _tokenIdCounter.current();\n IERC20(auraAddress).transferFrom(msg.sender, address(this), _amount);\n _safeMint(msg.sender, tokenId);\n auraAmounts[tokenId] = _amount;\n _tokenIdCounter.increment();\n }"
+            }
+        ]
+    }
+}

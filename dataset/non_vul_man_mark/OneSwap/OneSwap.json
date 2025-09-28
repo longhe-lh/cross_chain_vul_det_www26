@@ -1,0 +1,132 @@
+{
+  "contract": "OneSwap",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "OneSwap": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Locksend1",
+          "Unlock2"
+        ],
+        "rel_chain": [
+          "rel_event_name"
+        ],
+        "det_chain": [
+          "Unlock1",
+          "Locksend2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "LockSend",
+        "events": {
+          "Locksend1": {
+            "0": {
+              "func_name": "lockSend",
+              "file_name": "LockSend.sol",
+              "key_ops": [
+                "require(amount != 0, \"LockSend: LOCKED_AMOUNT_SHOULD_BE_NONZERO\")",
+                "_safeTransferToMe(token, msg.sender, amount)",
+                "lockSendInfos[key] = lockSendInfos[key].add(amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_safeTransferToMe",
+                  "file_name": "LockSend.sol",
+                  "key_ops": [
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_TO_ME_FAILED\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Unlock2": {
+            "0": {
+              "func_name": "unlock",
+              "file_name": "LockSend.sol",
+              "key_ops": [
+                "require(amount != 0, \"LockSend: UNLOCK_AMOUNT_SHOULD_BE_NONZERO\")",
+                "delete lockSendInfos[key]",
+                "_safeTransfer(token, to, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_safeTransfer",
+                  "file_name": "LockSend.sol",
+                  "key_ops": [
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_FAILED\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "Unlock1": {
+            "0": {
+              "func_name": "unlock",
+              "file_name": "LockSend.sol",
+              "key_ops": [
+                "require(amount != 0, \"LockSend: UNLOCK_AMOUNT_SHOULD_BE_NONZERO\")",
+                "delete lockSendInfos[key]",
+                "_safeTransfer(token, to, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_safeTransfer",
+                  "file_name": "LockSend.sol",
+                  "key_ops": [
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_FAILED\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Locksend2": {
+            "0": {
+              "func_name": "lockSend",
+              "file_name": "LockSend.sol",
+              "key_ops": [
+                "require(amount != 0, \"LockSend: LOCKED_AMOUNT_SHOULD_BE_NONZERO\")",
+                "_safeTransferToMe(token, msg.sender, amount)",
+                "lockSendInfos[key] = lockSendInfos[key].add(amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_safeTransferToMe",
+                  "file_name": "LockSend.sol",
+                  "key_ops": [
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), \"LockSend: TRANSFER_TO_ME_FAILED\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,122 @@
+{
+  "contract": "Horizon bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Horizon bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Locked1",
+          "Locked2",
+          "Locked3"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "Unlocked1",
+          "Unlocked2",
+          "Unlocked3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Locked1": {
+            "0": {
+              "func_name": "lockToken",
+              "file_name": "BUSDEthManager.sol",
+              "key_ops": [
+                "require(recipient != address(0), \"EthManager/recipient is a zero address\")",
+                "require(amount > 0, \"EthManager/zero token locked\")"
+              ],
+              "child": {}
+            }
+          },
+          "Locked2": {
+            "0": {
+              "func_name": "lockToken",
+              "file_name": "ERC20EthManager.sol",
+              "key_ops": [
+                "require(recipient != address(0), \"EthManager/recipient is a zero address\")",
+                "require(amount > 0, \"EthManager/zero token locked\")",
+                "ethToken.safeTransferFrom(msg.sender, address(this), amount)"
+              ],
+              "child": {}
+            }
+          },
+          "Locked3": {
+            "0": {
+              "func_name": "lockToken",
+              "file_name": "LINKEthManager.sol",
+              "key_ops": [
+                "require(recipient != address(0), \"EthManager/recipient is a zero address\")",
+                "require(amount > 0, \"EthManager/zero token locked\")",
+                "require(link_.transferFrom(msg.sender, address(this), amount), \"EthManager/lock failed\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "Harmony",
+        "events": {
+          "Unlocked1": {
+            "0": {
+              "func_name": "unlockToken",
+              "file_name": "BUSDEthManager.sol",
+              "key_ops": [
+                "require(!usedEvents_[receiptId], \"EthManager/The burn event cannot be reused\")",
+                "usedEvents_[receiptId] = true",
+                "require(busd_.transfer(recipient, amount), \"EthManager/unlock failed\");"
+              ],
+              "child": {}
+            }
+          },
+          "Unlocked2": {
+            "0": {
+              "func_name": "unlockToken",
+              "file_name": "ERC20EthManager.sol",
+              "key_ops": [
+                "require(!usedEvents_[receiptId], \"EthManager/The burn event cannot be reused\")",
+                "usedEvents_[receiptId] = true",
+                "ethToken.safeTransfer(recipient, amount)"
+              ],
+              "child": {}
+            }
+          },
+          "Unlocked3": {
+            "0": {
+              "func_name": "unlockToken",
+              "file_name": "LINKEthManager.sol",
+              "key_ops": [
+                "require(!usedEvents_[receiptId], \"EthManager/The burn event cannot be reused\")",
+                "usedEvents_[receiptId] = true",
+                "require(link_.transfer(recipient, amount), \"EthManager/unlock failed\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

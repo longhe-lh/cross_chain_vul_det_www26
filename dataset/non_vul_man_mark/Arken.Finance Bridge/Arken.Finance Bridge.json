@@ -1,0 +1,224 @@
+{
+    "contract": "Arken.Finance Bridge",
+    "source_code_path": "../contracts/",
+    "type": "",
+    "vulnerable_entry_function": {
+        "file": "",
+        "name": "",
+        "signature": "",
+        "lines": "",
+        "attack_type": "",
+        "vul_reason": "",
+        "code_snippet": ""
+    },
+    "detail": "",
+    "blg": {
+        "Arken.Finance Bridge": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "SetCallableAddress1",
+                    "TransferToken2"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "Swapped1",
+                    "FeeWalletUpdated2",
+                    "WETHUpdated3",
+                    "WETHDfynUpdated4",
+                    "DODOApproveUpdated5",
+                    "ArkenApproveUpdated6",
+                    "UniswapV3FactoryUpdated7"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "SetCallableAddress1": {
+                        "0": {
+                            "func_name": "initializeCallableAddress",
+                            "file_name": "ArkenApprove.sol",
+                            "key_ops": [
+                                "require(_CALLABLE_ADDRESS_ == address(0), 'ArkenApprove: callable address initialized')"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "TransferToken2": {
+                        "0": {
+                            "func_name": "transferToken",
+                            "file_name": "ArkenApprove.sol",
+                            "key_ops": [
+                                "if (amount > 0)",
+                                "token.safeTransferFrom(from, to, amount)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "safeTransferFrom",
+                                    "file_name": "ArkenDexV3.sol",
+                                    "key_ops": [
+                                        "_callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, amount))"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_callOptionalReturn",
+                                            "file_name": "ArkenDexV3.sol",
+                                            "key_ops": [
+                                                "bytes memory returndata = address(token).functionCall(data, 'SafeERC20: low-level call failed')",
+                                                "if (returndata.length > 0)",
+                                                "require(abi.decode(returndata, (bool)), 'SafeERC20: ERC20 operation did not succeed')"
+                                            ],
+                                            "child": {
+                                                "0": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "none",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "Swapped1": {
+                        "0": {
+                            "func_name": "trade",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(desc.amountIn > 0, 'Amount-in needs to be more than zero')",
+                                "require(desc.amountOutMin > 0, 'Amount-out minimum needs to be more than zero')",
+                                "if (_ETH_ == desc.srcToken)",
+                                "require(desc.isRouterSource, 'Source token Ether requires isRouterSource=true')",
+                                "emit Swapped(desc.srcToken, desc.dstToken, desc.amountIn, receivedAmt)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_trade",
+                                    "file_name": "ArkenDexV3.sol",
+                                    "key_ops": [
+                                        "if (desc.isSourceFee)",
+                                        "if (_ETH_ == desc.srcToken)",
+                                        "returnAmount = _collectFee(returnAmount, desc.dstToken)"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_collectFee",
+                                            "file_name": "ArkenDexV3.sol",
+                                            "key_ops": [
+                                                "uint256 fee = _calculateFee(amount)",
+                                                "require(fee < amount, 'Fee exceeds amount')",
+                                                "if (_ETH_ == token)",
+                                                "(bool sent, ) = _FEE_WALLET_ADDR_.call{value: fee}('')",
+                                                "IERC20(token).safeTransfer(_FEE_WALLET_ADDR_, fee)"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "safeTransfer",
+                                                    "file_name": "ArkenDexV3.sol",
+                                                    "key_ops": [
+                                                        "_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value))"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "_callOptionalReturn",
+                                                            "file_name": "ArkenDexV3.sol",
+                                                            "key_ops": [
+                                                                "bytes memory returndata = address(token).functionCall(data, 'SafeERC20: low-level call failed')",
+                                                                "if (returndata.length > 0)",
+                                                                "require(abi.decode(returndata, (bool)), 'SafeERC20: ERC20 operation did not succeed')"
+                                                            ],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "FeeWalletUpdated2": {
+                        "0": {
+                            "func_name": "updateFeeWallet",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(_feeWallet != address(0), 'fee wallet zero address')",
+                                "_FEE_WALLET_ADDR_ = _feeWallet",
+                                "emit FeeWalletUpdated(_FEE_WALLET_ADDR_)"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "WETHUpdated3": {
+                        "0": {
+                            "func_name": "updateWETH",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(_weth != address(0), 'WETH zero address')",
+                                "_WETH_ = _weth",
+                                "emit WETHUpdated(_WETH_)"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "WETHDfynUpdated4": {
+                        "0": {
+                            "func_name": "updateWETHDfyn",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(_weth_dfyn != address(0), 'WETH dfyn zero address')",
+                                "_WETH_DFYN_ = _weth_dfyn",
+                                "emit WETHDfynUpdated(_WETH_DFYN_)"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "DODOApproveUpdated5": {
+                        "0": {
+                            "func_name": "updateDODOApproveAddress",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(_dodoApproveAddress != address(0), 'dodo approve zero address')",
+                                "_DODO_APPROVE_ADDR_ = _dodoApproveAddress",
+                                "emit DODOApproveUpdated(_DODO_APPROVE_ADDR_)"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "ArkenApproveUpdated6": {
+                        "0": {
+                            "func_name": "updateArkenApprove",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(_arkenApprove != address(0), 'arken approve zero address')",
+                                "_ARKEN_APPROVE_ = _arkenApprove",
+                                "emit ArkenApproveUpdated(_ARKEN_APPROVE_)"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "UniswapV3FactoryUpdated7": {
+                        "0": {
+                            "func_name": "updateUniswapV3Factory",
+                            "file_name": "ArkenDexV3.sol",
+                            "key_ops": [
+                                "require(_uv3Factory != address(0), 'UniswapV3 Factory zero address')",
+                                "_UNISWAP_V3_FACTORY_ = _uv3Factory",
+                                "emit UniswapV3FactoryUpdated(_UNISWAP_V3_FACTORY_)"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

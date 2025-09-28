@@ -1,0 +1,174 @@
+{
+  "contract": "xDai Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "xDai Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenRedeem2"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "xDai",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "_relayTokens",
+              "file_name": "ForeignBridgeErcToNative.sol",
+              "key_ops": [
+                "require(_receiver != address(0))",
+                "require(_receiver != address(this))",
+                "require(_amount > 0)",
+                "require(withinLimit(_amount))"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeem2": {
+            "0": {
+              "func_name": "claimTokens",
+              "file_name": "ForeignBridgeErcToNative.sol",
+              "key_ops": [
+                "claimValues(_token, _to)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "claimValues",
+                  "file_name": "ForeignBridgeErcToNative.sol",
+                  "key_ops": [
+                    "claimNativeCoins(_to);",
+                    "claimErc20Tokens(_token, _to);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "claimErc20Tokens",
+                      "file_name": "ForeignOmnibridge.sol",
+                      "key_ops": [
+                        "ERC20 token = ERC20(_token);",
+                        "uint256 balance = token.balanceOf(this);",
+                        "safeTransfer(_token, _to, balance);"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Relay Chain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "executeSignatures",
+              "file_name": "ForeignAMB.sol",
+              "key_ops": [
+                "_allowMessageExecution(_data, _signatures);"
+              ],
+              "child": {}
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "executeSignaturesGSN",
+              "file_name": "XDaiForeignBridge.sol",
+              "key_ops": [
+                "Message.hasEnoughValidSignatures(message, signatures, validatorContract(), false);",
+                "if (withinExecutionLimit(amount)) ",
+                "require(maxTokensFee <= amount);",
+                "require(contractAddress == address(this));",
+                "require(!relayedMessages(txHash));",
+                "setRelayedMessages(txHash, true);",
+                "require(onExecuteMessageGSN(recipient, amount, maxTokensFee));",
+                "emit RelayedMessage(recipient, amount, txHash);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "onExecuteMessageGSN",
+                  "file_name": "XDaiForeignBridge.sol",
+                  "key_ops": [
+                    "addTotalExecutedPerDay(getCurrentDay(), amount);",
+                    "ERC20 token = erc20token();",
+                    "bool first = token.transfer(addressStorage[PAYMASTER], fee);",
+                    "bool second = token.transfer(recipient, amount - fee);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Destination Chain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "claimTokens",
+              "file_name": "XDaiForeignBridge.sol",
+              "key_ops": [
+                "require(_token != address(daiToken()));",
+                "require(_token != address(cDaiToken()) || !isInterestEnabled(bridgedToken));",
+                "require(_token != address(compToken()) || !isInterestEnabled(bridgedToken));",
+                "claimValues(_token, _to);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "claimValues",
+                  "file_name": "XDaiForeignBridge.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "claimErc20Tokens",
+                      "file_name": "XDaiForeignBridge.sol",
+                      "key_ops": [
+                        "ERC20Basic token = ERC20Basic(_token);",
+                        "uint256 balance = token.balanceOf(address(this));",
+                        "_token.safeTransfer(_to, balance);"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "onExecuteMessage",
+              "file_name": "XDaiForeignBridge.sol",
+              "key_ops": [
+                "addTotalExecutedPerDay(getCurrentDay(), _amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,48 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "withdraw": "function withdraw(\n bytes32 transactionHash,\n address tokenContract,\n address recipient,\n uint256 value,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) external {\n require(tokenContract != address(0x0), \"should provide a token contract\");\n require(value > 0, \"should provide value\");\n require(transactionHash > 0, \"TX hash should be provided\");\n require(recipient == msg.sender, \"should be the recipient\");\n\n bytes32 hash = prefixed(keccak256(abi.encodePacked(PREFIX, transactionHash, tokenContract, recipient, value)));\n\n hashStore.addHash(hash);\n\n require(v.length > 0, \"should provide signatures at least one signature\");\n require(v.length == r.length, \"should the same number of inputs for signatures (r)\");\n require(v.length == s.length, \"should the same number of inputs for signatures (s)\");\n\n require(checkSignatures(hash, v.length, v, r, s) >= requiredOperators, \"not enough signatures to proceed\");\n\n ERC721Mintable(tokenContract).transfer(recipient, value);\n\n LogWithdraw(transactionHash, tokenContract, recipient, value);\n }"
+            },
+            {
+                "checkSignatures": "function checkSignatures(\n bytes32 hash,\n uint256 length,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) public view returns(uint8) {\n uint8 approvals = 0;\n\n address prevOperator = address(0x0);\n\n for (uint i = 0; i < length; ++i) {\n address operator = ecrecover(hash, v[i], r[i], s[i]);\n function isOperator(...) {...}\nrequire(isOperator(operator), \"should be an operator\");\n require(prevOperator < operator, \"signatures are out of order\");\n prevOperator = operator;\n approvals ++;\n }\n\n return approvals;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "mint": "function mint(\n bytes32 transactionHash,\n address tokenContract,\n address recipient,\n uint256 value,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) external {\n require(tokenContract != address(0x0), \"should provide a token contract\");\n require(value > 0, \"should provide value\");\n require(transactionHash > 0, \"TX hash should be provided\");\n require(recipient == msg.sender, \"should be the recipient\");\n\n bytes32 hash = prefixed(keccak256(abi.encodePacked(PREFIX, transactionHash, tokenContract, recipient, value)));\n\n hashStore.addHash(hash);\n\n require(v.length > 0, \"should provide signatures at least one signature\");\n require(v.length == r.length, \"should the same number of inputs for signatures (r)\");\n require(v.length == s.length, \"should the same number of inputs for signatures (s)\");\n\n require(checkSignatures(hash, v.length, v, r, s) >= requiredOperators, \"not enough signatures to proceed\");\n\n function mint(...) {...}\nERC721Mintable(tokenContract).mint(recipient, value);\n\n emit LogMint(transactionHash, tokenContract, recipient, value);\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 hash) internal pure returns (bytes32) {\n return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash));\n }"
+            }
+        ],
+        "withdraw": [
+            {
+                "withdraw": "function withdraw(\n bytes32 transactionHash,\n address tokenContract,\n address recipient,\n uint256 value,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) external {\n require(tokenContract != address(0x0), \"should provide a token contract\");\n require(value > 0, \"should provide value\");\n require(transactionHash > 0, \"TX hash should be provided\");\n require(recipient == msg.sender, \"should be the recipient\");\n\n bytes32 hash = prefixed(keccak256(abi.encodePacked(PREFIX, transactionHash, tokenContract, recipient, value)));\n\n hashStore.addHash(hash);\n\n require(v.length > 0, \"should provide signatures at least one signature\");\n require(v.length == r.length, \"should the same number of inputs for signatures (r)\");\n require(v.length == s.length, \"should the same number of inputs for signatures (s)\");\n\n require(checkSignatures(hash, v.length, v, r, s) >= requiredOperators, \"not enough signatures to proceed\");\n\n ERC721Mintable(tokenContract).transfer(recipient, value);\n\n LogWithdraw(transactionHash, tokenContract, recipient, value);\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 hash) internal pure returns (bytes32) {\n return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash));\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "canWithdraw": "function canWithdraw(\n bytes32 transactionHash,\n address tokenContract,\n address recipient,\n uint256 value\n ) public view returns (bool) {\n require(tokenContract != address(0x0), \"should provide a token contract\");\n require(recipient != address(0x0), \"should provide a recipient\");\n require(value > 0, \"should provide value\");\n require(transactionHash > 0, \"TX hash should be provided\");\n\n bytes32 hash = prefixed(keccak256(abi.encodePacked(PREFIX, transactionHash, tokenContract, recipient, value)));\n\n return !hashStore.hashes(hash);\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 hash) internal pure returns (bytes32) {\n return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash));\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "canMint": "function canMint(\n bytes32 transactionHash,\n address tokenContract,\n address recipient,\n uint256 value\n ) public view returns (bool) {\n require(tokenContract != address(0x0), \"should provide a token contract\");\n require(recipient != address(0x0), \"should provide a recipient\");\n require(value > 0, \"should provide value\");\n require(transactionHash > 0, \"TX hash should be provided\");\n\n bytes32 hash = prefixed(keccak256(abi.encodePacked(PREFIX, transactionHash, tokenContract, recipient, value)));\n\n return !hashStore.hashes(hash);\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 hash) internal pure returns (bytes32) {\n return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash));\n }"
+            }
+        ]
+    }
+}

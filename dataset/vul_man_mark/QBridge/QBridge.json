@@ -1,0 +1,94 @@
+{
+    "contract": "QBridge",
+    "source_code_path": "../vul_src_code/QBridge/",
+    "type": "lack of Access-Control",
+    "vulnerable_entry_function": {
+        "file": "QBridge.sol",
+        "name": "deposit",
+        "signature": "deposit(bytes32 resourceID, address depositer, bytes calldata data)",
+        "lines": "213-227",
+        "attack_type": "Missing zero-address check in deposit",
+        "vul_reason": "safeTransferFrom on address(0) does not revert, so Deposit event is emitted without any actual token transfer",
+        "code_snippet": "tokenAddress.safeTransferFrom(depositer, address(this), amount);"
+    },
+    "detail": "The attacker on Ethereum called deposit() with malicious data but no actual ETH; since tokenAddress was zero, safeTransferFrom succeeded silently and a Deposit event was emitted. On BSC, relayers listened to that event and called voteProposal multiple times, leading to massive xETH minting.",
+    "blg": {
+        "QBridge": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "Deposit"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "ProposalEvent"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "Ethereum",
+                "events": {
+                    "Deposit": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "QBridge.sol",
+                            "key_ops": [
+                                "require(contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");",
+                                "require(amount >= withdrawalFees[resourceID], \"less than withdrawal fee\");",
+                                "QBridgeToken(tokenAddress).burnFrom(depositer, amount);",
+                                "require(amount >= minAmounts[resourceID][option], \"less than minimum amount\");",
+                                "tokenAddress.safeTransferFrom(depositer, address(this), amount);"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "QBridge",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "ProposalEvent": {
+                        "0": {
+                            "func_name": "voteProposal",
+                            "file_name": "QBridge.sol",
+                            "key_ops": [
+                                "require(handlerAddress != address(0), \"QBridge: invalid handler\");",
+                                "require(uint(proposal._status) <= 1, \"QBridge: proposal already executed/cancelled\");",
+                                "require(!_hasVoted(proposal, msg.sender), \"QBridge: relayer already voted\");",
+                                "executeProposal on threshold"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "executeProposal",
+                                    "file_name": "QBridge.sol",
+                                    "key_ops": [
+                                        " require(proposal._status == ProposalStatus.Passed, \"QBridge: Proposal must have Passed status\");",
+                                        "handler.executeProposal(resourceID, data);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "ProposalEvent",
+                                            "file_name": "QBridge.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "event_name": "ProposalEvent",
+                                    "file_name": "QBridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

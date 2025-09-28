@@ -1,0 +1,88 @@
+{
+  "contract": "pNetwork",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "pNetwork": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "VaultDeposit1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "Transfer1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "VaultDeposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "Vault.sol",
+              "key_ops": [],
+              "child": {
+                "func_name": "_deposit",
+                "file_name": "Vault.sol",
+                "key_ops": [
+                  "require(_value > 0, ERROR_DEPOSIT_VALUE_ZERO)",
+                  "if (_token == ETH) { require(msg.value == _value, ERROR_VALUE_MISMATCH); } else { require(ERC20(_token).safeTransferFrom(msg.sender, address(this), _value), ERROR_TOKEN_TRANSFER_FROM_REVERTED); }",
+                  "emit VaultDeposit(_token, msg.sender, _value)",
+                  "require(isDepositable(), ERROR_NOT_DEPOSITABLE);"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "BinanceSmartChain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "transfer",
+              "file_name": "StandardToken.sol",
+              "key_ops": [
+                "require(_value <= balances[msg.sender])",
+                "require(_to != address(0));",
+                "balances[msg.sender] = balances[msg.sender].sub(_value)",
+                "balances[_to] = balances[_to].add(_value)",
+                "emit Transfer(msg.sender, _to, _value)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "generateTokens",
+              "file_name": "MiniMeToken.sol",
+              "key_ops": [
+                "require(curTotalSupply + _amount >= curTotalSupply);",
+                "require(previousBalanceTo + _amount >= previousBalanceTo);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

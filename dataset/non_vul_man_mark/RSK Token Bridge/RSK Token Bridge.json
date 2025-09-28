@@ -1,0 +1,381 @@
+{
+  "contract": "RSK Token Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "RSK Token Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Cross1"
+        ],
+        "rel_chain": [
+          "Voted",
+          "Executed"
+        ],
+        "det_chain": [
+          "Claimed1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Cross1": {
+            "0": {
+              "func_name": "receiveTokensTo",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "IERC20(tokenToUse).safeTransferFrom(sender, address(this), amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "crossTokens",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "knownTokens[tokenToUse] = true",
+                    "uint256 fee = amount.mul(feePercentage).div(feePercentageDivider)",
+                    "uint256 amountMinusFees = amount.sub(fee)",
+                    "allowTokens.updateTokenTransfer(tokenToUse, formattedAmount)",
+                    "address originalTokenAddress = tokenToUse",
+                    "if (originalTokens[tokenToUse] != NULL_ADDRESS)",
+                    "IERC777(tokenToUse).burn(amountMinusFees, userData)",
+                    "if (fee > 0)",
+                    "IERC20(tokenToUse).safeTransfer(owner(), fee)"
+                  ],
+                  "child": {}
+                }
+              }
+            },
+            "1": {
+              "func_name": "depositTo",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(address(wrappedCurrency) != NULL_ADDRESS, \"Bridge: wrappedCurrency empty\")",
+                "wrappedCurrency.deposit{ value: msg.value }()",
+                "crossTokens(address(wrappedCurrency), sender, to, msg.value, \"\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "crossTokens",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "knownTokens[tokenToUse] = true",
+                    "uint256 fee = amount.mul(feePercentage).div(feePercentageDivider)",
+                    "uint256 amountMinusFees = amount.sub(fee)",
+                    "allowTokens.updateTokenTransfer(tokenToUse, formattedAmount)",
+                    "address originalTokenAddress = tokenToUse",
+                    "if (originalTokens[tokenToUse] != NULL_ADDRESS)",
+                    "IERC777(tokenToUse).burn(amountMinusFees, userData)",
+                    "if (fee > 0)",
+                    "IERC20(tokenToUse).safeTransfer(owner(), fee)"
+                  ],
+                  "child": {}
+                }
+              }
+            },
+            "2": {
+              "func_name": "tokensReceived",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(to == address(this), \"Bridge: Not to this address\")",
+                "require(erc1820.getInterfaceImplementer(tokenToUse, _erc777Interface) != NULL_ADDRESS, \"Bridge: Not ERC777 token\")",
+                "require(userData.length != 0 || !from.isContract(), \"Bridge: Specify receiver address in data\")",
+                "address receiver = userData.length == 0 ? from : LibUtils.bytesToAddress(userData)",
+                "crossTokens(tokenToUse, from, receiver, amount, userData)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "crossTokens",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "knownTokens[tokenToUse] = true",
+                    "uint256 fee = amount.mul(feePercentage).div(feePercentageDivider)",
+                    "uint256 amountMinusFees = amount.sub(fee)",
+                    "allowTokens.updateTokenTransfer(tokenToUse, formattedAmount)",
+                    "address originalTokenAddress = tokenToUse",
+                    "if (originalTokens[tokenToUse] != NULL_ADDRESS)",
+                    "IERC777(tokenToUse).burn(amountMinusFees, userData)",
+                    "if (fee > 0)",
+                    "IERC20(tokenToUse).safeTransfer(owner(), fee)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Voted": {
+            "0": {
+              "func_name": "voteTransaction",
+              "file_name": "Federation.sol",
+              "key_ops": [
+                "bytes32 transactionId = getTransactionId(originalTokenAddress, sender, receiver, amount, blockHash, transactionHash, logIndex)",
+                "if (processed[transactionId]) return true",
+                "if (votes[transactionId][_msgSender()]) return true",
+                "votes[transactionId][_msgSender()] = true",
+                "uint transactionCount = getTransactionCount(transactionId)",
+                "if (transactionCount >= required && transactionCount >= members.length / 2 + 1)",
+                "processed[transactionId] = true",
+                "bridge.acceptTransfer(originalTokenAddress, sender, receiver, amount, blockHash, transactionHash, logIndex)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "getTransactionCount",
+                  "file_name": "Federation.sol",
+                  "key_ops": [
+                    "if (votes[transactionId][members[i]]) count += 1"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "getTransactionId",
+                  "file_name": "Federation.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(originalTokenAddress, sender, receiver, amount, blockHash, transactionHash, logIndex))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Executed": {
+            "0": {
+              "func_name": "acceptTransfer",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(_msgSender() == federation, \"Bridge: Not Federation\")",
+                "require(knownTokens[_originalTokenAddress] || mappedTokens[_originalTokenAddress] != NULL_ADDRESS, \"Bridge: Unknown token\")",
+                "require(_to != NULL_ADDRESS, \"Bridge: Null To\")",
+                "require(_amount > 0, \"Bridge: Amount 0\")",
+                "require(_blockHash != NULL_HASH, \"Bridge: Null BlockHash\")",
+                "require(_transactionHash != NULL_HASH, \"Bridge: Null TxHash\")",
+                "require(transactionsDataHashes[_transactionHash] == bytes32(0), \"Bridge: Already accepted\")",
+                "bytes32 _transactionDataHash = getTransactionDataHash(_to, _amount, _blockHash, _transactionHash, _logIndex)",
+                "require(!claimed[_transactionDataHash], \"Bridge: Already claimed\")",
+                "transactionsDataHashes[_transactionHash] = _transactionDataHash",
+                "originalTokenAddresses[_transactionHash] = _originalTokenAddress",
+                "senderAddresses[_transactionHash] = _from"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "getTransactionDataHash",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(_blockHash, _transactionHash, _to, _amount, _logIndex))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Claimed1": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "receivedAmount = _claim(_claimData, _claimData.to, payable(address(0)), 0)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_claim",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(originalTokenAddress != NULL_ADDRESS, \"Bridge: Tx not crossed\")",
+                    "bytes32 transactionDataHash = getTransactionDataHash(_claimData.to, _claimData.amount, _claimData.blockHash, _claimData.transactionHash, _claimData.logIndex)",
+                    "require(transactionsDataHashes[_claimData.transactionHash] == transactionDataHash, \"Bridge: Wrong transactionDataHash\")",
+                    "require(!claimed[transactionDataHash], \"Bridge: Already claimed\")",
+                    "claimed[transactionDataHash] = true",
+                    "if (knownTokens[originalTokenAddress])",
+                    "_claimCrossBackToToken(originalTokenAddress, _reciever, _claimData.amount, _relayer, _fee)",
+                    "_claimCrossToSideToken(originalTokenAddress, _reciever, _claimData.amount, _relayer, _fee)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_claimCrossToSideToken",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "uint256 granularity = IERC777(sideToken).granularity()",
+                        "uint256 formattedAmount = _amount.mul(granularity)",
+                        "require(_fee <= formattedAmount, \"Bridge: fee too high\")",
+                        "receivedAmount = formattedAmount - _fee",
+                        "ISideToken(sideToken).mint(_receiver, receivedAmount, \"\", \"\")",
+                        "if(_fee > 0)",
+                        "ISideToken(sideToken).mint(_relayer, _fee, \"\", \"relayer fee\")"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_claimCrossBackToToken",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "uint256 decimals = LibUtils.getDecimals(_originalTokenAddress)",
+                        "uint256 formattedAmount = _amount.div(uint256(10) ** (18 - decimals))",
+                        "require(_fee <= formattedAmount, \"Bridge: fee too high\")",
+                        "receivedAmount = formattedAmount - _fee",
+                        "if(address(wrappedCurrency) == _originalTokenAddress)",
+                        "wrappedCurrency.withdraw(formattedAmount)",
+                        "_receiver.transfer(receivedAmount)",
+                        "_relayer.transfer(_fee)",
+                        "IERC20(_originalTokenAddress).safeTransfer(_receiver, receivedAmount)",
+                        "if(_fee > 0)",
+                        "IERC20(_originalTokenAddress).safeTransfer(_relayer, _fee)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            },
+            "1": {
+              "func_name": "claimFallback",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(_msgSender() == senderAddresses[_claimData.transactionHash],\"Bridge: invalid sender\")",
+                "receivedAmount = _claim(_claimData, _msgSender(), payable(address(0)), 0)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_claim",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(originalTokenAddress != NULL_ADDRESS, \"Bridge: Tx not crossed\")",
+                    "bytes32 transactionDataHash = getTransactionDataHash(_claimData.to, _claimData.amount, _claimData.blockHash, _claimData.transactionHash, _claimData.logIndex)",
+                    "require(transactionsDataHashes[_claimData.transactionHash] == transactionDataHash, \"Bridge: Wrong transactionDataHash\")",
+                    "require(!claimed[transactionDataHash], \"Bridge: Already claimed\")",
+                    "claimed[transactionDataHash] = true",
+                    "if (knownTokens[originalTokenAddress])",
+                    "_claimCrossBackToToken(originalTokenAddress, _reciever, _claimData.amount, _relayer, _fee)",
+                    "_claimCrossToSideToken(originalTokenAddress, _reciever, _claimData.amount, _relayer, _fee)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_claimCrossToSideToken",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "uint256 granularity = IERC777(sideToken).granularity()",
+                        "uint256 formattedAmount = _amount.mul(granularity)",
+                        "require(_fee <= formattedAmount, \"Bridge: fee too high\")",
+                        "receivedAmount = formattedAmount - _fee",
+                        "ISideToken(sideToken).mint(_receiver, receivedAmount, \"\", \"\")",
+                        "if(_fee > 0)",
+                        "ISideToken(sideToken).mint(_relayer, _fee, \"\", \"relayer fee\")"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_claimCrossBackToToken",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "uint256 decimals = LibUtils.getDecimals(_originalTokenAddress)",
+                        "uint256 formattedAmount = _amount.div(uint256(10) ** (18 - decimals))",
+                        "require(_fee <= formattedAmount, \"Bridge: fee too high\")",
+                        "receivedAmount = formattedAmount - _fee",
+                        "if(address(wrappedCurrency) == _originalTokenAddress)",
+                        "wrappedCurrency.withdraw(formattedAmount)",
+                        "_receiver.transfer(receivedAmount)",
+                        "_relayer.transfer(_fee)",
+                        "IERC20(_originalTokenAddress).safeTransfer(_receiver, receivedAmount)",
+                        "if(_fee > 0)",
+                        "IERC20(_originalTokenAddress).safeTransfer(_relayer, _fee)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            },
+            "2": {
+              "func_name": "claimGasless",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(_deadline >= block.timestamp, \"Bridge: EXPIRED\")",
+                "bytes32 digest = getDigest(_claimData, _relayer, _fee, _deadline)",
+                "address recoveredAddress = ecrecover(digest, _v, _r, _s)",
+                "require(_claimData.to != address(0) && recoveredAddress == _claimData.to, \"Bridge: INVALID_SIGNATURE\")",
+                "receivedAmount = _claim(_claimData, _claimData.to, _relayer, _fee)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "getDigest",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "return LibEIP712.hashEIP712Message(DOMAIN_SEPARATOR, keccak256(abi.encode(CLAIM_TYPEHASH, _claimData.to, _claimData.amount, _claimData.transactionHash, _relayer, _fee, nonces[_claimData.to]++, _deadline)))"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_claim",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(originalTokenAddress != NULL_ADDRESS, \"Bridge: Tx not crossed\")",
+                    "bytes32 transactionDataHash = getTransactionDataHash(_claimData.to, _claimData.amount, _claimData.blockHash, _claimData.transactionHash, _claimData.logIndex)",
+                    "require(transactionsDataHashes[_claimData.transactionHash] == transactionDataHash, \"Bridge: Wrong transactionDataHash\")",
+                    "require(!claimed[transactionDataHash], \"Bridge: Already claimed\")",
+                    "claimed[transactionDataHash] = true",
+                    "if (knownTokens[originalTokenAddress])",
+                    "_claimCrossBackToToken(originalTokenAddress, _reciever, _claimData.amount, _relayer, _fee)",
+                    "_claimCrossToSideToken(originalTokenAddress, _reciever, _claimData.amount, _relayer, _fee)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_claimCrossToSideToken",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "uint256 granularity = IERC777(sideToken).granularity()",
+                        "uint256 formattedAmount = _amount.mul(granularity)",
+                        "require(_fee <= formattedAmount, \"Bridge: fee too high\")",
+                        "receivedAmount = formattedAmount - _fee",
+                        "ISideToken(sideToken).mint(_receiver, receivedAmount, \"\", \"\")",
+                        "if(_fee > 0)",
+                        "ISideToken(sideToken).mint(_relayer, _fee, \"\", \"relayer fee\")"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_claimCrossBackToToken",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "uint256 decimals = LibUtils.getDecimals(_originalTokenAddress)",
+                        "uint256 formattedAmount = _amount.div(uint256(10) ** (18 - decimals))",
+                        "require(_fee <= formattedAmount, \"Bridge: fee too high\")",
+                        "receivedAmount = formattedAmount - _fee",
+                        "if(address(wrappedCurrency) == _originalTokenAddress)",
+                        "wrappedCurrency.withdraw(formattedAmount)",
+                        "_receiver.transfer(receivedAmount)",
+                        "_relayer.transfer(_fee)",
+                        "IERC20(_originalTokenAddress).safeTransfer(_receiver, receivedAmount)",
+                        "if(_fee > 0)",
+                        "IERC20(_originalTokenAddress).safeTransfer(_relayer, _fee)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

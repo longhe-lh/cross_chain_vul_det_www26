@@ -1,0 +1,28 @@
+{
+    "src_chain": {
+        "Deposit1": [],
+        "Borrow2": []
+    },
+    "rel_chain": {
+        "Mint": [
+            {
+                "mint": "function mint(\n address user,\n uint256 amount,\n uint256 index\n ) external override onlyLendingPool returns (bool) {\n uint256 previousBalance = super.balanceOf(user);\n uint256 amountScaled = amount.rayDiv(index);\n require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);\n _mint(user, amountScaled);\n emit Transfer(address(0), user, amount);\n emit Mint(user, amount, index);\n return previousBalance == 0;\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), 'ERC20: mint to the zero address');\n _beforeTokenTransfer(address(0), account, amount);\n uint256 oldTotalSupply = _totalSupply;\n _totalSupply = oldTotalSupply.add(amount);\n uint256 oldAccountBalance = _balances[account];\n _balances[account] = oldAccountBalance.add(amount);\n if (address(_getIncentivesController()) != address(0)) {\n _getIncentivesController().handleAction(account, oldTotalSupply, oldAccountBalance);\n }\n }"
+            }
+        ],
+        "burn": [
+            {
+                "burn": "function burn(\n address user,\n address receiverOfUnderlying,\n uint256 amount,\n uint256 index\n ) external override onlyLendingPool {\n uint256 amountScaled = amount.rayDiv(index);\n require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);\n _burn(user, amountScaled);\n IERC20(_underlyingAsset).safeTransfer(receiverOfUnderlying, amount);\n emit Transfer(user, address(0), amount);\n emit Burn(user, receiverOfUnderlying, amount, index);\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal virtual {\n require(account != address(0), 'ERC20: burn from the zero address');\n _beforeTokenTransfer(account, address(0), amount);\n uint256 oldTotalSupply = _totalSupply;\n _totalSupply = oldTotalSupply.sub(amount);\n uint256 oldAccountBalance = _balances[account];\n _balances[account] = oldAccountBalance.sub(amount, 'ERC20: burn amount exceeds balance');\n if (address(_getIncentivesController()) != address(0)) {\n _getIncentivesController().handleAction(account, oldTotalSupply, oldAccountBalance);\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Withdraw1": [],
+        "Repay2": []
+    }
+}

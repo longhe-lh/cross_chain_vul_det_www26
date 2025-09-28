@@ -1,0 +1,156 @@
+{
+  "contract": "cBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "cBridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Send1",
+          "Relay1"
+        ],
+        "rel_chain": [
+          "Relay"
+        ],
+        "det_chain": [
+          "WithdrawDone1",
+          "Mint1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Send1": {
+            "0": {
+              "func_name": "send",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_send",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "require(_amount > minSend[_token], \"amount too small\")",
+                    "require(maxSend[_token] == 0 || _amount <= maxSend[_token], \"amount too large\")",
+                    "require(_maxSlippage > minimalMaxSlippage, \"max slippage too small\")",
+                    "require(transfers[transferId] == false, \"transfer exists\")",
+                    "transfers[transferId] = true"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Relay1": {
+            "0": {
+              "func_name": "relay",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(transfers[transferId] == false, \"transfer exists\")",
+                "transfers[transferId] = true",
+                "_updateVolume(request.token, request.amount)",
+                "if (delayThreshold > 0 && request.amount > delayThreshold)",
+                "_addDelayedTransfer(transferId, request.receiver, request.token, request.amount)",
+                "_sendToken(request.receiver, request.token, request.amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "verifySigs",
+                  "file_name": "Signers.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Relay": {
+            "0": {
+              "func_name": "verifySigs",
+              "file_name": "Signers.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "WithdrawDone1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "Pool.sol",
+              "key_ops": [
+                "require(withdraws[wdId] == false, \"withdraw already succeeded\")",
+                "withdraws[wdId] = true",
+                "_updateVolume(wdmsg.token, wdmsg.amount)",
+                "if (delayThreshold > 0 && wdmsg.amount > delayThreshold)",
+                "_addDelayedTransfer(wdId, wdmsg.receiver, wdmsg.token, wdmsg.amount)",
+                "_sendToken(wdmsg.receiver, wdmsg.token, wdmsg.amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_sendToken",
+                  "file_name": "Pool.sol",
+                  "key_ops": [
+                    "IWETH(nativeWrap).withdraw(_amount)",
+                    "(bool sent, ) = _receiver.call{value: _amount, gas: 50000}(\"\")",
+                    "require(sent, \"failed to send native token\")",
+                    "IERC20(_token).safeTransfer(_receiver, _amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Mint1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "PeggedTokenBridge.sol",
+              "key_ops": [
+                "require(records[mintId] == false, \"record exists\")",
+                "records[mintId] = true",
+                "_updateVolume(request.token, request.amount)",
+                "if (delayThreshold > 0 && request.amount > delayThreshold)",
+                "_addDelayedTransfer(mintId, request.account, request.token, request.amount)",
+                "IPeggedToken(request.token).mint(request.account, request.amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_updateVolume",
+                  "file_name": "VolumeControl.sol",
+                  "key_ops": [
+                    "if (epochLength == 0) return",
+                    "if (cap == 0) return",
+                    "if (lastOpTimestamps[_token] < epochStartTime) volume = _amount",
+                    "require(volume <= cap, \"volume exceeds cap\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

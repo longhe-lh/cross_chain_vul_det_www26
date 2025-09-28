@@ -1,0 +1,150 @@
+
+
+
+{
+  "contract": "Helix BETA Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+  "Helix BETA Bridge": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [
+        "TokenLocked1",
+        "TokenLocked2",
+        "TokenLocked3",
+        "TokenLocked4"
+      ],
+      "rel_chain": [
+        "CallResult",
+        "CallerUnMatched"
+      ],
+      "dst_chain": [
+        "TokenUnlocked1"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "Ethereum",
+      "events": {
+        "TokenLocked1": {
+          "0": {
+            "func_name": "lockAndRemoteIssuing",
+            "file_name": "Erc20Sub2EthBacking.sol",
+            "key_ops": [
+              "require(IERC20(token).transferFrom(msg.sender, address(this), amount), \"Backing:transfer tokens failed\")",
+              "IWToken(wToken).deposit{value: msg.value}(amount)",
+              "IERC20(token).transferFrom(msg.sender, address(this), amount)"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_lockAndRemoteIssuing",
+                "file_name": "Erc20Sub2EthBacking.sol",
+                "key_ops": [
+                  "require(BitMaps.get(unlockedTransferIds, transferId) == false, \"Backing:message has been accepted\")",
+                  "BitMaps.set(unlockedTransferIds, transferId)",
+                  "expendDailyLimit(token, amount)"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "TokenLocked2": {
+          "0": {
+            "func_name": "lockAndRemoteIssuing",
+            "file_name": "Erc20Sub2SubBacking.sol",
+            "key_ops": [
+              "require(IERC20(token).transferFrom(msg.sender, address(this), amount), \"Backing:transfer tokens failed\")"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_lockAndRemoteIssuing",
+                "file_name": "Erc20Sub2SubBacking.sol",
+                "key_ops": [
+                  "require(BitMaps.get(unlockedTransferIds, transferId) == false, \"Backing:message has been accepted\")"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "TokenLocked3": {
+          "0": {
+            "func_name": "lockAndRemoteIssuing",
+            "file_name": "Erc1155BackingSupportingConfirm.sol",
+            "key_ops": [
+              "IERC1155(token).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, \"\")"
+            ],
+            "child": {}
+          }
+        },
+        "TokenLocked4": {
+          "0": {
+            "func_name": "lockAndRemoteIssuing",
+            "file_name": "Erc721BackingSupportingConfirm.sol",
+            "key_ops": [
+              "IERC721(token).transferFrom(msg.sender, address(this), ids[idx])"
+            ],
+            "child": {}
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "RelayChain",
+      "events": {
+        "CallResult": {
+          "0": {
+            "func_name": "execute",
+            "file_name": "AxelarMessager.sol",
+            "key_ops": [
+              "require(gateway.validateContractCall(_commandId, _sourceChain, _sourceAddress, keccak256(_payload)), \"invalid contract call\")",
+              "require(_sourceAddress.toAddress() == trustedRemotes[_sourceChain], \"invalid remote messager\")"
+            ],
+            "child": {}
+          }
+        },
+        "CallerUnMatched": {
+          "0": {
+            "func_name": "receiveMessage",
+            "file_name": "DarwiniaMsglineMessager.sol",
+            "key_ops": [
+              "require(srcChainId == remoteMessager.msglineRemoteChainId, \"invalid remote chainid\")",
+              "require(remoteMessager.messager == _xmsgSender(), \"invalid remote messager\")"
+            ],
+            "child": {}
+          }
+        }
+      }
+    },
+    "dst_chain": {
+      "chain_name": "Polygon",
+      "events": {
+        "TokenUnlocked1": {
+          "0": {
+            "func_name": "recvMessage",
+            "file_name": "DarwiniaSub2EthMessageEndpoint.sol",
+            "key_ops": [
+              "require(hasRole(CALLEE_ROLE, receiver),\"DarwiniaSub2EthMessageEndpoint:receiver is not callee\");",
+              "require(result, \"DarwiniaSub2EthMessageEndpoint:call app failed\");",
+              "(bool result,) = receiver.call(message)"
+            ],
+            "child": {}
+          }
+        }
+      }
+    }
+  }
+},
+  "cag": []
+}

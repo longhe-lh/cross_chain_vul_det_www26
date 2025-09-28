@@ -1,0 +1,34 @@
+{
+    "src_chain": {
+        "deposit1": [
+            {
+                "depositERC20": "function depositERC20(\n IERC20 _token,\n uint104 _amount,\n address _zkSyncAddress\n ) external nonReentrant {\n require(_zkSyncAddress != SPECIAL_ACCOUNT_ADDRESS, \"P\");\n\n requireActive();\n\n \n\n uint16 tokenId = governance.validateTokenAddress(address(_token));\n\n require(!governance.pausedTokens(tokenId), \"b\"); \n\n uint256 balanceBefore = _token.balanceOf(address(this));\n\n _token.transferFrom(msg.sender, address(this), _amount);\n\n uint256 balanceAfter = _token.balanceOf(address(this));\n\n uint128 depositAmount = SafeCast.toUint128(\n balanceAfter.sub(balanceBefore)\n );\n\n require(depositAmount > 0 && depositAmount <= MAX_DEPOSIT_AMOUNT, \"C\");\n\n function registerDeposit(...) {...}\nregisterDeposit(tokenId, depositAmount, _zkSyncAddress);\n }"
+            },
+            {
+                "registerDeposit": "function registerDeposit(\n uint16 _tokenId,\n uint128 _amount,\n address _owner\n ) internal {\n \n\n Operations.Deposit memory op = Operations.Deposit({\n accountId: 0, \n owner: _owner,\n tokenId: _tokenId,\n amount: _amount\n });\n\n bytes memory pubData = Operations.writeDepositPubdataForPriorityQueue(\n op\n );\n\n function addPriorityRequest(...) {...}\naddPriorityRequest(Operations.OpType.Deposit, pubData);\n\n emit Deposit(_tokenId, _amount);\n }"
+            }
+        ],
+        "withdrawPendingBalance2": [
+            {
+                "withdrawPendingBalance": "function withdrawPendingBalance(\n address payable _owner,\n address _token,\n uint128 _amount\n ) external nonReentrant {\n uint16 tokenId = 0;\n\n if (_token != address(0)) {\n tokenId = governance.validateTokenAddress(_token);\n }\n\n bytes22 packedBalanceKey = packAddressAndTokenId(_owner, tokenId);\n\n uint128 balance = pendingBalances[packedBalanceKey].balanceToWithdraw;\n\n uint128 amount = Utils.minU128(balance, _amount);\n\n require(amount > 0, \"f1\"); \n\n if (tokenId == 0) {\n (bool success, ) = _owner.call{value: amount}(\"\");\n\n require(success, \"d\"); \n } else {\n \n\n \n\n \n\n amount = this.transferERC20(\n IERC20(_token),\n _owner,\n amount,\n balance\n );\n }\n\n pendingBalances[packedBalanceKey].balanceToWithdraw = balance - amount;\n\n emit Withdrawal(tokenId, amount);\n }"
+            },
+            {
+                "minU128": "function minU128(uint128 a, uint128 b) internal pure returns (uint128) {\n\n return a < b ? a : b;\n\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "proveBlocks": [
+            {
+                "proveBlocks": "function proveBlocks(\n StoredBlockInfo[] memory _committedBlocks,\n ProofInput memory _proof\n ) external nonReentrant {\n requireActive();\n\n uint32 currentTotalBlocksProven = totalBlocksProven;\n\n for (uint256 i = 0; i < _committedBlocks.length; ++i) {\n require(\n hashStoredBlockInfo(_committedBlocks[i]) ==\n storedBlockHashes[currentTotalBlocksProven + 1],\n \"o1\"\n );\n\n ++currentTotalBlocksProven;\n\n require(\n _proof.commitments[i] & INPUT_MASK ==\n uint256(_committedBlocks[i].commitment) & INPUT_MASK,\n \"o\"\n ); \n }\n\n bool success = verifier.verifyAggregatedBlockProof(\n _proof.recursiveInput,\n _proof.proof,\n _proof.vkIndexes,\n _proof.commitments,\n _proof.subproofsLimbs\n );\n\n require(success, \"p\"); \n\n require(currentTotalBlocksProven <= totalBlocksCommitted, \"q\");\n\n totalBlocksProven = currentTotalBlocksProven;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "withdraw1": [
+            {
+                "withdraw": "function withdraw() external onlyOwner {\n uint256 balance = address(this).balance;\n\n payable(msg.sender).transfer(balance);\n }"
+            }
+        ]
+    }
+}

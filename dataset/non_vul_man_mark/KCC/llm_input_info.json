@@ -1,0 +1,45 @@
+{
+    "src_chain": {
+        "DepositNative1": [
+            {
+                "depositNative": "function depositNative(string memory _targetAddress, string memory chain) public payable {\n require(msg.value >= swapFee, \"Bridge:insufficient swap fee\");\n if (swapFee != 0) {\n payable(feeTo).transfer(swapFee);\n }\n emit DepositNative(msg.sender, msg.value - swapFee, _targetAddress, chain, swapFee);\n }"
+            }
+        ],
+        "DepositToken2": [
+            {
+                "depositToken": "function depositToken(address _token, uint value, string memory _targetAddress, string memory chain) public payable returns (bool) {\n require(msg.value == swapFee, \"Bridge:swap fee not equal\");\n if (swapFee != 0) {\n payable(feeTo).transfer(swapFee);\n }\n bool res = depositTokenLogic(_token, msg.sender, value);\n emit DepositToken(msg.sender, value, _token, _targetAddress, chain, swapFee);\n return res;\n }"
+            },
+            {
+                "depositTokenLogic": "function depositTokenLogic(address token, address _from, uint256 _value) internal returns (bool) {\n bool status = false;\n bytes memory returnedData;\n if (bytes(depositSelector[token].selector).length == 0) {\n (status, returnedData) = token.call(abi.encodeWithSignature(\"transferFrom(address,address,uint256)\", _from, this, _value));\n }\n else {\n assetSelector memory aselector = depositSelector[token];\n if (aselector.isValueFirst) {\n (status, returnedData) = token.call(abi.encodeWithSignature(aselector.selector, _value, _from));\n }\n else {\n (status, returnedData) = token.call(abi.encodeWithSignature(aselector.selector, _from, _value));\n }\n }\n require(status && (returnedData.length == 0 || abi.decode(returnedData, (bool))), 'Bridge:deposit failed');\n return true;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "WithdrawingNative": [
+            {
+                "withdrawNative": "function withdrawNative(address payable to, uint value, string memory proof, bytes32 taskHash) public\n onlyOperator\n whenNotPaused\n positiveValue(value)\n returns (bool)\n {\n require(address(this).balance >= value, \"Bridge:not enough native token\");\n require(taskHash == keccak256((abi.encodePacked(to, value, proof))), \"Bridge:taskHash is wrong\");\n require(!filledTx[taskHash], \"Bridge:tx filled already\");\n function supportTask(...) {...}\nfunction removeTask(...) {...}\nuint256 status = logic.supportTask(logic.WITHDRAWTASK(), taskHash, msg.sender, operatorRequireNum);\n if (status == logic.TASKPROCESSING()) {\n emit WithdrawingNative(to, value, proof);\n } else if (status == logic.TASKDONE()) {\n emit WithdrawingNative(to, value, proof);\n emit WithdrawDoneNative(to, value, proof);\n to.transfer(value);\n filledTx[taskHash] = true;\n logic.removeTask(taskHash);\n }\n return true;\n }"
+            },
+            {
+                "supportTask": "function supportTask(uint256 taskType, bytes32 taskHash, address oneAddress, uint256 requireNum) external onlyCaller returns (uint256) {\n function supporterExists(...) {...}\nfunction addSupporter(...) {...}\nfunction setTaskInfo(...) {...}\nrequire(!store.supporterExists(taskHash, oneAddress), \"BridgeLogic:supporter already exists\");\n (uint256 theTaskType,uint256 theTaskStatus,uint256 theSupporterNum) = store.getTaskInfo(taskHash);\n require(theTaskStatus < TASKDONE, \"BridgeLogic:wrong status\");\n if (theTaskStatus != TASKINIT)\n require(theTaskType == taskType, \"BridgeLogic:task type not match\");\n store.addSupporter(taskHash, oneAddress);\n theSupporterNum++;\n if (theSupporterNum >= requireNum)\n theTaskStatus = TASKDONE;\n else\n theTaskStatus = TASKPROCESSING;\n store.setTaskInfo(taskHash, taskType, theTaskStatus);\n return theTaskStatus;\n }"
+            }
+        ],
+        "WithdrawingToken": [
+            {
+                "withdrawToken": "function withdrawToken(address _token, address to, uint value, string memory proof, bytes32 taskHash) public\n onlyOperator\n whenNotPaused\n positiveValue(value)\n returns (bool)\n {\n require(taskHash == keccak256((abi.encodePacked(to, value, proof))), \"Bridge:taskHash is wrong\");\n require(!filledTx[taskHash], \"Bridge:tx filled already\");\n function supportTask(...) {...}\nfunction removeTask(...) {...}\nuint256 status = logic.supportTask(logic.WITHDRAWTASK(), taskHash, msg.sender, operatorRequireNum);\n if (status == logic.TASKPROCESSING()) {\n emit WithdrawingToken(to, _token, value, proof);\n } else if (status == logic.TASKDONE()) {\n bool res = withdrawTokenLogic(_token, to, value);\n emit WithdrawingToken(to, _token, value, proof);\n emit WithdrawDoneToken(to, _token, value, proof);\n filledTx[taskHash] = true;\n logic.removeTask(taskHash);\n return res;\n }\n return true;\n }"
+            },
+            {
+                "supportTask": "function supportTask(uint256 taskType, bytes32 taskHash, address oneAddress, uint256 requireNum) external onlyCaller returns (uint256) {\n function supporterExists(...) {...}\nfunction addSupporter(...) {...}\nfunction setTaskInfo(...) {...}\nrequire(!store.supporterExists(taskHash, oneAddress), \"BridgeLogic:supporter already exists\");\n (uint256 theTaskType,uint256 theTaskStatus,uint256 theSupporterNum) = store.getTaskInfo(taskHash);\n require(theTaskStatus < TASKDONE, \"BridgeLogic:wrong status\");\n if (theTaskStatus != TASKINIT)\n require(theTaskType == taskType, \"BridgeLogic:task type not match\");\n store.addSupporter(taskHash, oneAddress);\n theSupporterNum++;\n if (theSupporterNum >= requireNum)\n theTaskStatus = TASKDONE;\n else\n theTaskStatus = TASKPROCESSING;\n store.setTaskInfo(taskHash, taskType, theTaskStatus);\n return theTaskStatus;\n }"
+            },
+            {
+                "withdrawTokenLogic": "function withdrawTokenLogic(address token, address _to, uint256 _value) internal returns (bool) {\n bool status = false;\n bytes memory returnedData;\n if (bytes(withdrawSelector[token].selector).length == 0) {\n (status, returnedData) = token.call(abi.encodeWithSignature(\"transfer(address,uint256)\", _to, _value));\n }\n else {\n assetSelector memory aselector = withdrawSelector[token];\n if (aselector.isValueFirst) {\n (status, returnedData) = token.call(abi.encodeWithSignature(aselector.selector, _value, _to));\n }\n else {\n (status, returnedData) = token.call(abi.encodeWithSignature(aselector.selector, _to, _value));\n }\n }\n require(status && (returnedData.length == 0 || abi.decode(returnedData, (bool))), 'Bridge:withdraw failed');\n return true;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "WithdrawDoneNative1": [
+            {
+                "withdrawNative": "function withdrawNative(address payable to, uint value, string memory proof, bytes32 taskHash) public\n onlyOperator\n whenNotPaused\n positiveValue(value)\n returns (bool)\n {\n require(address(this).balance >= value, \"Bridge:not enough native token\");\n require(taskHash == keccak256((abi.encodePacked(to, value, proof))), \"Bridge:taskHash is wrong\");\n require(!filledTx[taskHash], \"Bridge:tx filled already\");\n uint256 status = logic.supportTask(logic.WITHDRAWTASK(), taskHash, msg.sender, operatorRequireNum);\n if (status == logic.TASKPROCESSING()) {\n emit WithdrawingNative(to, value, proof);\n } else if (status == logic.TASKDONE()) {\n emit WithdrawingNative(to, value, proof);\n emit WithdrawDoneNative(to, value, proof);\n to.transfer(value);\n filledTx[taskHash] = true;\n logic.removeTask(taskHash);\n }\n return true;\n }"
+            }
+        ]
+    }
+}

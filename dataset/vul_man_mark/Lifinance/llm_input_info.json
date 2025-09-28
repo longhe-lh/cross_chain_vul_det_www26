@@ -1,0 +1,28 @@
+{
+    "src_chain": {
+        "LiFiTransferStarted1": [
+            {
+                "swapAndStartBridgeTokensViaCBridge": "function swapAndStartBridgeTokensViaCBridge(\n LiFiData memory _lifiData,\n LibSwap.SwapData[] calldata _swapData,\n CBridgeData memory _cBridgeData\n ) public payable {\n if (_cBridgeData.token != address(0)) {\n uint256 _fromTokenBalance = LibAsset.getOwnBalance(_cBridgeData.token);\n \n for (uint8 i; i < _swapData.length; i++) {\n LibSwap.swap(_lifiData.transactionId, _swapData[i]);\n }\n uint256 _postSwapBalance = LibAsset.getOwnBalance(_cBridgeData.token) - _fromTokenBalance;\n require(_postSwapBalance > 0, \"ERR_INVALID_AMOUNT\");\n _cBridgeData.amount = _postSwapBalance;\n } else {\n uint256 _fromBalance = address(this).balance;\n \n for (uint8 i; i < _swapData.length; i++) {\n LibSwap.swap(_lifiData.transactionId, _swapData[i]);\n }\n uint256 _postSwapBalance = address(this).balance - _fromBalance;\n require(_postSwapBalance > 0, \"ERR_INVALID_AMOUNT\");\n _cBridgeData.amount = _postSwapBalance;\n }\n _startBridge(_cBridgeData);\n emit LiFiTransferStarted(\n _lifiData.transactionId,\n _lifiData.integrator,\n _lifiData.referrer,\n _lifiData.sendingAssetId,\n _lifiData.receivingAssetId,\n _lifiData.receiver,\n _lifiData.amount,\n _lifiData.destinationChainId,\n block.timestamp\n );\n }"
+            },
+            {
+                "swap": "function swap(bytes32 transactionId, SwapData calldata _swapData) internal {\n uint256 fromAmount = _swapData.fromAmount;\n uint256 toAmount = LibAsset.getOwnBalance(_swapData.receivingAssetId);\n address fromAssetId = _swapData.sendingAssetId;\n if (!LibAsset.isNativeAsset(fromAssetId) && LibAsset.getOwnBalance(fromAssetId) < fromAmount) {\n LibAsset.transferFromERC20(_swapData.sendingAssetId, msg.sender, address(this), fromAmount);\n }\n if (!LibAsset.isNativeAsset(fromAssetId)) {\n LibAsset.approveERC20(IERC20(fromAssetId), _swapData.approveTo, fromAmount);\n }\n \n (bool success, bytes memory res) = _swapData.callTo.call{ value: msg.value }(_swapData.callData);\n if (!success) {\n string memory reason = LibUtil.getRevertMsg(res);\n revert(reason);\n }\n toAmount = LibAsset.getOwnBalance(_swapData.receivingAssetId) - toAmount;\n emit AssetSwapped(\n transactionId,\n _swapData.callTo,\n _swapData.sendingAssetId,\n _swapData.receivingAssetId,\n fromAmount,\n toAmount,\n block.timestamp\n );\n }"
+            },
+            {
+                "_startBridge": "function _startBridge(CBridgeData memory _cBridgeData) internal {\n Storage storage s = getStorage();\n address bridge = _bridge();\n \n require(s.cBridgeChainId != _cBridgeData.dstChainId, \"Cannot bridge to the same network.\");\n if (LibAsset.isNativeAsset(_cBridgeData.token)) {\n ICBridge(bridge).sendNative(\n _cBridgeData.receiver,\n _cBridgeData.amount,\n _cBridgeData.dstChainId,\n _cBridgeData.nonce,\n _cBridgeData.maxSlippage\n );\n } else {\n \n LibAsset.approveERC20(IERC20(_cBridgeData.token), bridge, _cBridgeData.amount);\n \n ICBridge(bridge).send(\n _cBridgeData.receiver,\n _cBridgeData.token,\n _cBridgeData.amount,\n _cBridgeData.dstChainId,\n _cBridgeData.nonce,\n _cBridgeData.maxSlippage\n );\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "handleMsg": []
+    },
+    "det_chain": {
+        "Send1": [
+            {
+                "send": "function send(\n address _receiver,\n address _token,\n uint256 _amount,\n uint64 _dstChainId,\n uint64 _nonce,\n uint32 _maxSlippage \n ) external nonReentrant whenNotPaused {\n bytes32 transferId = _send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);\n IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);\n emit Send(transferId, msg.sender, _receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);\n }"
+            },
+            {
+                "_send": "function _send(\n address _receiver,\n address _token,\n uint256 _amount,\n uint64 _dstChainId,\n uint64 _nonce,\n uint32 _maxSlippage\n ) private returns (bytes32) {\n require(_amount > minSend[_token], \"amount too small\");\n require(maxSend[_token] == 0 || _amount <= maxSend[_token], \"amount too large\");\n require(_maxSlippage > minimalMaxSlippage, \"max slippage too small\");\n bytes32 transferId = keccak256(\n \n \n abi.encodePacked(msg.sender, _receiver, _token, _amount, _dstChainId, _nonce, uint64(block.chainid))\n );\n require(transfers[transferId] == false, \"transfer exists\");\n transfers[transferId] = true;\n return transferId;\n }"
+            }
+        ]
+    }
+}

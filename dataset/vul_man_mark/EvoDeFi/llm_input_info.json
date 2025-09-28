@@ -1,0 +1,45 @@
+{
+    "src_chain": {
+        "Deposit0": [
+            {
+                "deposit": "function deposit(uint256 _pid, uint256 _amount) public {\n PoolInfo storage pool = poolInfo[_pid];\n UserInfo storage user = userInfo[_pid][msg.sender];\n function updatePool(...) {...}\nfunction updatePower(...) {...}\nupdatePool(_pid);\n claim(_pid);\n if(_amount > 0) {\n pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);\n if(pool.depositFeeBP > 0){\n uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);\n pool.lpToken.safeTransfer(feeAddress, depositFee);\n user.amount = user.amount.add(_amount).sub(depositFee);\n }else{\n user.amount = user.amount.add(_amount);\n }\n }\n updatePower(_pid);\n user.rewardDebt = user.power.mul(pool.accGenPerPower).div(1e12);\n emit Deposit(msg.sender, _pid, _amount);\n }"
+            },
+            {
+                "updatePool": "function updatePool(uint256 _pid) public {\n PoolInfo storage pool = poolInfo[_pid];\n if (block.number <= pool.lastRewardBlock) {\n return;\n }\n if (pool.totalPower == 0 || pool.allocPoint == 0) {\n pool.lastRewardBlock = block.number;\n return;\n }\n uint256 blockAmount = block.number.sub(pool.lastRewardBlock);\n uint256 genReward = blockAmount.mul(genPerBlock).mul(pool.allocPoint).div(totalAllocPoint);\n gen.mint(devaddr, genReward.div(10));\n gen.mint(address(this), genReward);\n pool.accGenPerPower = pool.accGenPerPower.add(genReward.mul(1e12).div(pool.totalPower));\n pool.lastRewardBlock = block.number;\n }"
+            },
+            {
+                "updatePower": "function updatePower(uint256 _pid) public {\n PoolInfo storage pool = poolInfo[_pid];\n UserInfo storage user = userInfo[_pid][msg.sender];\n uint256 currentPower = user.power;\n uint powerBonus = 100;\n if (user.lastPoweredBlock >= block.number) {\n powerBonus += proxy.getNFTPowerBonus();\n }\n powerBonus += proxy.bonus(msg.sender);\n user.power = user.amount.mul(powerBonus).div(100);\n pool.totalPower = pool.totalPower.add(user.power).sub(currentPower);\n }"
+            }
+        ],
+        "Withdraw0": [
+            {
+                "withdraw": "function withdraw(uint256 _pid, uint256 _amount) public {\n PoolInfo storage pool = poolInfo[_pid];\n UserInfo storage user = userInfo[_pid][msg.sender];\n require(user.amount >= _amount, \"withdraw: not good\");\n function updatePool(...) {...}\nfunction claim(...) {...}\nupdatePool(_pid);\n claim(_pid);\n if (_amount > 0) {\n user.amount = user.amount.sub(_amount);\n pool.lpToken.safeTransfer(address(msg.sender), _amount);\n }\n updatePower(_pid);\n user.rewardDebt = user.power.mul(pool.accGenPerPower).div(1e12);\n emit Withdraw(msg.sender, _pid, _amount);\n }"
+            },
+            {
+                "updatePool": "function updatePool(uint256 _pid) public {\n PoolInfo storage pool = poolInfo[_pid];\n if (block.number <= pool.lastRewardBlock) {\n return;\n }\n if (pool.totalPower == 0 || pool.allocPoint == 0) {\n pool.lastRewardBlock = block.number;\n return;\n }\n uint256 blockAmount = block.number.sub(pool.lastRewardBlock);\n uint256 genReward = blockAmount.mul(genPerBlock).mul(pool.allocPoint).div(totalAllocPoint);\n gen.mint(devaddr, genReward.div(10));\n gen.mint(address(this), genReward);\n pool.accGenPerPower = pool.accGenPerPower.add(genReward.mul(1e12).div(pool.totalPower));\n pool.lastRewardBlock = block.number;\n }"
+            },
+            {
+                "updatePower": "function updatePower(uint256 _pid) public {\n PoolInfo storage pool = poolInfo[_pid];\n UserInfo storage user = userInfo[_pid][msg.sender];\n uint256 currentPower = user.power;\n uint powerBonus = 100;\n if (user.lastPoweredBlock >= block.number) {\n powerBonus += proxy.getNFTPowerBonus();\n }\n powerBonus += proxy.bonus(msg.sender);\n user.power = user.amount.mul(powerBonus).div(100);\n pool.totalPower = pool.totalPower.add(user.power).sub(currentPower);\n }"
+            }
+        ],
+        "Deposited1": [
+            {
+                "deposit": "function deposit(IERC20 token, uint amount, uint8 to, bool bonus, bytes calldata recipient) override external payable nonReentrant() {\n \n require(tx.origin == msg.sender || (operator[msg.sender] & (1 | 2) > 0), 'call from unauthorized contract');\n require(address(token) != address(0) && amount > 0 && recipient.length > 0, 'invalid input');\n if (address(token) == address(1)) {\n require(amount == msg.value, 'value must equal amount');\n } else {\n function safeTransferFrom(...) {...}\nsafeTransferFrom(token, msg.sender, address(this), amount);\n }\n emit Deposited(msg.sender, address(token), to, amount, bonus, recipient);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {\n (bool success, bytes memory data) = address(token).call(abi.encodeWithSelector(token.transferFrom.selector, from, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'transfer failed');\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Withdrawn1": [
+            {
+                "withdraw": "function withdraw(Withdraw[] calldata ws) override external nonReentrant() {\n \n require(operator[msg.sender] == 4 || (operator[tx.origin] == 4 && operator[msg.sender] == 2), 'forbidden');\n for (uint i = 0; i < ws.length; i++) {\n Withdraw memory w = ws[i];\n require(!withdrawn[w.id], 'already withdrawn');\n withdrawn[w.id] = true;\n if (address(w.token) == address(1)) {\n require(address(this).balance >= w.amount + w.bonus, 'too low token balance');\n (bool success, ) = w.recipient.call{value: w.amount}('');\n require(success, 'native transfer error');\n } else {\n require(\n w.token.balanceOf(address(this)) >= w.amount && address(this).balance >= w.bonus,\n 'too low token balance'\n );\n function safeTransfer(...) {...}\nsafeTransfer(w.token, w.recipient, w.amount);\n }\n if (w.bonus > 0) {\n \n w.recipient.call{value: w.bonus}('');\n }\n if (address(w.token) != address(1) && w.feeAmounts.length > 0) {\n for (uint j = 0; j < w.feeAmounts.length; j++) {\n require(w.token.balanceOf(address(this)) >= w.feeAmounts[j], 'too low token balance');\n safeTransfer(w.token, w.feeTargets[j], w.feeAmounts[j]);\n }\n }\n emit Withdrawn(w.id, address(w.token), w.recipient, w.amount);\n }\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(IERC20 token, address to, uint256 value) internal {\n (bool success, bytes memory data) = address(token).call(abi.encodeWithSelector(token.transfer.selector, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'transfer failed');\n }"
+            }
+        ]
+    }
+}

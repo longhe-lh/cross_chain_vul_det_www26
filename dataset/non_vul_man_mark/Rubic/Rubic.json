@@ -1,0 +1,121 @@
+{
+  "contract": "Rubin",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Rubin": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "RequestSent1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "CrossChainProcessed1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "RequestSent1": {
+            "0": {
+              "func_name": "crossChainWithSwap",
+              "file_name": "TestOnlySource.sol",
+              "key_ops": [
+                "IERC20(_params.srcInputToken).transferFrom(msg.sender, address(this), _params.srcInputAmount)",
+                "accrueFixedCryptoFee(_params.integrator, _info)",
+                "uint256 _amountIn = accrueTokenFees(_params.integrator, _info, _params.srcInputAmount, 0, _params.srcInputToken)",
+                "SmartApprove.smartApprove(_params.srcInputToken, _amountIn, _params.router)",
+                "ITestDEX(_params.router).swap(_params.srcInputToken, _amountIn, _params.dstOutputToken)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "accrueFixedCryptoFee",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "availableIntegratorCryptoFee[_integrator] += _fixedCryptoFee - _RubicPart",
+                    "availableRubicCryptoFee += _RubicPart"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "accrueTokenFees",
+                  "file_name": "BridgeBase.sol",
+                  "key_ops": [
+                    "availableIntegratorTokenFee[_token][_integrator] += _totalFees - _RubicFee",
+                    "availableRubicTokenFee[_token] += _RubicFee"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_calculateFee",
+                      "file_name": "BridgeBase.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "func_name": "_calculateFeeWithIntegrator",
+                          "file_name": "BridgeBase.sol",
+                          "key_ops": [],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                },
+                "2": {
+                  "func_name": "smartApprove",
+                  "file_name": "SmartApprove.sol",
+                  "key_ops": [
+                    "tokenIn.safeApprove(_to, type(uint256).max)",
+                    "tokenIn.approve(_to, type(uint256).max)",
+                    "tokenIn.safeApprove(_to, 0)",
+                    "tokenIn.safeApprove(_to, type(uint256).max)"
+                  ],
+                  "child": {}
+                },
+                "3": {
+                  "func_name": "swap",
+                  "file_name": "TestDEX.sol",
+                  "key_ops": [
+                    "IERC20(_fromToken).transferFrom(msg.sender, address(this), _inputAmount)",
+                    "IERC20(_toToken).transfer(msg.sender, _inputAmount * price)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "CrossChainProcessed1": {
+            "0": {
+              "func_name": "changeTxStatus",
+              "file_name": "WithDestinationFunctionality.sol",
+              "key_ops": [
+                "processedTransactions[_id] = _statusCode"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,204 @@
+{
+  "contract": "Orbit Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Orbit Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1",
+          "DepositNFT2"
+        ],
+        "rel_chain": [
+          "Withdraw",
+          "WithdrawNFT"
+        ],
+        "det_chain": [
+          "Withdraw1",
+          "WithdrawNFT2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "ETH",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "depositToken",
+              "file_name": "EthVault.impl.sol",
+              "key_ops": [
+                "require(isValidChain[getChainId(toChain)])",
+                "require(token != address(0))",
+                "require(amount > 0)",
+                "TIERC20(token).transferFrom(msg.sender, address(this), amount)",
+                "decimal = TIERC20(token).decimals()",
+                "require(decimal > 0)"
+              ],
+              "child": {}
+            }
+          },
+          "DepositNFT2": {
+            "0": {
+              "func_name": "_depositNFT",
+              "file_name": "EthVaultImpl.sol",
+              "key_ops": [
+                "require(isValidChain[getChainId(toChain)])",
+                "require(token != address(0))",
+                "require(IERC721(token).ownerOf(tokenId) == msg.sender)",
+                "require(!silentTokenList[token])",
+                "IERC721(token).transferFrom(msg.sender, address(this), tokenId)",
+                "require(IERC721(token).ownerOf(tokenId) == address(this))"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "Withdraw": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "EthVaultImpl.sol",
+              "key_ops": [
+                "require(bytes32s.length == 2)",
+                "require(uints.length == chainUintsLength[getChainId(fromChain)])",
+                "require(uints[1] <= 100)",
+                "require(fromAddr.length == chainAddressLength[getChainId(fromChain)])",
+                "require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))))",
+                "require(isValidChain[getChainId(fromChain)])",
+                "require(!isUsedWithdrawal[whash])",
+                "isUsedWithdrawal[whash] = true",
+                "require(validatorCount >= required)",
+                "IERC20(token).safeTransfer(destination, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_validate",
+                  "file_name": "EthVaultImpl.sol",
+                  "key_ops": [
+                    "address va = ecrecover(whash,v[i],r[i],s[i])",
+                    "require(vaList[j] != va)"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_transferToken",
+                  "file_name": "EthVaultImpl.sol",
+                  "key_ops": [
+                    "require((address(this)).balance >= amount)",
+                    "(bool transfered,) = destination.call.value(amount)(\"\")",
+                    "require(transfered)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "WithdrawNFT": {
+            "0": {
+              "func_name": "withdrawNFT",
+              "file_name": "EthVaultImpl.sol",
+              "key_ops": [
+                "require(bytes32s.length == 2)",
+                "require(uints.length == chainUintsLength[getChainId(fromChain)])",
+                "require(fromAddr.length == chainAddressLength[getChainId(fromChain)])",
+                "require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))))",
+                "require(isValidChain[getChainId(fromChain)])",
+                "require(!isUsedWithdrawal[whash])",
+                "isUsedWithdrawal[whash] = true",
+                "require(validatorCount >= required)",
+                "IERC721(token).transferFrom(address(this), toAddr, uints[1])"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_validate",
+                  "file_name": "EthVaultImpl.sol",
+                  "key_ops": [
+                    "address va = ecrecover(whash,v[i],r[i],s[i])",
+                    "require(vaList[j] != va)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "OtherChain",
+        "events": {
+          "Withdraw1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "EthVault.impl.sol",
+              "key_ops": [
+                "require(bytes32s.length >= 1)",
+                "require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))))",
+                "require(uints.length >= 2)",
+                "require(isValidChain[getChainId(fromChain)])",
+                "require(!isUsedWithdrawal[whash])",
+                "isUsedWithdrawal[whash] = true",
+                "uint validatorCount = _validate(whash, v, r, s)",
+                "require(validatorCount >= required)",
+                "TIERC20(tokenAddress).transfer(_toAddr, uints[0])"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_validate",
+                  "file_name": "EthVault.impl.sol",
+                  "key_ops": [
+                    "address va = ecrecover(whash,v[i],r[i],s[i])",
+                    "require(isOwner[va])",
+                    "require(vaList[j] != va)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "WithdrawNFT2": {
+            "0": {
+              "func_name": "withdrawNFT",
+              "file_name": "EthVaultImpl.sol",
+              "key_ops": [
+                "require(bytes32s.length == 2)",
+                "require(uints.length == chainUintsLength[getChainId(fromChain)])",
+                "require(fromAddr.length == chainAddressLength[getChainId(fromChain)])",
+                "require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))))",
+                "require(isValidChain[getChainId(fromChain)])",
+                "require(!isUsedWithdrawal[whash])",
+                "isUsedWithdrawal[whash] = true",
+                "require(validatorCount >= required)",
+                "IERC721(token).transferFrom(address(this), toAddr, uints[1])"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_validate",
+                  "file_name": "EthVaultImpl.sol",
+                  "key_ops": [
+                    "address va = ecrecover(whash,v[i],r[i],s[i])",
+                    "require(vaList[j] != va)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

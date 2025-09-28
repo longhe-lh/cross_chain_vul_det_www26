@@ -1,0 +1,107 @@
+
+{
+  "contract": "Relay Chain Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+  "Relay Chain Bridge": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [
+        "Deposit1"
+      ],
+      "rel_chain": [
+        "ProposalVote"
+      ],
+      "det_chain": [
+        "ProposalEvent1"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "source_chain",
+      "events": {
+        "Deposit1": {
+          "0": {
+            "func_name": "deposit",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "require(msg.value == _fees[destinationChainID], \"Incorrect fee supplied\")",
+              "require(handler != address(0), \"resourceID not mapped to handler\")",
+              "emit Deposit(destinationChainID, resourceID, depositNonce)"
+            ],
+            "child": {
+              "0": {
+                "func_name": "deposit",
+                "file_name": "ERC20Handler.sol",
+                "key_ops": [
+                  "burnERC20(tokenAddress, depositer, amount)",
+                  "lockERC20(tokenAddress, depositer, address(this), amount)"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "relay_chain",
+      "events": {
+        "ProposalVote": {
+          "0": {
+            "func_name": "voteProposal",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "require(_resourceIDToHandlerAddress[resourceID] != address(0), \"no handler for resourceID\")",
+              "require(uint(proposal._status) <= 1, \"proposal already executed\")",
+              "require(!_hasVotedOnProposal[nonceAndID][dataHash][msg.sender], \"relayer already voted\")",
+              "proposal._yesVotes.push(msg.sender)",
+              "_hasVotedOnProposal[nonceAndID][dataHash][msg.sender] = true",
+              "emit ProposalVote(chainID, depositNonce, proposal._status, resourceID)"
+            ],
+            "child": {
+              "0": {
+                "func_name": "executeProposal",
+                "file_name": "ERC20Handler.sol",
+                "key_ops": [
+                  "require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");",
+                  "mintERC20(tokenAddress, address(recipientAddress), amount)",
+                  "releaseERC20(tokenAddress, address(recipientAddress), amount)"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "det_chain": {
+      "chain_name": "destination_chain",
+      "events": {
+        "ProposalEvent1": {
+          "0": {
+            "func_name": "executeProposal",
+            "file_name": "GenericHandler.sol",
+            "key_ops": [
+              "require(_contractWhitelist[contractAddress], \"provided contractAddress is not whitelisted\");"
+            ],
+            "child": {}
+          }
+        }
+      }
+    }
+  }
+}
+,
+  "cag": []
+}

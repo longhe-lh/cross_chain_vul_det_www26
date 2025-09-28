@@ -1,0 +1,138 @@
+{
+  "contract": "Counterstake Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Counterstake Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "NewExpatriation1",
+          "NewExpatriation2"
+        ],
+        "rel_chain": [
+          "NewClaim",
+          "NewChallenge",
+          "FinishedClaim"
+        ],
+        "dst_chain": [
+          "NewRepatriation1",
+          "NewRepatriation2"
+        ],
+        "det_chain": []
+      },
+      "src_chain": {
+        "chain_name": "Export",
+        "events": {
+          "NewExpatriation1": {
+            "0": {
+              "func_name": "transferToForeignChain",
+              "file_name": "Export.sol",
+              "key_ops": [
+                "receiveStakeAsset(amount)",
+                "emit NewExpatriation(msg.sender, amount, reward, foreign_address, data)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "receiveStakeAsset",
+                  "file_name": "Export.sol",
+                  "key_ops": [
+                    "require(msg.value == stake_asset_amount, \"wrong amount received\")",
+                    "require(IERC20(settings.tokenAddress).transferFrom(msg.sender, address(this), stake_asset_amount), \"failed to pull the token\""
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "NewExpatriation2": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "ExportAssistant.sol",
+              "key_ops": [
+                "Export(bridgeAddress).claim{value: tokenAddress == address(0) ? total : 0}(txid, txts, amount, reward, required_stake, sender_address, recipient_address, data)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Counterstake",
+        "events": {
+          "NewClaim": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "Export.sol",
+              "key_ops": [
+                "require(req.amount > 0, \"0 claim\")",
+                "require(req.stake >= req.required_stake, \"the stake is too small\")",
+                "require(block.timestamp >= req.txts + settings.min_tx_age, \"too early\")",
+                "emit NewClaim(claim_num, msg.sender, req.sender_address, req.recipient_address, req.txid, req.txts, req.amount, req.reward, req.stake, req.data, expiry_ts)"
+              ],
+              "child": {}
+            }
+          },
+          "NewChallenge": {
+            "0": {
+              "func_name": "challenge",
+              "file_name": "Export.sol",
+              "key_ops": [
+                "require(block.timestamp < c.expiry_ts, \"the challenging period has expired\")",
+                "require(stake_on != c.current_outcome, \"this outcome is already current\")",
+                "emit NewChallenge(claim_num, msg.sender, stake, stake_on, c.current_outcome, c.yes_stake, c.no_stake, c.expiry_ts, challenging_target)"
+              ],
+              "child": {}
+            }
+          },
+          "FinishedClaim": {
+            "0": {
+              "func_name": "finish",
+              "file_name": "Export.sol",
+              "key_ops": [
+                "require(block.timestamp > c.expiry_ts, \"challenging period is still ongoing\")",
+                "emit FinishedClaim(claim_num, c.current_outcome)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "dst_chain": {
+        "chain_name": "Import",
+        "events": {
+          "NewRepatriation1": {
+            "0": {
+              "func_name": "transferToHomeChain",
+              "file_name": "Import.sol",
+              "key_ops": [
+                "_burn(msg.sender, amount)",
+                "emit NewRepatriation(msg.sender, amount, reward, home_address, data)"
+              ],
+              "child": {}
+            }
+          },
+          "NewRepatriation2": {
+            "0": {
+              "func_name": "onReceivedFromClaim",
+              "file_name": "Import.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

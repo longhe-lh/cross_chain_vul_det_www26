@@ -1,0 +1,33 @@
+{
+    "src_chain": {
+        "SwapInitilaized1": [
+            {
+                "swap": "function swap(\n address receiver,\n uint256 amount,\n uint256 chainTo,\n uint256 nonce,\n string memory symbol\n ) external nonReentrant checkNonce(nonce) TokenSupported(symbol) {\n require(\n supportedChains[thisChainId] == true &&\n supportedChains[chainTo] == true,\n \"Bridge: One of the blockchains isn't supported\"\n );\n IERC20(supportedTokens[symbol]).burnFrom(msg.sender, amount);\n usersNonces[msg.sender][nonce] = true;\n emit SwapInitilaized(\n receiver,\n supportedTokens[symbol],\n amount,\n nonce,\n block.timestamp,\n thisChainId,\n chainTo\n );\n }"
+            }
+        ],
+        "SwapInitilaized2": [
+            {
+                "swap": "function swap(\n address receiver,\n uint256 amount,\n uint256 chainTo,\n uint256 nonce,\n string memory symbol\n ) external nonReentrant checkNonce(nonce) TokenSupported(symbol) {\n require(\n supportedChains[thisChainId] == true &&\n supportedChains[chainTo] == true,\n \"Bridge: One of the blockchains isn't supported\"\n );\n IERC20(supportedTokens[symbol]).burnFrom(msg.sender, amount);\n usersNonces[msg.sender][nonce] = true;\n emit SwapInitilaized(\n receiver,\n supportedTokens[symbol],\n amount,\n nonce,\n thisChainId,\n chainTo\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "RedeemInitilaized": [
+            {
+                "redeem": "function redeem(\n address receiver,\n string memory symbol,\n uint256 amount,\n uint256 nonce,\n uint256 time,\n uint256 chainTo,\n uint8 v,\n bytes32 r,\n bytes32 s\n ) external nonReentrant checkNonce(nonce) TokenSupported(symbol) {\n require(receiver == msg.sender, \"Only receiver can call this function\");\n require(\n chainTo == thisChainId,\n \"This transaction is for another chain\"\n );\n bytes32 signedDataHash = keccak256(\n abi.encodePacked(\n receiver,\n supportedTokens[symbol],\n amount,\n nonce,\n time,\n chainTo\n )\n );\n bytes32 message = signedDataHash.toEthSignedMessageHash();\n address signer = message.recover(v, r, s);\n require(hasRole(VALIDATOR_ROLE, signer), \"Bridge: invalid sig\");\n IERC20(supportedTokens[symbol]).mint(receiver, amount);\n usersNonces[msg.sender][nonce] == true;\n emit RedeemInitilaized(\n receiver,\n supportedTokens[symbol],\n amount,\n nonce\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "RedeemInitilaized1": [
+            {
+                "redeem": "function redeem(\n address receiver,\n string memory symbol,\n uint256 amount,\n uint256 nonce,\n uint256 chainTo,\n uint8 v,\n bytes32 r,\n bytes32 s\n ) external nonReentrant checkNonce(nonce) TokenSupported(symbol) {\n require(\n receiver == msg.sender,\n \"Only the receiver can collect the tokens\"\n );\n require(\n chainTo == thisChainId,\n \"This transaction is for another chain\"\n );\n bytes32 signedDataHash = keccak256(\n abi.encode(\n receiver,\n supportedTokens[symbol],\n amount,\n nonce,\n chainTo\n )\n );\n bytes32 message = signedDataHash.toEthSignedMessageHash();\n address signer = message.recover(v, r, s);\n require(hasRole(VALIDATOR_ROLE, signer), \"Bridge: invalid sig\");\n IERC20(supportedTokens[symbol]).mint(receiver, amount);\n usersNonces[msg.sender][nonce] = true;\n emit RedeemInitilaized(\n receiver,\n supportedTokens[symbol],\n amount,\n nonce\n );\n }"
+            }
+        ],
+        "RedeemInitilaized2": [
+            {
+                "redeem": "function redeem(\n address receiver,\n address token,\n uint256 amount,\n uint256 nonce,\n uint256 chainTo,\n uint8 v,\n bytes32 r,\n bytes32 s\n ) external nonReentrant checkNonce(nonce) {\n require(\n receiver == msg.sender,\n \"Only the receiver can collect the tokens\"\n );\n require(\n chainTo == thisChainId,\n \"This transaction is for another chain\"\n );\n bytes32 signedDataHash = keccak256(\n abi.encode(receiver, token, chainTo, amount, nonce)\n );\n address signer = signedDataHash.toEthSignedMessageHash().recover(\n v,\n r,\n s\n );\n require(hasRole(VALIDATOR_ROLE, signer), \"Bridge: invalid sig\");\n IERC20(token).mint(receiver, amount);\n usersNonces[receiver][nonce] = true;\n emit RedeemInitilaized(receiver, token, amount, nonce);\n }"
+            }
+        ]
+    }
+}

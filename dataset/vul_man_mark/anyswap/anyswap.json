@@ -1,0 +1,211 @@
+{
+    "contract": "Anyswap",
+    "source_code_path": "../vul_src_code/anyswap/",
+    "type": "authentication_bypass",
+    "vulnerable_entry_function": {
+        "file": "AnyswapV5ERC20.sol",
+        "name": "depositWithPermit",
+        "signature": "function depositWithPermit(address , uint256 , uint256, uint8 , bytes32 , bytes32 , address)",
+        "lines": "313-317",
+        "attack_type": "missing_permit_implementation",
+        "vul_reason": "Tokens with non-reverting fallback functions (e.g. WETH) do not implement `permit`, making `permit(...)` a no-op. This allows attackers to bypass signature validation and spend approved tokens arbitrarily.",
+        "code_snippet": "IERC20(underlying).permit(target, address(this), value, deadline, v, r, s);"
+    },
+    "detail": "The attacker exploited the fact that some tokens do not implement `permit()` but include a fallback function that silently accepts calls without reverting. By invoking `depositWithPermit`, the attacker could spoof the `target` (the victim address) and bypass approval checks because `permit()` succeeded trivially. Afterwards, `safeTransferFrom(target, ...)` would transfer tokens from the victim to the attacker-controlled contract. This is an authentication bypass in the cross-chain liquidity pool contract, allowing theft of user funds without a valid permit or signature.",
+    "blg": {
+        "Anyswap": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "Transfer0",
+                    "LogAnySwapOut1"
+                ],
+                "rel_chain": [
+                    "relayer"
+                ],
+                "det_chain": [
+                    "Tranfer1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "Ethereum",
+                "events": {
+                    "Transfer0": {
+                        "0": {
+                            "func_name": "depositWithPermit",
+                            "file_name": "AnyswapV5ERC20.sol",
+                            "key_ops": [
+                                "IERC20(underlying).permit(target, address(this), value, deadline, v, r, s);",
+                                "IERC20(underlying).safeTransferFrom(target, address(this), value);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "permit",
+                                    "file_name": "AnyswapV5ERC20.sol",
+                                    "key_ops": [
+                                        "require(block.timestamp <= deadline, \"AnyswapV3ERC20: Expired permit\");",
+                                        "require(verifyEIP712(target, hashStruct, v, r, s) || verifyPersonalSign(target, hashStruct, v, r, s));",
+                                        "allowance[target][spender] = value;"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "Approval",
+                                            "file_name": "AnyswapV5ERC20.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "func_name": "_deposit",
+                                    "file_name": "AnyswapV5ERC20.sol",
+                                    "key_ops": [
+                                        "require(underlying != address(0x0) && underlying != address(this));",
+                                        "_mint(to, amount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_mint",
+                                            "file_name": "AnyswapV5ERC20.sol",
+                                            "key_ops": [
+                                                "require(account != address(0), \"ERC20: mint to the zero address\");",
+                                                "_totalSupply += amount;",
+                                                "balanceOf[account] += amount;"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "event_name": "Transfer",
+                                                    "file_name": "AnyswapV5ERC20.sol",
+                                                    "key_ops": [],
+                                                    "child": {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "LogAnySwapOut1": {
+                        "0": {
+                            "func_name": "anySwapOutUnderlyingWithPermit",
+                            "file_name": "AnyswapV5Router.sol",
+                            "key_ops": [
+                                "IERC20(underlying).permit(from, address(this), amount, deadline, v, r, s);",
+                                "IERC20(underlying).safeTransferFrom(from, token, amount);",
+                                "AnyswapV1ERC20(token).depositVault(amount, from);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_anySwapOut",
+                                    "file_name": "AnyswapV5Router.sol",
+                                    "key_ops": [
+                                        "AnyswapV1ERC20(token).burn(from, amount);"
+                        
+                                    ],
+                                    "child": {
+                                        "0":{
+                                            "event_name":"LogAnySwapOut",
+                                            "file_name":"AnyswapV5Router.sol",
+                                            "key_ops":[],
+                                            "child":{}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "ChainName": "anyswap",
+                "events": {
+                    "relayer": {
+                        "0": {
+                            "func_name": "StartSwapJob",
+                            "file_name": "swap.go",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "startSwapProducer",
+                                    "file_name": "swap.go",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "processRouterSwap",
+                                            "file_name": "swap.go",
+                                            "key_ops": [
+                                                "if router.IsChainIDPaused(swap.FromChainID) || router.IsChainIDPaused(swap.ToChainID) {return errChainIsPaused}",
+                                                "if cachedSwapTasks.Contains(swap.Key) {return errAlreadySwapped}",
+                                                "if isBlacked(swap)",
+                                                "args.SwapInfo, err = mongodb.ConvertFromSwapInfo(&res.SwapInfo)"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "dispatchSwapTask",
+                                                    "file_name": "swap.go",
+                                                    "key_ops": [
+                                                        "if !args.SwapType.IsValidType() {return fmt.Errorf(\"unknown router swap type %d\", args.SwapType)}"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "startSwapConsumer",
+                                                            "file_name": "swap.go",
+                                                            "key_ops": [],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "doSwap",
+                                                                    "file_name": "swap.go",
+                                                                    "key_ops": [
+                                                                        "sentTxHash, err := sendSignedTransaction(resBridge, signedTx, args)"
+                                                                    ],
+                                                                    "child": {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "ChainName": "Fantom",
+                "events": {
+                    "Transfer1": {
+                        "0": {
+                            "func_name": "mint",
+                            "file_name": "AnyswapV5ERC20.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "_mint",
+                                    "file_name": "AnyswapV5ERC20.sol",
+                                    "key_ops": [
+                                        "require(account != address(0), \"ERC20: mint to the zero address\");",
+                                        "_totalSupply += amount;",
+                                        "balanceOf[account] += amount;"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "Transfer",
+                                            "file_name": "AnyswapV5ERC20.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

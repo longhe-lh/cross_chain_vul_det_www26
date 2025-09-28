@@ -1,0 +1,199 @@
+{
+    "contract": "nerve",
+    "source_code_path": "../vul_src_code/nerve/",
+    "type": "InconsistentLogicInForkedLibraries",
+    "vulnerable_entry_function": {
+        "file": "metaswap_swaputils.sol",
+        "name": "swap",
+        "signature": "function swap(Swap ,uint8 ,uint8 ,uint256,uint256 )",
+        "lines": "786-840",
+        "attack_type": "Price Manipulation",
+        "vul_reason": "The swap() and swapUnderlying() functions are implemented in two different libraries: SwapUtils and MetaSwapUtils. Both rely on the getXp() function for internal pricing logic. However, getXp() in MetaSwapUtils accounts for the virtual price of LP tokens, while the implementation in SwapUtils does not. This inconsistency leads to a situation where swap() underestimates the value of LP tokens when the virtual price is greater than 1, allowing attackers to receive more LP tokens for less stablecoin input, then redeem them at a higher value via swapUnderlying().",
+        "code_snippet": "(dy, dyFee) = _calculateSwap(   self,tokenIndexFrom,tokenIndexTo,dx,balances);"
+    },
+    "detail": "The attack on Nerve's MetaPool was made possible by inconsistent implementations of the getXp() pricing function in two libraries: SwapUtils and MetaSwapUtils. The MetaSwap contract, which was forked from Saddle.Finance (itself a Solidity port of Curve's MetaPool), contained two key swap functions—swap() and swapUnderlying()—used for exchanging between LP tokens and stablecoins. During the attack, swap() underestimated the LP token value due to ignoring the virtual price, while swapUnderlying() calculated it correctly. The attacker repeatedly swapped stablecoins for undervalued LP tokens via swap(), removed liquidity to extract base tokens, and finally used swapUnderlying() to convert base tokens back to more stablecoins at a favorable rate. This loop drained the pool of liquidity. The vulnerability stems from inconsistent logic across forked components and highlights the risk of modifying or porting code without preserving behavioral equivalence. The attacker reportedly profited ~900 BNB. A similar attack had occurred on Synapse’s MetaPool one week earlier, exploiting the same flaw.",
+    "blg": {
+        "nerve": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "swap2",
+                    "swap3",
+                    "swap4",
+                    "CrossOutFunds1"
+                ],
+                "rel_chain": [
+                    "relay"
+                ],
+                "det_chain": [
+                    "Transfer1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "swap2": {
+                        "0": {
+                            "func_name": "swap",
+                            "file_name": "metaswap_swaputils.sol",
+                            "key_ops": [
+                                "require(dx <= tokenFrom.balanceOf(msg.sender),\"Cannot swap more than you own\");",
+                                "tokenFrom.safeTransferFrom(msg.sender, address(this), dx);   ",
+                                "require(dy >= minDy, \"Swap didn't result in min tokens\");",
+                                "self.pooledTokens[tokenIndexTo].safeTransfer(msg.sender, dy);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_calculateSwap",
+                                    "file_name": "metaswap_swaputils.sol",
+                                    "key_ops": [
+                                        "require(tokenIndexFrom < xp.length && tokenIndexTo < xp.length,\"Token index out of range\");"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_xp",
+                                            "file_name": "metaswap_swaputils.sol",
+                                            "key_ops": [
+                                                "require(numTokens == precisionMultipliers.length,\"Balances must match multipliers\");"
+                                            ],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "event_name": "TokenSwap",
+                                    "file_name": "metaswap_swaputils.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "swap3": {
+                        "0": {
+                            "func_name": "removeLiquidityOneToken",
+                            "file_name": "metaswap_swaputils.sol",
+                            "key_ops": [
+                                "return swapStorage.removeLiquidityOneToken(metaSwapStorage,tokenAmount,tokenIndex,minAmount);"
+                            ],
+                            "child": {}
+                        }
+                    },
+                    "swap4": {
+                        "0": {
+                            "func_name": "swapUnderlying",
+                            "file_name": "metaswap_metaswaputils.sol",
+                            "key_ops": [
+                                "require(tokenIndexFrom < maxRange && tokenIndexTo < maxRange,\"Token index out of range\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_updateBaseVirtualPrice",
+                                    "file_name": "metaswap_metaswaputils.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "func_name": "_xp",
+                                    "file_name": "metaswap_metaswaputils.sol",
+                                    "key_ops": [
+                                        "require(numTokens == precisionMultipliers.length,\"Balances must match multipliers\");"
+                                    ],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "TokenSwapUnderlying",
+                                    "file_name": "metaswap_metaswaputils.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "CrossOutFunds1": {
+                        "0": {
+                            "func_name": "crossOut",
+                            "file_name": "NerveMultiSigWalletII.sol",
+                            "key_ops": [
+                                "require(amount > 0, \"ERROR: Zero amount\")",
+                                "if (ERC20 != address(0)) {",
+                                "require(msg.value == 0, \"ERC20: Does not accept Ethereum Coin\");",
+                                "require(ERC20.isContract(), \"The address is not a contract address\");",
+                                "require(allowance >= amount, \"No enough amount for authorization\");",
+                                "require(fromBalance >= amount, \"No enough balance of the token\");",
+                                "token.safeTransferFrom(from, address(this), amount)",
+                                "minterToken.burn(amount)",
+                                "require(msg.value == amount, \"Inconsistency Ethereum amount\")"
+                            ],
+                            "child": {
+                                "0": {
+                                    "event_name": "CrossOutFunds",
+                                    "file_name": "NerveMultiSigWalletII.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "nerve",
+                "events": {
+                    "relay": {
+                        "0": {
+                            "func_name": "heightNotice",
+                            "file_name": "CrossChainCall.java",
+                            "key_ops": [
+                                "if (!ModuleHelper.isSupportCrossChain()) { return;}",
+                                "NerveCoreResponseMessageProcessor.requestAndResponse(ModuleE.CC.abbr, \"newBlockHeight\", params);"
+                            ],
+                            "child": {}
+                        },
+                        "1": {
+                            "func_name": "sendMainAssetWithdraw",
+                            "file_name": "Base.java",
+                            "key_ops": [
+                                "Function function = HtgUtil.getCreateOrSignWithdrawFunction(txKey, toAddress, bValue, false, HtgConstant.ZERO_ADDRESS, signData);",
+                                "return this.sendTx(address, priKey, function, HeterogeneousChainTxType.WITHDRAW);"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "Transfer1": {
+                        "0": {
+                            "func_name": "mint",
+                            "file_name": "ERC20Minter.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "_mint",
+                                    "file_name": "ERC20Minter.sol",
+                                    "key_ops": [
+                                        "require(account != address(0), \"ERC20: mint to the zero address\");",
+                                        "_totalSupply = _totalSupply.add(amount);",
+                                        "_balances[account] = _balances[account].add(amount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "Transfer",
+                                            "file_name": "ERC20Minter.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

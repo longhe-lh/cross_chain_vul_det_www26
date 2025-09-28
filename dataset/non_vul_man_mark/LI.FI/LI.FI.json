@@ -1,0 +1,93 @@
+{
+  "contract": "LI.FI",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "LI.FI": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "LiFiTransferStarted1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "LiFiTransferCompleted1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "LiFiTransferStarted1": {
+            "0": {
+              "func_name": "startBridgeTokensViaAmarok",
+              "file_name": "AmarokFacet.sol",
+              "key_ops": [
+                "LibAsset.depositAsset(_bridgeData.sendingAssetId, _bridgeData.minAmount)",
+                "_startBridge(_bridgeData, _amarokData)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_startBridge",
+                  "file_name": "AmarokFacet.sol",
+                  "key_ops": [
+                    "LibAsset.maxApproveERC20(IERC20(_bridgeData.sendingAssetId), address(connextHandler), _bridgeData.minAmount)",
+                    "connextHandler.xcall{ value: _amarokData.relayerFee }( _amarokData.destChainDomainId, _amarokData.callTo, _bridgeData.sendingAssetId, _amarokData.delegate, _bridgeData.minAmount, _amarokData.slippageTol, _amarokData.callData)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "maxApproveERC20",
+                      "file_name": "LibAsset.sol",
+                      "key_ops": [
+                        "if (isNativeAsset(address(assetId))) { return }",
+                        "if (spender == NULL_ADDRESS) { revert NullAddrIsNotAValidSpender() }",
+                        "if (assetId.allowance(address(this), spender) < amount) { SafeERC20.safeApprove(IERC20(assetId), spender, 0); SafeERC20.safeApprove(IERC20(assetId), spender, MAX_UINT) }"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "depositAsset",
+                  "file_name": "LibAsset.sol",
+                  "key_ops": [
+                    "if (amount == 0) revert InvalidAmount()",
+                    "if (isNativeAsset(assetId)) { if (msg.value < amount) revert InvalidAmount() } else { uint256 balance = IERC20(assetId).balanceOf(msg.sender); if (balance < amount) revert InsufficientBalance(amount, balance); transferFromERC20(assetId, msg.sender, address(this), amount) }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "LiFiTransferCompleted1": {
+            "0": {
+              "func_name": "xcall",
+              "file_name": "IConnextHandler.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

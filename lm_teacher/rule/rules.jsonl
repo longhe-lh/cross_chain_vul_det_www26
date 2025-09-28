@@ -1,0 +1,13 @@
+{"rule": "The vulnerability arises due to the assumption that the underlying token's `permit()` function will revert if not implemented, but some tokens have fallback functions that do not revert."}
+{"rule": "Missing validation of signatory authorization status in signature array"}
+{"rule": "Unrestricted external calls in `LibSwap.swap()` allow malicious `transferFrom` operations."}
+{"rule": "Inconsistent validation for wrapped native tokens between deposit() and depositETH(), allowing fake deposits."}
+{"rule": "Inconsistent pricing logic between swap functions (ignoring virtual price in _xp())"}
+{"rule": "Unrestricted cross-chain method execution without whitelist validation"}
+{"rule": "Inconsistent pricing logic between swap functions (ignoring virtual price in `swap()` but including it in `swapUnderlying()`)."}
+{"rule": "Incorrect token identification logic that doesn't properly distinguish between native ETH and ERC20 tokens with 'ETH' symbol"}
+{"rule": "Mismatch between msg.value and amount parameter in native ETH deposits"}
+{"rule": "Lack of validation for the `asgard` address and attacker-controlled parameters in `deposit` event emission."}
+{"rule": "Missing validation of the sysvar account authenticity."}
+{"rule": "Insufficient verification of the sysvar account in signature verification."}
+{"rule": "Insufficient verification of sysvar account authenticity in signature verification."}

@@ -1,0 +1,96 @@
+{
+  "contract": "Bridge_16",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_16": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [
+          "mint",
+          "burn"
+        ],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "BSC",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "token.burn(msg.sender, amount)",
+                "nonce++"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "require(msg.sender == admin, 'only admin')",
+                "require(processedNonces[otherChainNonce] == false, 'transfer already processed')",
+                "processedNonces[otherChainNonce] = true",
+                "token.mint(to, amount)"
+              ],
+              "child": {}
+            }
+          },
+          "burn": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "token.burn(msg.sender, amount)",
+                "nonce++"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "ETH",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "require(msg.sender == admin, 'only admin')",
+                "require(processedNonces[otherChainNonce] == false, 'transfer already processed')",
+                "processedNonces[otherChainNonce] = true",
+                "token.mint(to, amount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

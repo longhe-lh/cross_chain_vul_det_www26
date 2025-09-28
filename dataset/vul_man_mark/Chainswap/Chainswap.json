@@ -1,0 +1,114 @@
+{
+    "contract": "Chainswap",
+    "source_code_path": "../vul_src_code/Chainswap/",
+    "type": "SignatureVerificationBypass",
+    "vulnerable_entry_function": {
+        "file": "AdminUpgradeabilityProxy.sol",
+        "name": "receive",
+        "signature": "function receive(uint256 fromChainId, address to, uint256 nonce, uint256 volume, Signature[] memory signatures)",
+        "lines": "1528-1547",
+        "attack_type": "Insufficient Signatory Validation",
+        "vul_reason": "The function does not check whether `signatory` exists in the whitelist or authorized signer mapping. Solidity returns default values (0) for non-existent mapping keys, causing quota miscalculation.",
+        "code_snippet": "_decreaseAuthQuota(signatures[i].signatory, volume);"
+    },
+    "detail": "The receive function of the Chainswap contract failed to properly validate the signatory field of incoming signatures. By supplying a forged signatory, an attacker was able to bypass the authorization process. Due to the absence of mapping key validation in Solidity, the system calculated an unreasonably high quota for the forged signatory, enabling the attacker to mint and withdraw unauthorized funds. The root cause is improper validation of mapping-based access control. Additionally, the platform had reduced the required number of signatures to 1 prior to the attack, making exploitation easier.",
+    "blg": {
+        "ChainSwap": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "Send1"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "Receive1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "ETH",
+                "events": {
+                    "Send1": {
+                        "0": {
+                            "func_name": "send",
+                            "file_name": "AdminUpgradeabilityProxy.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "sendFrom",
+                                    "file_name": "AdminUpgradeabilityProxy.sol",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_sendFrom",
+                                            "file_name": "AdminUpgradeabilityProxy.sol",
+                                            "key_ops": [
+                                                "IERC20(token).safeTransferFrom(from, address(this), volume);"
+                                            ],
+                                            "child": {}
+                                        },
+                                        "1": {
+                                            "event_name": "Send",
+                                            "file_name": "AdminUpgradeabilityProxy.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "det_chainnName": "",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "Receive1": {
+                        "0": {
+                            "func_name": "receive",
+                            "file_name": "AdminUpgradeabilityProxy.sol",
+                            "key_ops": [
+                                "require(received[fromChainId][to][nonce] == 0, 'withdrawn already');",
+                                "require(N >= MappingTokenFactory(factory).getConfig(_minSignatures_), 'too few signatures');",
+                                "require(signatures[i].signatory != signatures[j].signatory, 'repetitive signatory');",
+                                "require(signatory != address(0), \"invalid signature\");",
+                                "require(signatory == signatures[i].signatory, \"unauthorized\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_decreaseAuthQuota",
+                                    "file_name": "AdminUpgradeabilityProxy.sol",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "DecreaseAuthQuota",
+                                            "file_name": "AdminUpgradeabilityProxy.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "event_name": "Authorize",
+                                    "file_name": "AdminUpgradeabilityProxy.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "Receive",
+                                    "file_name": "AdminUpgradeabilityProxy.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

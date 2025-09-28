@@ -1,0 +1,37 @@
+{
+    "src_chain": {
+        "Enter1": [
+            {
+                "enter": "function enter(\n Token memory token,\n address from,\n address to,\n uint256 amount\n ) internal returns (Token memory) {\n require(token.exist, \"RT: NOT_LISTED\");\n if (token.issueType == IssueType.MINTABLE) {\n IBridgeToken(token.addr).burn(from, amount);\n } else if (token.issueType == IssueType.DEFAULT) {\n IERC20(token.addr).safeTransferFrom(from, to, amount);\n } else {\n assert(false);\n }\n return token;\n }"
+            },
+            {
+                "burn": "function burn(address _from, uint256 _amnt) external override onlyOwner {\n _burn(_from, _amnt);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "CosignerAdded": [
+            {
+                "addCosigner": "function addCosigner(address cosaddr, uint256 chainId)\n public\n override\n onlyOwner\n {\n Cosigner memory cosigner = _cosigners[cosaddr];\n require(!cosigner.active, \"BCM: ALREADY_EXIST\");\n require(cosaddr != address(0), \"BCM: ZERO_ADDRESS\");\n uint256 currentChainId;\n assembly {\n currentChainId := chainid()\n }\n require(currentChainId != chainId, \"BCM: ONLY_EXTERNAL\");\n _cosaddrs[chainId].push(cosaddr);\n _cosigners[cosaddr] = Cosigner(\n cosaddr,\n chainId,\n _cosaddrs[chainId].length - 1,\n true\n );\n emit CosignerAdded(cosaddr, chainId);\n }"
+            }
+        ],
+        "CosignerRemoved": [
+            {
+                "removeCosigner": "function removeCosigner(address cosaddr) public override onlyOwner {\n require(cosaddr != address(0), \"BCM: ZERO_ADDRESS\");\n Cosigner memory cosigner = _cosigners[cosaddr];\n require(cosigner.active, \"BCM: NOT_EXIST\");\n address[] storage addrs = _cosaddrs[cosigner.chainId];\n if (addrs.length > 1) {\n \n addrs[cosigner.index] = _cosaddrs[cosigner.chainId][\n addrs.length - 1\n ];\n addrs.pop();\n \n address cosaddrLast = addrs[cosigner.index];\n _cosigners[cosaddrLast].index = cosigner.index;\n } else {\n \n addrs.pop();\n }\n delete _cosigners[cosaddr];\n emit CosignerRemoved(cosigner.addr, cosigner.chainId);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Exit1": [
+            {
+                "exit": "function exit(\n Token memory token,\n address from,\n address to,\n uint256 amount\n ) internal returns (Token memory) {\n require(token.exist, \"RT: NOT_LISTED\");\n if (token.addr == address(0)) {\n unsafeTransfer(from, to, amount);\n } else if (token.issueType == IssueType.MINTABLE) {\n IBridgeToken(token.addr).mint(to, amount);\n } else if (token.issueType == IssueType.DEFAULT) {\n IERC20(token.addr).safeTransfer(to, amount);\n } else {\n assert(false);\n }\n return token;\n }"
+            },
+            {
+                "verify": "function verify(\n bytes32 commitment,\n uint256 chainId,\n bytes[] calldata signatures\n ) external view override returns (bool) {\n uint8 _required = getCosignCount(chainId);\n if (_required > signatures.length) {\n return false;\n }\n address[] memory cached = new address[](signatures.length);\n uint8 signersMatch;\n for (uint8 i = 0; i < signatures.length; i++) {\n address signer = recover(commitment, signatures[i]);\n Cosigner memory cosigner = _cosigners[signer];\n if (\n cosigner.active &&\n cosigner.chainId == chainId &&\n !_inCache(cached, signer)\n ) {\n signersMatch++;\n cached[i] = signer;\n if (signersMatch == _required) return true;\n }\n }\n return false;\n }"
+            },
+            {
+                "mint": "function mint(address _to, uint256 _amnt) external override onlyOwner {\n _mint(_to, _amnt);\n }"
+            }
+        ]
+    }
+}

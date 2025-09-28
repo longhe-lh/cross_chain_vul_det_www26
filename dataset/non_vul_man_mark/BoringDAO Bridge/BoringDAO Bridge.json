@@ -1,0 +1,116 @@
+{
+  "contract": "BoringDAO Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "BoringDAO Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenRedeem2"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "SourceChain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "pledge",
+              "file_name": "BoringDAOV2.sol",
+              "key_ops": [
+                "require(borERC20().allowance(msg.sender, address(this)) >= _amount. \"not allow enough boring\");",
+                "borERC20().transferFrom(msg.sender, address(tunnel(_tunnelKey)), _amount);",
+                "tunnel(_tunnelKey).pledge(msg.sender, _amount);"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeem2": {
+            "0": {
+              "func_name": "redeem",
+              "file_name": "BoringDAOV2.sol",
+              "key_ops": [
+                "tunnel(_tunnelKey).redeem(msg.sender, _amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "approveMint",
+              "file_name": "BoringDAOV2.sol",
+              "key_ops": [
+                "if (to == address(0)) ",
+                "uint256 trusteeCount = getRoleMemberCount(_tunnelKey);",
+                "if (!shouldMint) { return; }",
+                "tunnel(_tunnelKey).issue(to, _amount);"
+              ],
+              "child": {}
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "burnBToken",
+              "file_name": "BoringDAOV2.sol",
+              "key_ops": [
+                "tunnel(_tunnelKey).burn(msg.sender, amount, assetAddress);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "unlock",
+              "file_name": "CrossLock.sol",
+              "key_ops": [
+                "IERC20Upgradeable(token0).safeTransfer(to, amount);"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "lock",
+              "file_name": "CrossLock.sol",
+              "key_ops": [
+                "IERC20Upgradeable(token0).safeTransferFrom(from, address(this), amount);",
+                "emit Lock(token0, supportToken(token0, chainID), chainID, from, to, amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

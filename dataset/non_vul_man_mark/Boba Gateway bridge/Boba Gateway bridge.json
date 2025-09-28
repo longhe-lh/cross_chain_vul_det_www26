@@ -1,0 +1,89 @@
+{
+    "contract": "Boba Gateway bridge",
+    "source_code_path": "../contracts/",
+    "type": "",
+    "vulnerable_entry_function": {
+        "file": "",
+        "name": "",
+        "signature": "",
+        "lines": "",
+        "attack_type": "",
+        "vul_reason": "",
+        "code_snippet": ""
+    },
+    "detail": "",
+    "blg": {
+        "Boba Gateway bridge": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "TransactionEnqueued1"
+                ],
+                "rel_chain": [
+                    "TransactionBatchAppended"
+                ],
+                "det_chain": [
+                    "RelayedMessage1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "L1",
+                "events": {
+                    "TransactionEnqueued1": {
+                        "0": {
+                            "func_name": "enqueue",
+                            "file_name": "CanonicalTransactionChain.sol",
+                            "key_ops": [
+                                "require(_data.length <= MAX_ROLLUP_TX_SIZE, 'Transaction data size exceeds maximum for rollup transaction.')",
+                                "require(_gasLimit <= maxTransactionGasLimit, 'Transaction gas limit exceeds maximum for rollup transaction.')",
+                                "require(_gasLimit >= MIN_ROLLUP_TX_GAS, 'Transaction gas limit too low to enqueue.')",
+                                "if (_gasLimit > enqueueL2GasPrepaid)"
+                            ],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "Relay",
+                "events": {
+                    "TransactionBatchAppended": {
+                        "0": {
+                            "func_name": "appendSequencerBatch",
+                            "file_name": "CanonicalTransactionChain.sol",
+                            "key_ops": [
+                                "require(shouldStartAtElement == getTotalElements(), 'Actual batch start index does not match expected start index.')",
+                                "require(msg.sender == resolve('OVM_Sequencer'), 'Function can only be called by the Sequencer.')",
+                                "require(nextQueueIndex <= queueElements.length, 'Attempted to append more elements than are available in the queue.')"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_appendBatch",
+                                    "file_name": "CanonicalTransactionChain.sol",
+                                    "key_ops": [
+                                        "batches().push(batchHeaderHash, latestBatchContext)"
+                                    ],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "L2",
+                "events": {
+                    "RelayedMessage1": {
+                        "0": {
+                            "func_name": "batchRelayMessages",
+                            "file_name": "L1MultiMessageRelayer.sol",
+                            "key_ops": [],
+                            "child": {}
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

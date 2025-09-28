@@ -1,0 +1,107 @@
+{
+  "contract": "Bridge_5",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_5": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [
+          "mint"
+        ],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "BSC",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "require(processedNonces[msg.sender][nonce] == false, \"transfer already processed\");",
+                "token._burn(msg.sender, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Relay Chain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "bytes32 message = prefixed(keccak256(abi.encodePacked(from, to, amount, nonce)));",
+                "require(recoverSigner(message, signature) == from, \"wrong signature\");",
+                "require(processedNonces[from][nonce] == false, 'transfer already processed');",
+                "processedNonces[from][nonce] = true;",
+                "token._mint(to, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "bytes32 message = prefixed(keccak256(abi.encodePacked(from, to, amount, nonce)));",
+                "require(recoverSigner(message, signature) == from, \"wrong signature\");",
+                "require(processedNonces[from][nonce] == false, 'transfer already processed');",
+                "processedNonces[from][nonce] = true;",
+                "token._mint(to, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

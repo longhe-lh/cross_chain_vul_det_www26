@@ -1,0 +1,17 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "_transfer": "function _transfer(\n address from,\n address to,\n uint256 amount\n ) internal virtual {\n require(from != address(0), \"ERC20: transfer from the zero address\");\n\n require(to != address(0), \"ERC20: transfer to the zero address\");\n\n _beforeTokenTransfer(from, to, amount);\n\n uint256 fromBalance = _balances[from];\n\n require(\n fromBalance >= amount,\n \"ERC20: transfer amount exceeds balance\"\n );\n\n unchecked {\n _balances[from] = fromBalance - amount;\n }\n\n _balances[to] += amount;\n\n emit Transfer(from, to, amount);\n\n _afterTokenTransfer(from, to, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n\n _beforeTokenTransfer(address(0), account, amount);\n\n _totalSupply += amount;\n\n _balances[account] += amount;\n\n emit Transfer(address(0), account, amount);\n\n _afterTokenTransfer(address(0), account, amount);\n }"
+            }
+        ]
+    }
+}

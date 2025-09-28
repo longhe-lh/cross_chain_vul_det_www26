@@ -1,0 +1,82 @@
+{
+    "src_chain": {
+        "mapTransferOut1": [
+            {
+                "transferOutNative": "function transferOutNative(uint amount) external payable {\n IWToken(0xf984Ad9299B0102426a646aF72e2052a3A7eD0E2).deposit{value : amount}();\n }"
+            }
+        ],
+        "mapTransferOut2": [
+            {
+                "transferOutTokenBurn": "function transferOutTokenBurn(address token, address to, uint amount, uint toChainId) external payable\n checkBalance(token,msg.sender,amount) {\n function safeTransferFrom(...) {...}\nTransferHelper.safeTransferFrom(token,msg.sender,address(this),amount);\n collectChainFee(toChainId,0);\n uint outAmount = getAmountWithdraw(amount);\n transferFeeList[token] = transferFeeList[token].add(amount).sub(outAmount);\n IMAPToken(token).burn(outAmount);\n bytes32 orderId = getOrderID(token, msg.sender, to, outAmount, toChainId);\n emit mapTransferOut(token, msg.sender, to, orderId, outAmount, selfChainId, toChainId);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(address token, address from, address to, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');\n }"
+            }
+        ],
+        "mapTransferOut3": [
+            {
+                "transferOutToken": "function transferOutToken(address token, address to, uint amount, uint toChainId) external payable\n checkBalance(token,msg.sender,amount) {\n function safeTransferFrom(...) {...}\nTransferHelper.safeTransferFrom(token,msg.sender,address(this),amount);\n collectChainFee(toChainId,0);\n uint outAmount = getAmountWithdraw(amount);\n transferFeeList[token] = transferFeeList[token].add(amount).sub(outAmount);\n bytes32 orderId = getOrderID(token, msg.sender, to, outAmount, toChainId);\n emit mapTransferOut(token, msg.sender, to, orderId, outAmount, selfChainId, toChainId);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(address token, address from, address to, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Register": [
+            {
+                "register": "function register() external payable override {\n require(\n msg.value >= minStakeAmount,\n \"Relayer: insufficient stake amount\"\n );\n require(!_relayers.contains(msg.sender), \"Relayer: already registered\");\n function _addRelayer(...) {...}\n_addRelayer(msg.sender, msg.value);\n emit Register(msg.sender, msg.value);\n }"
+            },
+            {
+                "_addRelayer": "function _addRelayer(address _relayer, uint256 _amount) internal {\n RelayerInfo storage ri = _relayerInfo[_relayer];\n ri.amount = _amount;\n _relayers.add(_relayer);\n }"
+            }
+        ],
+        "Unregister": [
+            {
+                "unregister": "function unregister() external override onlyRelayer {\n function _removeRelayer(...) {...}\nuint256 amount = _removeRelayer(msg.sender);\n refund[msg.sender] = amount;\n emit Unregister(msg.sender, amount);\n }"
+            },
+            {
+                "_removeRelayer": "function _removeRelayer(address _relayer)\n internal\n returns (uint256 amount)\n {\n RelayerInfo storage ri = _relayerInfo[_relayer];\n amount = ri.amount;\n \n for (uint256 i = 0; i < ri.chainIdList.length; i++) {\n uint256 chainId = ri.chainIdList[i];\n delete bindRelayer[ri.worker[chainId]][chainId];\n }\n delete _relayerInfo[_relayer];\n _relayers.remove(_relayer);\n }"
+            }
+        ],
+        "Withdraw": [
+            {
+                "withdraw": "function withdraw() external override {\n require(refund[msg.sender] > 0, \"Relayer: zero refund\");\n \n uint256 amount = refund[msg.sender];\n refund[msg.sender] = 0;\n Address.sendValue(payable(msg.sender), amount);\n emit Withdraw(msg.sender, amount);\n }"
+            }
+        ],
+        "WorkerSet": [
+            {
+                "bindingWorker": "function bindingWorker(uint256 _chainId, bytes32 _worker)\n external\n override\n onlyRelayer\n {\n require(\n bindRelayer[_worker][_chainId] == address(0),\n \"Relayer: worker already binded\"\n );\n _setBindAddress(msg.sender, _worker, _chainId);\n emit WorkerSet(msg.sender, _chainId, _worker);\n }"
+            },
+            {
+                "_setBindAddress": "function _setBindAddress(\n address _relayer,\n bytes32 _worker,\n uint256 _chainId\n ) internal {\n RelayerInfo storage ri = _relayerInfo[_relayer];\n if (ri.worker[_chainId] == bytes32(0)) {\n \n ri.chainIdList.push(_chainId);\n }\n ri.worker[_chainId] = _worker;\n bindRelayer[_worker][_chainId] = _relayer;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "mapTransferIn1": [
+            {
+                "transferInNative": "function transferInNative(address payable to, uint amount) external{\n IWToken(0xf70949Bc9B52DEFfCda63B0D15608d601e3a7C49).withdraw(amount);\n function safeTransferETH(...) {...}\nTransferHelper.safeTransferETH(to,amount);\n }"
+            },
+            {
+                "safeTransferETH": "function safeTransferETH(address to, uint value) internal {\n (bool success,) = to.call{value : value}(new bytes(0));\n require(success, 'TransferHelper: ETH_TRANSFER_FAILED');\n }"
+            }
+        ],
+        "mapTransferIn2": [
+            {
+                "transferInToken": "function transferInToken(address token, address from, address payable to, uint amount, bytes32 orderId, uint fromChain, uint toChain)\n external checkOrder(orderId) nonReentrant onlyManager{\n uint outAmount = getAmountWithdraw(amount);\n if (toChain == selfChainId) {\n require(IERC20(token).balanceOf(address(this)) >= amount,\"balance too low\");\n function safeTransfer(...) {...}\nTransferHelper.safeTransfer(token,to,amount);\n emit mapTransferIn(token, from, to, orderId, outAmount, fromChain, toChain);\n }else{\n emit mapTransferOut(token, from, to, orderId, outAmount, fromChain, toChain);\n }\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FAILED');\n }"
+            }
+        ],
+        "mapTransferIn3": [
+            {
+                "transferInTokenMint": "function transferInTokenMint(address token, address from, address payable to, uint amount, bytes32 orderId, uint fromChain, uint toChain)\n external checkOrder(orderId) nonReentrant onlyManager{\n IMAPToken(token).mint(address(this), amount);\n uint outAmount = getAmountWithdraw(amount);\n if (toChain == selfChainId){\n function safeTransfer(...) {...}\nTransferHelper.safeTransfer(token,to,amount);\n emit mapTransferIn(token, from, to, orderId, outAmount, fromChain, toChain);\n }else{\n IMAPToken(token).burn(outAmount);\n emit mapTransferOut(token, from, to, orderId, outAmount, fromChain, toChain);\n }\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint value) internal {\n \n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FAILED');\n }"
+            }
+        ]
+    }
+}

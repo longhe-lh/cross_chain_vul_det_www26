@@ -1,0 +1,27 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "transfer": "function transfer(address _to, uint256 _value) public returns (bool) {\n require(_to != address(0));\n\n require(_value <= balances[msg.sender]);\n\n balances[msg.sender] = sub(balances[msg.sender], _value);\n\n balances[_to] = add(balances[_to], _value);\n\n emit Transfer(msg.sender, _to, _value);\n\n return true;\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "transferFrom": "function transferFrom(\n address _from,\n address _to,\n uint256 _value\n ) public returns (bool) {\n require(_to != address(0));\n\n require(_value <= balances[_from]);\n\n require(_value <= allowed[_from][msg.sender]);\n\n function sub(...) {...}\nfunction add(...) {...}\nbalances[_from] = sub(balances[_from], _value);\n\n balances[_to] = add(balances[_to], _value);\n\n allowed[_from][msg.sender] = sub(allowed[_from][msg.sender], _value);\n\n emit Transfer(_from, _to, _value);\n\n return true;\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "transfer": "function transfer(address recipient, uint256 amount) public returns (bool) {\n _transfer(msg.sender, recipient, amount);\n\n return true;\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: mint to the zero address\");\n\n function add(...) {...}\n_totalSupply = _totalSupply.add(amount);\n\n _balances[account] = _balances[account].add(amount);\n\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,221 @@
+{
+  "contract": "Sream Gold Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Sream Gold Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenMappedERC201",
+          "FxWithdrawERC202",
+          "FxDepositERC203"
+        ],
+        "rel_chain": [
+          "NewFxMessage"
+        ],
+        "det_chain": [
+          "TokenMapped1",
+          "FxWithdraw2",
+          "FxDeposit3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "FxERC20RootTunnel",
+        "events": {
+          "TokenMappedERC201": {
+            "0": {
+              "func_name": "mapToken",
+              "file_name": "FxERC20RootTunnel.sol",
+              "key_ops": [
+                "require(rootToBridgeTokens[rootToken] == address(0x0), \"FxERC20RootTunnel: ALREADY_MAPPED\")",
+                "bytes memory message = abi.encode(MAP_TOKEN, abi.encode(rootToken, _bridgeToken))",
+                "_sendMessageToBridge(message)",
+                "rootToBridgeTokens[rootToken] = _bridgeToken",
+                "emit TokenMappedERC20(rootToken, _bridgeToken)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendMessageToBridge",
+                  "file_name": "FxRoot.sol",
+                  "key_ops": [
+                    "bytes memory data = abi.encode(msg.sender, _receiver, _data)",
+                    "stateSender.syncState(fxBridge, data)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "FxWithdrawERC202": {
+            "0": {
+              "func_name": "_processMessageFromBridge",
+              "file_name": "FxERC20RootTunnel.sol",
+              "key_ops": [
+                "(address rootToken, address bridgeToken, address to, uint256 amount) = abi.decode(data, (address, address, address, uint256))",
+                "require(rootToBridgeTokens[rootToken] == bridgeToken, \"FxERC20RootTunnel: INVALID_MAPPING_ON_EXIT\")",
+                "IERC20(rootToken).safeTransfer(to, amount)",
+                "emit FxWithdrawERC20(rootToken, bridgeToken, to, amount)"
+              ],
+              "child": {}
+            }
+          },
+          "FxDepositERC203": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "FxERC20RootTunnel.sol",
+              "key_ops": [
+                "IERC20(rootToken).safeTransferFrom(msg.sender, address(this), amount)",
+                "bytes memory message = abi.encode(DEPOSIT, abi.encode(rootToken, msg.sender, user, amount, data))",
+                "_sendMessageToBridge(message)",
+                "emit FxDepositERC20(rootToken, msg.sender, user, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendMessageToBridge",
+                  "file_name": "FxRoot.sol",
+                  "key_ops": [
+                    "bytes memory data = abi.encode(msg.sender, _receiver, _data)",
+                    "stateSender.syncState(fxBridge, data)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "FxBridge",
+        "events": {
+          "NewFxMessage": {
+            "0": {
+              "func_name": "onStateReceive",
+              "file_name": "FxBridge.sol",
+              "key_ops": [
+                "require(msg.sender == address(0x0000000000000000000000000000000000001001), \"Invalid sender\"",
+                "emit NewFxMessage(rootMessageSender, receiver, data)",
+                "IFxMessageProcessor(receiver).processMessageFromRoot(stateId, rootMessageSender, data)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "processMessageFromRoot",
+                  "file_name": "FxBaseBridgeTunnel.sol",
+                  "key_ops": [
+                    "equire(msg.sender == fxBridge, \"FxBaseBridgeTunnel: INVALID_SENDER\");"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_processMessageFromRoot",
+                      "file_name": "FxERC20BridgeTunnel.sol",
+                      "key_ops": [
+                        "(bytes32 syncType, bytes memory syncData) = abi.decode(data, (bytes32, bytes))",
+                        "_syncDeposit(syncData)"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_syncDeposit",
+                          "file_name": "FxERC20BridgeTunnel.sol",
+                          "key_ops": [
+                            "address bridgeToken = rootToBridgeToken[rootToken]",
+                            "require(bridgeToken != address(0), \"Bridge Token cannot be zero address\")",
+                            "IFxERC20 bridgeTokenContract = IFxERC20(bridgeToken)",
+                            "bridgeTokenContract.mint(to, amount)"
+                          ],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "FxERC20BridgeTunnel",
+        "events": {
+          "TokenMapped1": {
+            "0": {
+              "func_name": "_processMessageFromRoot",
+              "file_name": "FxERC20BridgeTunnel.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_mapToken",
+                  "file_name": "FxERC20BridgeTunnel.sol",
+                  "key_ops": [
+                    "require(_bridgeToken != address(0x0), \"Not the zeroth address\")",
+                    "require(bridgeToken == address(0x0), \"FxERC20BridgeTunnel: ALREADY_MAPPED\")",
+                    "rootToBridgeToken[rootToken] = _bridgeToken",
+                    "emit TokenMapped(rootToken, _bridgeToken)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "FxWithdraw2": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "FxERC20BridgeTunnel.sol",
+              "key_ops": [
+                "_withdraw(bridgeToken, msg.sender, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_withdraw",
+                  "file_name": "FxERC20BridgeTunnel.sol",
+                  "key_ops": [
+                    "IFxERC20 bridgeTokenContract = IFxERC20(bridgeToken)",
+                    "bridgeTokenContract.burn(msg.sender, amount)",
+                    "_sendMessageToRoot(abi.encode(rootToken, bridgeToken, receiver, amount))",
+                    "require(bridgeToken != address(0x0) && rootToken != address(0x0) && bridgeToken == rootToBridgeToken[rootToken],\"FxERC20BridgeTunnel: NO_MAPPED_TOKEN\");"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_sendMessageToRoot",
+                      "file_name": "FxBaseBridgeTunnel.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "event": "MessageSent",
+                          "key_ops": []
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "FxDeposit3": {
+            "0": {
+              "func_name": "_syncDeposit",
+              "file_name": "FxERC20BridgeTunnel.sol",
+              "key_ops": [
+                "address bridgeToken = rootToBridgeToken[rootToken]",
+                "require(bridgeToken != address(0), \"Bridge Token cannot be zero address\")",
+                "IFxERC20 bridgeTokenContract = IFxERC20(bridgeToken)",
+                "bridgeTokenContract.mint(to, amount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,6 @@
+Evaluation Results:
+Accuracy : 90.00% (432/480)
+Precision: 92.55%
+Recall   : 83.65%
+F1-score : 87.88%
+TP: 174, FP: 14, TN: 258, FN: 34

@@ -1,0 +1,47 @@
+{
+    "src_chain": {
+        "TransferToNearInitiated1": [
+            {
+                "transferToNear": "function transferToNear(uint256 _amount, string memory _nearReceiverAccountId)\n external pausable (PAUSE_TRANSFER_TO_NEAR) {\n _burn(msg.sender, _amount);\n emit TransferToNearInitiated(msg.sender, _amount, _nearReceiverAccountId);\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: burn from the zero address\");\n _beforeTokenTransfer(account, address(0), amount);\n _balances[account] = _balances[account].sub(amount, \"ERC20: burn amount exceeds balance\");\n _totalSupply = _totalSupply.sub(amount);\n emit Transfer(account, address(0), amount);\n }"
+            }
+        ],
+        "Deposited2": [
+            {
+                "depositToEVM": "function depositToEVM(\n string memory ethRecipientOnNear, \n uint256 fee\n )\n external\n payable\n pausable(PAUSED_DEPOSIT_TO_EVM)\n {\n require(\n fee < msg.value,\n 'The fee cannot be bigger than the transferred amount.'\n );\n string memory separator = ':';\n string memory protocolMessage = string(\n abi.encodePacked(\n string(nearProofProducerAccount_),\n separator, ethRecipientOnNear\n )\n );\n emit Deposited(\n msg.sender, \n protocolMessage, \n msg.value, \n fee\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ConsumedProof": [
+            {
+                "_parseAndConsumeProof": "function _parseAndConsumeProof(bytes memory proofData, uint64 proofBlockHeight)\n internal\n returns (ProofDecoder.ExecutionStatus memory result)\n {\n require(prover.proveOutcome(proofData, proofBlockHeight), \"Proof should be valid\");\n \n Borsh.Data memory borshData = Borsh.from(proofData);\n ProofDecoder.FullOutcomeProof memory fullOutcomeProof = borshData.decodeFullOutcomeProof();\n require(\n fullOutcomeProof.block_header_lite.inner_lite.height >= minBlockAcceptanceHeight,\n \"Proof is from the ancient block\"\n );\n require(borshData.finished(), \"Argument should be exact borsh serialization\");\n bytes32 receiptId = fullOutcomeProof.outcome_proof.outcome_with_id.outcome.receipt_ids[0];\n require(!usedProofs[receiptId], \"The burn event proof cannot be reused\");\n usedProofs[receiptId] = true;\n require(keccak256(fullOutcomeProof.outcome_proof.outcome_with_id.outcome.executor_id)\n == keccak256(nearConnector),\n \"Can only unlock tokens from the linked proof producer on Near blockchain\");\n result = fullOutcomeProof.outcome_proof.outcome_with_id.outcome.status;\n require(!result.failed, \"Cannot use failed execution outcome for unlocking the tokens\");\n require(!result.unknown, \"Cannot use unknown execution outcome for unlocking the tokens\");\n emit ConsumedProof(receiptId);\n }"
+            }
+        ],
+        "BlockHashAdded": [
+            {
+                "addLightClientBlock": "function addLightClientBlock(bytes memory data) public override pausable(PAUSED_ADD_BLOCK) {\n require(initialized, \"Contract is not initialized\");\n require(balanceOf[msg.sender] >= lockEthAmount, \"Balance is not enough\");\n Borsh.Data memory borsh = Borsh.from(data);\n NearDecoder.LightClientBlock memory nearBlock = borsh.decodeLightClientBlock();\n borsh.done();\n \n if (block.timestamp < lastValidAt) {\n require(\n nearBlock.inner_lite.timestamp >= untrustedTimestamp.add(replaceDuration),\n \"Can only replace with a sufficiently newer block\"\n );\n } else if (lastValidAt != 0) {\n curHeight = untrustedHeight;\n if (untrustedNextEpoch) {\n curEpoch = (curEpoch + 1) % 3;\n }\n lastValidAt = 0;\n blockHashes_[curHeight] = untrustedHash;\n blockMerkleRoots_[curHeight] = untrustedMerkleRoot;\n }\n \n require(nearBlock.inner_lite.height > curHeight, \"New block must have higher height\");\n \n bool fromNextEpoch;\n if (nearBlock.inner_lite.epoch_id == epochs[curEpoch].epochId) {\n fromNextEpoch = false;\n } else if (nearBlock.inner_lite.epoch_id == epochs[(curEpoch + 1) % 3].epochId) {\n fromNextEpoch = true;\n } else {\n revert(\"Epoch id of the block is not valid\");\n }\n \n Epoch storage thisEpoch = epochs[fromNextEpoch ? (curEpoch + 1) % 3 : curEpoch];\n \n require(nearBlock.approvals_after_next.length >= thisEpoch.numBPs, \"Approval list is too short\");\n \n uint256 votedFor = 0;\n for ((uint i, uint cnt) = (0, thisEpoch.numBPs); i != cnt; ++i) {\n bytes32 stakes = thisEpoch.packedStakes[i >> 1];\n if (nearBlock.approvals_after_next[i].some) {\n votedFor += uint128(bytes16(stakes));\n }\n if (++i == cnt) {\n break;\n }\n if (nearBlock.approvals_after_next[i].some) {\n votedFor += uint128(uint256(stakes));\n }\n }\n require(votedFor > thisEpoch.stakeThreshold, \"Too few approvals\");\n \n if (fromNextEpoch) {\n require(nearBlock.next_bps.some, \"Next next_bps should not be None\");\n require(\n nearBlock.next_bps.hash == nearBlock.inner_lite.next_bp_hash,\n \"Hash of block producers does not match\"\n );\n }\n untrustedHeight = nearBlock.inner_lite.height;\n untrustedTimestamp = nearBlock.inner_lite.timestamp;\n untrustedHash = nearBlock.hash;\n untrustedMerkleRoot = nearBlock.inner_lite.block_merkle_root;\n untrustedNextHash = nearBlock.next_hash;\n uint256 signatureSet = 0;\n for ((uint i, uint cnt) = (0, thisEpoch.numBPs); i < cnt; i++) {\n NearDecoder.OptionalSignature memory approval = nearBlock.approvals_after_next[i];\n if (approval.some) {\n signatureSet |= 1 << i;\n untrustedSignatures[i] = approval.signature;\n }\n }\n untrustedSignatureSet = signatureSet;\n untrustedNextEpoch = fromNextEpoch;\n if (fromNextEpoch) {\n Epoch storage nextEpoch = epochs[(curEpoch + 2) % 3];\n nextEpoch.epochId = nearBlock.inner_lite.next_epoch_id;\n setBlockProducers(nearBlock.next_bps.blockProducers, nextEpoch);\n }\n lastSubmitter = msg.sender;\n lastValidAt = block.timestamp.add(lockDuration);\n }"
+            },
+            {
+                "setBlockProducers": "function setBlockProducers(NearDecoder.BlockProducer[] memory src, Epoch storage epoch) internal {\n uint cnt = src.length;\n require(cnt <= MAX_BLOCK_PRODUCERS);\n epoch.numBPs = cnt;\n for (uint i = 0; i < cnt; i++) {\n epoch.keys[i] = src[i].publicKey.k;\n }\n uint256 totalStake = 0; \n for (uint i = 0; i != cnt; ++i) {\n uint128 stake1 = src[i].stake;\n totalStake += stake1;\n if (++i == cnt) {\n epoch.packedStakes[i >> 1] = bytes32(bytes16(stake1));\n break;\n }\n uint128 stake2 = src[i].stake;\n totalStake += stake2;\n epoch.packedStakes[i >> 1] = bytes32(uint256(bytes32(bytes16(stake1))) + stake2);\n }\n epoch.stakeThreshold = (totalStake * 2) / 3;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "NearToEthTransferFinalised1": [
+            {
+                "finaliseNearToEthTransfer": "function finaliseNearToEthTransfer(bytes memory proofData, uint64 proofBlockHeight)\n external pausable (PAUSE_FINALISE_FROM_NEAR) {\n ProofDecoder.ExecutionStatus memory status = _parseAndConsumeProof(proofData, proofBlockHeight);\n BridgeResult memory result = _decodeBridgeResult(status.successValue);\n _mint(result.recipient, result.amount);\n emit NearToEthTransferFinalised(result.amount, result.recipient);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _beforeTokenTransfer(address(0), account, amount);\n _totalSupply = _totalSupply.add(amount);\n _balances[account] = _balances[account].add(amount);\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "Withdrawn2": [
+            {
+                "withdraw": "function withdraw(\n bytes calldata proofData, \n uint64 proofBlockHeight\n )\n external\n pausable(PAUSED_WITHDRAW)\n {\n ProofDecoder.ExecutionStatus memory status = _parseAndConsumeProof(proofData, proofBlockHeight);\n BurnResult memory result = _decodeBurnResult(status.successValue);\n require(\n result.ethCustodian == address(this),\n 'Can only withdraw coins that were expected for the current contract'\n );\n payable(result.recipient).transfer(result.amount);\n emit Withdrawn(\n result.recipient,\n result.amount\n );\n }"
+            }
+        ]
+    }
+}

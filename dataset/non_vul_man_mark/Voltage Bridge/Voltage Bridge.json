@@ -1,0 +1,141 @@
+{
+  "contract": "Voltage Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Voltage Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "UserRequestForAffirmation1",
+          "FailedMessageFixed2"
+        ],
+        "rel_chain": [
+          "RelayedMessage"
+        ],
+        "det_chain": [
+          "TokensBridged1",
+          "FailedMessageFixed2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "HomeChain",
+        "events": {
+          "UserRequestForAffirmation1": {
+            "0": {
+              "func_name": "requireToPassMessage",
+              "file_name": "ForeignAMB.sol",
+              "key_ops": [
+                "require(messageId() == bytes32(0))",
+                "require(_gas >= getMinimumGasUsage(_data) && _gas <= maxGasPerTx())"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_packHeader",
+                  "file_name": "ForeignAMB.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "FailedMessageFixed2": {
+            "0": {
+              "func_name": "fixFailedMessage",
+              "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+              "key_ops": [
+                "require(!messageFixed(_messageId))"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeActionOnFixedTokens",
+                  "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "RelayedMessage": {
+            "0": {
+              "func_name": "executeSignatures",
+              "file_name": "ForeignAMB.sol",
+              "key_ops": [
+                "Message.hasEnoughValidSignatures(_data, _signatures, validatorContract(), true)",
+                "require(_isMessageVersionValid(messageId))",
+                "require(_isDestinationChainIdValid(chainIds[1]))",
+                "require(!relayedMessages(messageId))"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "ForeignChain",
+        "events": {
+          "TokensBridged1": {
+            "0": {
+              "func_name": "handleBridgedTokens",
+              "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+              "key_ops": [
+                "require(isTokenRegistered(_token))",
+                "_handleBridgedTokens(_token, _recipient, _value)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_handleBridgedTokens",
+                  "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+                  "key_ops": [
+                    "if (withinExecutionLimit(_token, _value)) { addTotalExecutedPerDay(_token, getCurrentDay(), _value); executeActionOnBridgedTokens(_token, _recipient, _value); } else { executeActionOnBridgedTokensOutOfLimit(_token, _recipient, _value); }"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "executeActionOnBridgedTokens",
+                      "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "FailedMessageFixed2": {
+            "0": {
+              "func_name": "fixFailedMessage",
+              "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+              "key_ops": [
+                "require(!messageFixed(_messageId))"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeActionOnFixedTokens",
+                  "file_name": "ForeignMultiAMBErc20ToErc677.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

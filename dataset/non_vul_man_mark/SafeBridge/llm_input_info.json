@@ -1,0 +1,20 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address to, uint256 amount) public onlyOwner {\n function _mint(...) {...}\n_mint(to, amount);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n\n function _beforeTokenTransfer(...) {...}\nfunction _afterTokenTransfer(...) {...}\n_beforeTokenTransfer(address(0), account, amount);\n\n _totalSupply += amount;\n\n _balances[account] += amount;\n\n emit Transfer(address(0), account, amount);\n\n _afterTokenTransfer(address(0), account, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "burn": "function burn(uint256 amount) public virtual {\n _burn(_msgSender(), amount);\n }"
+            }
+        ]
+    }
+}

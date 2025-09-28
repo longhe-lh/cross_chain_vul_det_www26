@@ -1,0 +1,17 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "transfer": "function transfer(address _to, uint256 _value) public returns (bool) {\n require(_to != address(0));\n\n require(_to != contractAddress);\n\n require(_value <= balances[msg.sender]);\n\n \n\n balances[msg.sender] = balances[msg.sender].sub(_value);\n\n balances[_to] = balances[_to].add(_value);\n\n Transfer(msg.sender, _to, _value);\n\n return true;\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "transfer": "function transfer(address _to, uint256 _value) public returns (bool) {\n require(_to != address(0));\n\n require(_to != contractAddress);\n\n require(_value <= balances[msg.sender]);\n\n \n\n balances[msg.sender] = balances[msg.sender].sub(_value);\n\n balances[_to] = balances[_to].add(_value);\n\n Transfer(msg.sender, _to, _value);\n\n return true;\n }"
+            }
+        ]
+    }
+}

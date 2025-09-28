@@ -1,0 +1,255 @@
+{
+  "contract": "MapProtocol",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "MapProtocol": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "mapTransferOut1",
+          "mapTransferOut2",
+          "mapTransferOut3"
+        ],
+        "rel_chain": [
+          "Register",
+          "Unregister",
+          "Withdraw",
+          "WorkerSet"
+        ],
+        "det_chain": [
+          "mapTransferIn1",
+          "mapTransferIn2",
+          "mapTransferIn3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "BscTest",
+        "events": {
+          "mapTransferOut1": {
+            "0": {
+              "func_name": "transferOutNative",
+              "file_name": "BscTest.sol",
+              "key_ops": [
+                "IWToken(0xf984Ad9299B0102426a646aF72e2052a3A7eD0E2).deposit{value : amount}();"
+              ],
+              "child": {}
+            }
+          },
+          "mapTransferOut2": {
+            "0": {
+              "func_name": "transferOutTokenBurn",
+              "file_name": "MAPBridgeRelayV1Only.sol",
+              "key_ops": [
+                "TransferHelper.safeTransferFrom(token,msg.sender,address(this),amount);",
+                "IMAPToken(token).burn(outAmount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "burn",
+                  "file_name": "IMAPToken.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "mapTransferOut3": {
+            "0": {
+              "func_name": "transferOutToken",
+              "file_name": "MAPBridgeRelayV1Only.sol",
+              "key_ops": [
+                "TransferHelper.safeTransferFrom(token,msg.sender,address(this),amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Relayer",
+        "events": {
+          "Register": {
+            "0": {
+              "func_name": "register",
+              "file_name": "Relayer.sol",
+              "key_ops": [
+                "require(msg.value >= minStakeAmount, \"Relayer: insufficient stake amount\");",
+                "require(!_relayers.contains(msg.sender),\"Relayer: already registered\");",
+                "_addRelayer(msg.sender, msg.value);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_addRelayer",
+                  "file_name": "Relayer.sol",
+                  "key_ops": [
+                    "RelayerInfo storage ri = _relayerInfo[_relayer];",
+                    "_relayers.add(_relayer);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Unregister": {
+            "0": {
+              "func_name": "unregister",
+              "file_name": "Relayer.sol",
+              "key_ops": [
+                "uint256 amount = _removeRelayer(msg.sender);",
+                "refund[msg.sender] = amount;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_removeRelayer",
+                  "file_name": "Relayer.sol",
+                  "key_ops": [
+                    "RelayerInfo storage ri = _relayerInfo[_relayer];",
+                    "delete _relayerInfo[_relayer];",
+                    "_relayers.remove(_relayer);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Withdraw": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "Relayer.sol",
+              "key_ops": [
+                "require(refund[msg.sender] > 0, \"Relayer: zero refund\");",
+                "Address.sendValue(payable(msg.sender), amount);"
+              ],
+              "child": {}
+            }
+          },
+          "WorkerSet": {
+            "0": {
+              "func_name": "bindingWorker",
+              "file_name": "Relayer.sol",
+              "key_ops": [
+                "require(bindRelayer[_worker][_chainId] == address(0), \"Relayer: worker already binded\");",
+                "_setBindAddress(msg.sender, _worker, chainId);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_setBindAddress",
+                  "file_name": "Relayer.sol",
+                  "key_ops": [
+                    "bindRelayer[_worker][_chainId] = _relayer;",
+                    "ri.worker[_chainId] = _worker;"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "EthTest",
+        "events": {
+          "mapTransferIn1": {
+            "0": {
+              "func_name": "transferInNative",
+              "file_name": "EthTest.sol",
+              "key_ops": [
+                "IWToken(0xf70949Bc9B52DEFfCda63B0D15608d601e3a7C49).withdraw(amount);",
+                "TransferHelper.safeTransferETH(to,amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferETH",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success,) = to.call{value:value}(new bytes(0));",
+                    "require(success, 'TransferHelper: ETH_TRANSFER_FAILED');"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "mapTransferIn2": {
+            "0": {
+              "func_name": "transferInToken",
+              "file_name": "MAPBridgeRelayV1Only.sol",
+              "key_ops": [
+                "TransferHelper.safeTransfer(token,to,amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FAILED');"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "mapTransferIn3": {
+            "0": {
+              "func_name": "transferInTokenMint",
+              "file_name": "MAPBridgeRelayV1Only.sol",
+              "key_ops": [
+                "IMAPToken(token).mint(address(this), amount);",
+                "TransferHelper.safeTransfer(token,to,amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "mint",
+                  "file_name": "IMAPToken.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FAILED');"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

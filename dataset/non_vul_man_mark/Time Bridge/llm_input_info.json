@@ -1,0 +1,26 @@
+{
+    "src_chain": {
+        "Locked1": [
+            {
+                "lock": "function lock(uint256 _toChainId, uint256 _amount) external {\n require(_amount > 0, \"The amount of the lock must not be zero\");\n\n (bool found, ) = indexOfChainId(_toChainId);\n\n require(found, \"ChainId not allowed\");\n\n require(\n erc20Time.allowance(_msgSender(), address(this)) >= _amount,\n \"Not enough allowance\"\n );\n\n erc20Time.safeTransferFrom(_msgSender(), address(this), _amount);\n\n lastLockId++;\n\n emit Locked(_msgSender(), _toChainId, lastLockId, _amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "unlock": [
+            {
+                "unlock": "function unlock(\n uint256 _fromChainId,\n uint256 _burnId,\n uint256 _amount,\n bytes[] memory _signatures\n ) external {\n require(!burnIdsUsed[_fromChainId][_burnId], \"Burn id already used\");\n\n bytes32 messageHash = keccak256(\n abi.encodePacked(\n _msgSender(),\n _fromChainId,\n block.chainid,\n _burnId,\n _amount\n )\n );\n\n require(\n checkSignatures(messageHash, _signatures),\n \"Incorrect signature(s)\"\n );\n\n burnIdsUsed[_fromChainId][_burnId] = true;\n\n erc20Time.safeTransfer(_msgSender(), _amount);\n\n emit Unlocked(_msgSender(), _fromChainId, _burnId, _amount);\n }"
+            },
+            {
+                "checkSignatures": "function checkSignatures(bytes32 _messageHash, bytes[] memory _signatures) public view returns (bool) {\n\n require(bridgeValidators.length > 0, 'Validators not added');\n\n require(_signatures.length == bridgeValidators.length, 'The number of signatures does not match the number of validators');\n\n bool[] memory markedValidators = new bool[](bridgeValidators.length);\n\n for (uint i = 0; i < _signatures.length; i++) {\n\n address extractedAddress = _messageHash.toEthSignedMessageHash().recover(_signatures[i]);\n\n (bool found, uint index) = indexOfBridgeValidator(extractedAddress);\n\n if (found && !markedValidators[index]) {\n\n markedValidators[index] = true;\n\n } else {\n\n return false;\n\n }\n\n }\n\n return true;\n\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Unlocked1": [
+            {
+                "unlock": "function unlock(\n uint256 _fromChainId,\n uint256 _burnId,\n uint256 _amount,\n bytes[] memory _signatures\n ) external {\n require(!burnIdsUsed[_fromChainId][_burnId], \"Burn id already used\");\n\n bytes32 messageHash = keccak256(\n abi.encodePacked(\n _msgSender(),\n _fromChainId,\n block.chainid,\n _burnId,\n _amount\n )\n );\n\n require(\n checkSignatures(messageHash, _signatures),\n \"Incorrect signature(s)\"\n );\n\n burnIdsUsed[_fromChainId][_burnId] = true;\n\n erc20Time.safeTransfer(_msgSender(), _amount);\n\n emit Unlocked(_msgSender(), _fromChainId, _burnId, _amount);\n }"
+            }
+        ]
+    }
+}

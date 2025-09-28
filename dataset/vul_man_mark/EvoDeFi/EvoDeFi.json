@@ -1,0 +1,179 @@
+{
+    "contract": "MasterChef",
+    "source_code_path": "../vul_src_code/EvoDeFi",
+    "type": "Business logic vulnerability",
+    "vulnerable_entry_function": {
+        "file": "MasterChef.sol",
+        "name": "updatePower",
+        "signature": "function updatePower(uint256 _pid)",
+        "lines": "245-260",
+        "attack_type": "State inconsistency exploitation",
+        "vul_reason": "The updatePower function changes user 'power' and pool 'totalPower' without synchronously updating 'rewardDebt', allowing attackers to exploit the operation sequence and receive excessive rewards.",
+        "code_snippet": "powerBonus += proxy.getNFTPowerBonus();"
+    },
+    "detail": "The incident occurred because updatePower did not update rewardDebt after changing power, permitting attackers to repeatedly claim rewards by manipulating the calling sequence. This flaw led to reward inflation and economic loss.",
+    "blg": {
+        "EvoDeFi": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "Deposit0",
+                    "Withdraw0",
+                    "Deposited1"
+                ],
+                "rel_chain": [],
+                "det_chain": [
+                    "Withdrawn1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "Deposit0": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "MasterChef.sol",
+                            "key_ops": [
+                                "updatePool(_pid);",
+                                "pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);",
+                                "pool.lpToken.safeTransfer(feeAddress, depositFee);",
+                                "updatePower(_pid);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "updatePool",
+                                    "file_name": "MasterChef.sol",
+                                    "key_ops": [
+                                        "gen.mint(devaddr, genReward.div(10));",
+                                        "gen.mint(address(this), genReward);"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "func_name": "updatePower",
+                                    "file_name": "MasterChef.sol",
+                                    "key_ops": [
+                                        "powerBonus += proxy.getNFTPowerBonus();"
+                                    ],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "Deposit",
+                                    "file_name": "MasterChef.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "Withdraw0": {
+                        "0": {
+                            "func_name": "withdraw",
+                            "file_name": "MasterChef.sol",
+                            "key_ops": [
+                                "require(user.amount >= _amount, \"withdraw: not good\");",
+                                "updatePool(_pid);",
+                                "claim(_pid);",
+                                "pool.lpToken.safeTransfer(address(msg.sender), _amount);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "updatePool",
+                                    "file_name": "MasterChef.sol",
+                                    "key_ops": [
+                                        "gen.mint(devaddr, genReward.div(10));",
+                                        "gen.mint(address(this), genReward);"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "func_name": "updatePower",
+                                    "file_name": "MasterChef.sol",
+                                    "key_ops": [
+                                        "powerBonus += proxy.getNFTPowerBonus();"
+                                    ],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "Withdraw",
+                                    "file_name": "MasterChef.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    },
+                    "Deposited1": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "BridgePool.sol",
+                            "key_ops": [
+                                "require(tx.origin == msg.sender || (operator[msg.sender] & (1 | 2) > 0), 'call from unauthorized contract');",
+                                "require(address(token) != address(0) && amount > 0 && recipient.length > 0, 'invalid input');",
+                                "require(amount == msg.value, 'value must equal amount');",
+                                "safeTransferFrom(token, msg.sender, address(this), amount);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "safeTransferFrom",
+                                    "file_name": "BridgePool.sol",
+                                    "key_ops": [
+                                        "require(success && (data.length == 0 || abi.decode(data, (bool))), 'transfer failed');"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "event_name": "Deposit",
+                                    "file_name": "BridgePool.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "EvoDeFi",
+                "events": {}
+            },
+            "det_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "Withdrawn1": {
+                        "0": {
+                            "func_name": "withdraw",
+                            "file_name": "BridgePool.sol",
+                            "key_ops": [
+                                "require(operator[msg.sender] == 4 || (operator[tx.origin] == 4 && operator[msg.sender] == 2), 'forbidden');",
+                                "require(!withdrawn[w.id], 'already withdrawn');",
+                                "require(address(this).balance >= w.amount + w.bonus, 'too low token balance');",
+                                "require(success, 'native transfer error');",
+                                "require(w.token.balanceOf(address(this)) >= w.amount && address(this).balance >= w.bonus,'too low token balance');",
+                                "safeTransfer(w.token, w.recipient, w.amount);",
+                                "require(w.token.balanceOf(address(this)) >= w.feeAmounts[j], 'too low token balance');"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "safeTransfer",
+                                    "file_name": "BridgePool.sol",
+                                    "key_ops": [
+                                        "require(success && (data.length == 0 || abi.decode(data, (bool))), 'transfer failed');"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "event_name": "Withdrawn",
+                                    "file_name": "BridgePool.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

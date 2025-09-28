@@ -1,0 +1,252 @@
+{
+  "contract": "Hashbon Rocket Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Hashbon Rocket Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "OfferAdd1",
+          "OfferUpdate2",
+          "OrderAdd3",
+          "OrderPay4"
+        ],
+        "rel_chain": [
+          "OrderComplete"
+        ],
+        "det_chain": [
+          "OfferAdd1",
+          "OfferUpdate2",
+          "OrderAdd3",
+          "OrderPay4"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "OfferAdd1": {
+            "0": {
+              "func_name": "addOffer",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "require(_amount > 0, \"Amount must be greater than 0\");",
+                "require(_amount >= _minPurchase,\"Amount must not be less than the minimum purchase\");",
+                "require(_rate > 0, \"Rate must be greater than 0\");",
+                "TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool)))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "OfferUpdate2": {
+            "0": {
+              "func_name": "updateOffer",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "require(_rate > 0, \"Rate must be greater than 0\");",
+                "TransferHelper.safeTransferFrom(offers[_offerId].token, msg.sender, address(this), _amount - offers[_offerId].amount)",
+                "TransferHelper.safeTransfer(offers[_offerId].token, msg.sender, offers[_offerId].amount - _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool)))"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))),\"TransferHelper::safeTransfer: transfer failed\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "OrderAdd3": {
+            "0": {
+              "func_name": "addOrder",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "require(_offerId < offers.length, \"Incorrect offerId\");",
+                "require(offers[_offerId].active == true, \"Offer is inactive\");",
+                "require(_amount > 0 || _payAmount > 0, \"Amount must be greater than 0\");"
+              ],
+              "child": {}
+            }
+          },
+          "OrderPay4": {
+            "0": {
+              "func_name": "payOrder",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "require(_payAmount > 0, \"Amount must be greater than 0\");",
+                "TransferHelper.safeTransferFrom(_payToken, msg.sender, _payAddress, _payAmount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool)))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "OrderComplete": {
+            "0": {
+              "func_name": "_verifySign",
+              "file_name": "HashBridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_recoverAddresses",
+                  "file_name": "HashBridge.sol",
+                  "key_ops": [
+                    "ecrecover(_hash, v, r, s)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_parseSignature",
+                      "file_name": "HashBridge.sol",
+                      "key_ops": [
+                        "r := mload(add(_signatures, add(32, offset)))",
+                        "s := mload(add(_signatures, add(64, offset)))",
+                        "v := and(mload(add(_signatures, add(65, offset))), 0xff)",
+                        "require(v == 27 || v == 28)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "OfferAdd1": {
+            "0": {
+              "func_name": "withdrawTokens",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "require(_orderId < orders.length, \"Incorrect orderId\");",
+                " require(orders[_orderId].complete == false, \"Tokens already withdrawn\");",
+                "TransferHelper.safeTransfer(offers[offerId].token, orders[_orderId].withdrawAddress, amount)",
+                "offers[offerId].amount -= amount"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "OfferUpdate2": {
+            "0": {
+              "func_name": "withdrawTokens",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "TransferHelper.safeTransfer(offers[offerId].token, orders[_orderId].withdrawAddress, amount)",
+                "offers[offerId].amount -= amount"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "OrderAdd3": {
+            "0": {
+              "func_name": "withdrawTokens",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "TransferHelper.safeTransfer(offers[offerId].token, orders[_orderId].withdrawAddress, amount)",
+                "offers[offerId].amount -= amount"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "OrderPay4": {
+            "0": {
+              "func_name": "withdrawTokens",
+              "file_name": "HashBridge.sol",
+              "key_ops": [
+                "TransferHelper.safeTransfer(offers[offerId].token, orders[_orderId].withdrawAddress, amount)",
+                "offers[offerId].amount -= amount"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "TransferHelper.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))),\"TransferHelper::safeTransfer: transfer failed\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

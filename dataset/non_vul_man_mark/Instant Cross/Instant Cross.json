@@ -1,0 +1,224 @@
+{
+  "contract": "Instant Cross",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Instant Cross": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "ExchangeBuy1",
+          "ExchangePay2"
+        ],
+        "rel_chain": [
+          "ProofEvent"
+        ],
+        "det_chain": [
+          "Commit1",
+          "Commit2",
+          "Revoke3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "ExchangeBuy1": {
+            "0": {
+              "func_name": "exchangeBuy",
+              "file_name": "AggregationWan.sol",
+              "key_ops": [
+                "require((proofRecord.cctTxHash == 0x0),\"proofRecord is exists\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "exchangBuyLockHandle",
+                  "file_name": "AggregationWan.sol",
+                  "key_ops": [
+                    "(goodsOwner,receiptToken,amount) = GoodsProxy(subSrvGoods).buyLock(cctTxHash,xHash, goodsInfo, goodsReceiptor)",
+                    "setSubSrvStatus(cctTxHash,SRVID_GOODS,ProofStatus.LOCK)",
+                    "(exchangeReceiptor,amount) = ExchangeProxy(subSrvExchange).exchangeLock(cctTxHash,xHash, payToken, receiptToken,amount,goodsOwner)",
+                    "setSubSrvStatus(cctTxHash,SRVID_EXCHANGE,ProofStatus.LOCK)",
+                    "wrch_.lock(cctTxHash,xHash, payToken, amount, msg.sender,exchangeReceiptor)",
+                    "setSubSrvStatus(cctTxHash,SRVID_WRCH,ProofStatus.CONFIRM)",
+                    "require(contractExists(subSrvGoods),\"GoodsProxy not exists\");",
+                    "require(contractExists(subSrvExchange),\"ExchangeProxy not exists\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ExchangePay2": {
+            "0": {
+              "func_name": "exchangePay",
+              "file_name": "AggregationWan.sol",
+              "key_ops": [
+                "require((proofRecord.cctTxHash == 0x0),\"proofRecord is exists\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "exchangePayHandle",
+                  "file_name": "AggregationWan.sol",
+                  "key_ops": [
+                    "(exchangeReceiptor,payAmount) = ExchangeProxy(subSrvExchange).exchangeLock(cctTxHash,xHash, payToken, receiptToken,receiptAmount,receiptAddress)",
+                    "setSubSrvStatus(cctTxHash,SRVID_EXCHANGE,ProofStatus.LOCK)",
+                    "wrch_.lock(cctTxHash,xHash, payToken, payAmount, payAddress,exchangeReceiptor)",
+                    "setSubSrvStatus(cctTxHash,SRVID_WRCH,ProofStatus.CONFIRM)",
+                    "require(contractExists(subSrvExchange),\"ExchangeProxy not exists\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "ProofEvent": {
+            "0": {
+              "func_name": "addCrossData",
+              "file_name": "CCTDispatcher.sol",
+              "key_ops": [
+                "require(fromChain != toChain,\"fromChain is the same as the toChain\")",
+                "require(cctRoot.getChainId() == toChain, \"bad chainId\")",
+                "require(cctRoot.verify(pmId,proofData,crossData),\"no authorized pmId\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "handleProof",
+                  "file_name": "AggregationBase.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "process",
+                      "file_name": "Aggregation.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "func_name": "exchangeBuyLock",
+                          "file_name": "Aggregation.sol",
+                          "key_ops": [
+                            "proofRecord.status = ProofStatus.LOCK"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "exchangBuyLockHandle",
+                              "file_name": "Aggregation.sol",
+                              "key_ops": [
+                                "(goodsOwner,receiptToken,amount) = Goods(subSrvGoods).buyLock(cctTxHash,xHash, goodsInfo, goodsReceiptor)",
+                                "setSubSrvStatus(cctTxHash,SRVID_GOODS,ProofStatus.LOCK)"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Commit1": {
+            "0": {
+              "func_name": "commit",
+              "file_name": "Aggregation.sol",
+              "key_ops": [
+                "require(proofRecord.cctTxHash != 0x0, \"proofRecord not exists\")",
+                "require(proofRecord.status == ProofStatus.CONFIRM,\"proofRecord valid\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "exchangeCommit",
+                  "file_name": "ExchangeProxy.sol",
+                  "key_ops": [
+                    "htlc.status = HTLCStatus.COMMIT"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "buyCommit",
+                  "file_name": "GoodsProxy.sol",
+                  "key_ops": [
+                    "htlc.status = HTLCStatus.COMMIT"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Commit2": {
+            "0": {
+              "func_name": "commit",
+              "file_name": "AggregationWan.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "exchangeCommit",
+                  "file_name": "ExchangeProxy.sol",
+                  "key_ops": [
+                    "htlc.status = HTLCStatus.COMMIT"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "buyCommit",
+                  "file_name": "GoodsProxy.sol",
+                  "key_ops": [
+                    "htlc.status = HTLCStatus.COMMIT"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Revoke3": {
+            "0": {
+              "func_name": "revoke",
+              "file_name": "Aggregation.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "exchangeRevoke",
+                  "file_name": "Exchange.sol",
+                  "key_ops": [
+                    "reserveFund[htlc.targetToken] = SafeMath.add(reserveFund[htlc.targetToken],htlc.targetAmount)",
+                    "htlc.status = HTLCStatus.REVOKE"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "buyRevoke",
+                  "file_name": "Goods.sol",
+                  "key_ops": [
+                    "goodsMap[htlc.goodsId] = SafeMath.add(goodsMap[htlc.goodsId], htlc.goodsAmount)",
+                    "htlc.status = HTLCStatus.REVOKE"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,258 @@
+{
+  "contract": "Hermez bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Hermez bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "L1UserTxEvent1",
+          "WithdrawEvent2"
+        ],
+        "rel_chain": [
+          "ForgeBatch"
+        ],
+        "det_chain": [
+          "WithdrawEvent1",
+          "L1UserTxEvent2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Layer1",
+        "events": {
+          "L1UserTxEvent1": {
+            "0": {
+              "func_name": "addL1Transaction",
+              "file_name": "Hermez.sol",
+              "key_ops": [
+                "require(tokenID < tokenList.length, \"Hermez::addL1Transaction: TOKEN_NOT_REGISTERED\")",
+                "uint256 loadAmount = _float2Fix(loadAmountF)",
+                "require(loadAmount < _LIMIT_LOAD_AMOUNT, \"Hermez::addL1Transaction: LOADAMOUNT_EXCEED_LIMIT\")",
+                "require(loadAmount == msg.value, \"Hermez::addL1Transaction: LOADAMOUNT_ETH_DOES_NOT_MATCH\")",
+                "require(msg.value == 0, \"Hermez::addL1Transaction: MSG_VALUE_NOT_EQUAL_0\")",
+                "_safeTransferFrom(tokenList[tokenID], msg.sender, address(this), loadAmount)",
+                "uint256 postBalance = IERC20(tokenList[tokenID]).balanceOf(address(this))",
+                "require(postBalance - prevBalance == loadAmount, \"Hermez::addL1Transaction: LOADAMOUNT_ERC20_DOES_NOT_MATCH\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_addL1Transaction",
+                  "file_name": "Hermez.sol",
+                  "key_ops": [
+                    "uint256 amount = _float2Fix(amountF)",
+                    "require(amount < _LIMIT_L2TRANSFER_AMOUNT, \"Hermez::_addL1Transaction: AMOUNT_EXCEED_LIMIT\")",
+                    "require((amount == 0), \"Hermez::_addL1Transaction: AMOUNT_MUST_BE_0_IF_NOT_TRANSFER\")",
+                    "require((loadAmountF == 0), \"Hermez::_addL1Transaction: LOADAMOUNT_MUST_BE_0_IF_EXIT\")",
+                    "require(((toIdx > _RESERVED_IDX) && (toIdx <= lastIdx)), \"Hermez::_addL1Transaction: INVALID_TOIDX\")",
+                    "require(babyPubKey != 0, \"Hermez::_addL1Transaction: INVALID_CREATE_ACCOUNT_WITH_NO_BABYJUB\")",
+                    "require((fromIdx > _RESERVED_IDX) && (fromIdx <= lastIdx), \"Hermez::_addL1Transaction: INVALID_FROMIDX\")",
+                    "require(babyPubKey == 0, \"Hermez::_addL1Transaction: BABYJUB_MUST_BE_0_IF_NOT_CREATE_ACCOUNT\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_l1QueueAddTx",
+                      "file_name": "Hermez.sol",
+                      "key_ops": [
+                        "bytes memory l1Tx = abi.encodePacked(ethAddress, babyPubKey, fromIdx, loadAmountF, amountF, tokenID, toIdx)",
+                        "_concatStorage(mapL1TxQueue[nextL1FillingQueue], l1Tx)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "WithdrawEvent2": {
+            "0": {
+              "func_name": "withdrawMerkleProof",
+              "file_name": "Hermez.sol",
+              "key_ops": [
+                "require(exitNullifierMap[numExitRoot][idx] == false, \"Hermez::withdrawMerkleProof: WITHDRAW_ALREADY_DONE\")",
+                "require(_smtVerifier(exitRoot, siblings, idx, stateHash) == true, \"Hermez::withdrawMerkleProof: SMT_PROOF_INVALID\")",
+                "exitNullifierMap[numExitRoot][idx] = true",
+                "_withdrawFunds(amount, tokenID, instantWithdraw)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_smtVerifier",
+                  "file_name": "HermezHelpers.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_withdrawFunds",
+                  "file_name": "Hermez.sol",
+                  "key_ops": [
+                    "_safeTransfer(tokenList[tokenID], msg.sender, amount)",
+                    "withdrawDelayerContract.deposit{value: amount}(msg.sender, address(0), amount)",
+                    "_safeApprove(tokenAddress, address(withdrawDelayerContract), amount)",
+                    "withdrawDelayerContract.deposit(msg.sender, tokenAddress, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_safeTransfer",
+                      "file_name": "Hermez.sol",
+                      "key_ops": [
+                        "(bool success, ) = msg.sender.call{value: value}(new bytes(0))",
+                        "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(_TRANSFER_SIGNATURE, to, value))"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_safeApprove",
+                      "file_name": "Hermez.sol",
+                      "key_ops": [
+                        "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(_APPROVE_SIGNATURE, to, value))"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "ForgeBatch": {
+            "0": {
+              "func_name": "forgeBatch",
+              "file_name": "Hermez.sol",
+              "key_ops": [
+                "require(msg.sender == tx.origin, \"Hermez::forgeBatch: INTENAL_TX_NOT_ALLOWED\")",
+                "require(hermezAuctionContract.canForge(msg.sender, block.number) == true, \"Hermez::forgeBatch: AUCTION_DENIED\")",
+                "require(block.number < (lastL1L2Batch + forgeL1L2BatchTimeout), \"Hermez::forgeBatch: L1L2BATCH_REQUIRED\")",
+                "require(rollupVerifiers[verifierIdx].verifierInterface.verifyProof(proofA, proofB, proofC, [input]), \"Hermez::forgeBatch: INVALID_PROOF\")",
+                "lastForgedBatch++",
+                "stateRootMap[lastForgedBatch] = newStRoot",
+                "exitRootsMap[lastForgedBatch] = newExitRoot",
+                "l1L2TxsDataHashMap[lastForgedBatch] = sha256(l1L2TxsData)",
+                "lastL1L2Batch = uint64(block.number)",
+                "l1UserTxsLen = _clearQueue()",
+                "hermezAuctionContract.forge(msg.sender)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_clearQueue",
+                  "file_name": "Hermez.sol",
+                  "key_ops": [
+                    "delete mapL1TxQueue[nextL1ToForgeQueue]",
+                    "nextL1ToForgeQueue++",
+                    "if (nextL1ToForgeQueue == nextL1FillingQueue) { nextL1FillingQueue++ }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Layer2",
+        "events": {
+          "WithdrawEvent1": {
+            "0": {
+              "func_name": "withdrawCircuit",
+              "file_name": "Hermez.sol",
+              "key_ops": [
+                "require(exitNullifierMap[numExitRoot][idx] == false, \"Hermez::withdrawCircuit: WITHDRAW_ALREADY_DONE\")",
+                "require(withdrawVerifier.verifyProof(proofA, proofB, proofC, [input]) == true, \"Hermez::withdrawCircuit: INVALID_ZK_PROOF\")",
+                "exitNullifierMap[numExitRoot][idx] = true",
+                "_withdrawFunds(amount, tokenID, instantWithdraw)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_withdrawFunds",
+                  "file_name": "Hermez.sol",
+                  "key_ops": [
+                    "_safeTransfer(tokenList[tokenID], msg.sender, amount)",
+                    "withdrawDelayerContract.deposit{value: amount}(msg.sender, address(0), amount)",
+                    "_safeApprove(tokenAddress, address(withdrawDelayerContract), amount)",
+                    "withdrawDelayerContract.deposit(msg.sender, tokenAddress, amount)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_safeTransfer",
+                      "file_name": "Hermez.sol",
+                      "key_ops": [
+                        "(bool success, ) = msg.sender.call{value: value}(new bytes(0))",
+                        "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(_TRANSFER_SIGNATURE, to, value))"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_safeApprove",
+                      "file_name": "Hermez.sol",
+                      "key_ops": [
+                        "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(_APPROVE_SIGNATURE, to, value))"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "L1UserTxEvent2": {
+            "0": {
+              "func_name": "addL1Transaction",
+              "file_name": "Hermez.sol",
+              "key_ops": [
+                "require(tokenID < tokenList.length, \"Hermez::addL1Transaction: TOKEN_NOT_REGISTERED\")",
+                "uint256 loadAmount = _float2Fix(loadAmountF)",
+                "require(loadAmount < _LIMIT_LOAD_AMOUNT, \"Hermez::addL1Transaction: LOADAMOUNT_EXCEED_LIMIT\")",
+                "require(loadAmount == msg.value, \"Hermez::addL1Transaction: LOADAMOUNT_ETH_DOES_NOT_MATCH\")",
+                "require(msg.value == 0, \"Hermez::addL1Transaction: MSG_VALUE_NOT_EQUAL_0\")",
+                "_safeTransferFrom(tokenList[tokenID], msg.sender, address(this), loadAmount)",
+                "uint256 postBalance = IERC20(tokenList[tokenID]).balanceOf(address(this))",
+                "require(postBalance - prevBalance == loadAmount, \"Hermez::addL1Transaction: LOADAMOUNT_ERC20_DOES_NOT_MATCH\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_addL1Transaction",
+                  "file_name": "Hermez.sol",
+                  "key_ops": [
+                    "uint256 amount = _float2Fix(amountF)",
+                    "require(amount < _LIMIT_L2TRANSFER_AMOUNT, \"Hermez::_addL1Transaction: AMOUNT_EXCEED_LIMIT\")",
+                    "require((amount == 0), \"Hermez::_addL1Transaction: AMOUNT_MUST_BE_0_IF_NOT_TRANSFER\")",
+                    "require((loadAmountF == 0), \"Hermez::_addL1Transaction: LOADAMOUNT_MUST_BE_0_IF_EXIT\")",
+                    "require(((toIdx > _RESERVED_IDX) && (toIdx <= lastIdx)), \"Hermez::_addL1Transaction: INVALID_TOIDX\")",
+                    "require(babyPubKey != 0, \"Hermez::_addL1Transaction: INVALID_CREATE_ACCOUNT_WITH_NO_BABYJUB\")",
+                    "require((fromIdx > _RESERVED_IDX) && (fromIdx <= lastIdx), \"Hermez::_addL1Transaction: INVALID_FROMIDX\")",
+                    "require(babyPubKey == 0, \"Hermez::_addL1Transaction: BABYJUB_MUST_BE_0_IF_NOT_CREATE_ACCOUNT\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_l1QueueAddTx",
+                      "file_name": "Hermez.sol",
+                      "key_ops": [
+                        "bytes memory l1Tx = abi.encodePacked(ethAddress, babyPubKey, fromIdx, loadAmountF, amountF, tokenID, toIdx)",
+                        "_concatStorage(mapL1TxQueue[nextL1FillingQueue], l1Tx)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

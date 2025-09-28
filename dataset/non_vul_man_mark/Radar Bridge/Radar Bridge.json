@@ -1,0 +1,108 @@
+{
+  "contract": "Radar Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Radar Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokensBridged1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokensClaimed1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokensBridged1": {
+            "0": {
+              "func_name": "bridgeTokens",
+              "file_name": "RadarBridge.sol",
+              "key_ops": [
+                "require(isSupportedToken[_token], \"Token not supported\")",
+                "require(IERC20(_token).balanceOf(msg.sender) >= _amount, \"Not enough tokens\")",
+                "require(_destChain != CHAIN, \"Cannot send to same chain\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "IBridgedToken.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "mint",
+                  "file_name": "IBridgedToken.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "2": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "SafeERC20.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "3": {
+                  "func_name": "safeTransfer",
+                  "file_name": "SafeERC20.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokensClaimed1": {
+            "0": {
+              "func_name": "claimTokens",
+              "file_name": "RadarBridge.sol",
+              "key_ops": [
+                "require(_token != address(0) && isSupportedToken[_token], \"Token not supported.\")",
+                "require(_destChain == CHAIN, \"Claiming tokens on wrong chain\")",
+                "require(doubleSpendingProtection[message] == false, \"Double Spending\")",
+                "require(nonceDoubleSpendingProtection[_nonce] == false, \"Nonce Double Spending\")",
+                "require(SignatureLibrary.verify(message, _signature, idToRouter[_tokenId]) == true, \"Router Signature Invalid\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "mint",
+                  "file_name": "IBridgedToken.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "safeTransfer",
+                  "file_name": "SafeERC20.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

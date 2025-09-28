@@ -1,0 +1,42 @@
+{
+    "src_chain": {
+        "LogSwapout1": [
+            {
+                "Swapout": "function Swapout(uint256 amount, address bindaddr) public returns (bool) {\n require(bindaddr != address(0), \"bind address is the zero address\");\n function _msgSender(...) {...}\nfunction _burn(...) {...}\n_burn(_msgSender(), amount);\n emit LogSwapout(_msgSender(), bindaddr, amount);\n return true;\n }"
+            }
+        ],
+        "LogAnySwapOut2": [
+            {
+                "_anySwapOut": "function _anySwapOut(address from, address token, address to, uint amount, uint toChainID) internal {\n AnyswapV1ERC20(token).burn(from, amount);\n emit LogAnySwapOut(token, from, to, amount, cID(), toChainID);\n }"
+            },
+            {
+                "burn": "function burn(address from, uint256 amount) external onlyAuth returns (bool) {\n require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");\n function _burn(...) {...}\n_burn(from, amount);\n return true;\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: burn from the zero address\");\n balanceOf[account] -= amount;\n _totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "LogSwapin1": [
+            {
+                "Swapin": "function Swapin(bytes32 txhash, address account, uint256 amount) public onlyOwner returns (bool) {\n function _mint(...) {...}\n_mint(account, amount);\n emit LogSwapin(txhash, account, amount);\n return true;\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _totalSupply += amount;\n balanceOf[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "LogAnySwapIn2": [
+            {
+                "_anySwapIn": "function _anySwapIn(bytes32 txs, address token, address to, uint amount, uint fromChainID) internal {\n AnyswapV1ERC20(token).mint(to, amount);\n emit LogAnySwapIn(txs, token, to, amount, fromChainID, cID());\n }"
+            },
+            {
+                "mint": "function mint(address to, uint256 amount) external onlyAuth returns (bool) {\n function _mint(...) {...}\n_mint(to, amount);\n return true;\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _totalSupply += amount;\n balanceOf[account] += amount;\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ]
+    }
+}

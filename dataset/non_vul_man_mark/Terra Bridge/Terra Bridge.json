@@ -1,0 +1,127 @@
+{
+  "contract": "Terra Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Terra Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1",
+          "Borrow2"
+        ],
+        "rel_chain": [
+          "Mint",
+          "burn"
+        ],
+        "det_chain": [
+          "Withdraw1",
+          "Repay2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "ILendingPool.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "Borrow2": {
+            "0": {
+              "func_name": "borrow",
+              "file_name": "ILendingPool.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "Mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "AToken.sol",
+              "key_ops": [
+                "require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);",
+                "emit Transfer(address(0), user, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "IncentivizedERC20.sol",
+                  "key_ops": [
+                    "require(account != address(0), 'ERC20: mint to the zero address');",
+                    "_totalSupply = oldTotalSupply.add(amount);",
+                    "_balances[account] = oldAccountBalance.add(amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "burn": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "AToken.sol",
+              "key_ops": [
+                "require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);",
+                "_burn(user, amountScaled);",
+                "IERC20(_underlyingAsset).safeTransfer(receiverOfUnderlying, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "IncentivizedERC20.sol",
+                  "key_ops": [
+                    "require(account != address(0), 'ERC20: burn from the zero address');",
+                    "_balances[account] = _balances[account].sub(amount, \"ERC20: burn amount exceeds balance\");",
+                    "_totalSupply = _totalSupply.sub(amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Terra",
+        "events": {
+          "Withdraw1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "ILendingPool.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "Repay2": {
+            "0": {
+              "func_name": "repay",
+              "file_name": "ILendingPool.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

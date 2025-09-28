@@ -1,0 +1,40 @@
+{
+    "src_chain": {
+        "ZapIn1": [
+            {
+                "ZapIn": "function ZapIn(\n address fromToken,\n uint256 amountIn,\n address cToken,\n uint256 minCtokens,\n address swapTarget,\n bytes calldata swapData,\n address affiliate\n ) external payable stopInEmergency returns (uint256 cTokensRec) {\n uint256 toInvest = _pullTokens(fromToken, amountIn, affiliate, true);\n\n address toToken = getUnderlyingToken(cToken);\n\n uint256 tokensBought =\n _fillQuote(fromToken, toToken, toInvest, swapTarget, swapData);\n\n (cTokensRec) = enterCompound(cToken, toToken, tokensBought);\n require(cTokensRec > minCtokens, \"High Slippage\");\n\n IERC20(cToken).safeTransfer(msg.sender, cTokensRec);\n\n emit zapIn(msg.sender, cToken, cTokensRec);\n }"
+            },
+            {
+                "_pullTokens": "function _pullTokens(\n address token,\n uint256 amount,\n bool shouldSellEntireBalance\n ) internal returns (uint256) {\n if (shouldSellEntireBalance) {\n require(\n Address.isContract(msg.sender),\n \"ERR: shouldSellEntireBalance is true for EOA\"\n );\n\n uint256 allowance = IERC20(token).allowance(\n msg.sender,\n address(this)\n );\n\n IERC20(token).safeTransferFrom(\n msg.sender,\n address(this),\n allowance\n );\n\n return allowance;\n } else {\n IERC20(token).safeTransferFrom(msg.sender, address(this), amount);\n\n return amount;\n }\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address from,\n address to,\n uint256 id,\n uint256 amount,\n bytes memory data\n ) public virtual override {\n require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n require(\n from == _msgSender() || isApprovedForAll(from, _msgSender()),\n \"ERC1155: caller is not owner nor approved\"\n );\n\n address operator = _msgSender();\n\n _beforeTokenTransfer(\n operator,\n from,\n to,\n _asSingletonArray(id),\n _asSingletonArray(amount),\n data\n );\n\n uint256 fromBalance = _balances[id][from];\n\n require(\n fromBalance >= amount,\n \"ERC1155: insufficient balance for transfer\"\n );\n\n _balances[id][from] = fromBalance - amount;\n\n _balances[id][to] += amount;\n\n emit TransferSingle(operator, from, to, id, amount);\n\n _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "_fillQuote": [
+            {
+                "_fillQuote": "function _fillQuote(\n address fromToken,\n address toToken,\n uint256 _amount,\n address swapTarget,\n bytes memory swapData\n ) internal returns (uint256 amountBought) {\n if (fromToken == toToken) {\n return _amount;\n }\n\n if (fromToken == address(0) && toToken == wethTokenAddress) {\n IWETH(wethTokenAddress).deposit{ value: _amount }();\n return _amount;\n }\n\n if (fromToken == wethTokenAddress && toToken == address(0)) {\n IWETH(wethTokenAddress).withdraw(_amount);\n return _amount;\n }\n\n uint256 valueToSend;\n if (fromToken == address(0)) {\n valueToSend = _amount;\n } else {\n _approveToken(fromToken, swapTarget);\n }\n\n uint256 initialBalance = _getBalance(toToken);\n\n require(approvedTargets[swapTarget], \"Target not Authorized\");\n (bool success, ) = swapTarget.call{ value: valueToSend }(swapData);\n require(success, \"Error Swapping Tokens\");\n\n amountBought = _getBalance(toToken) - initialBalance;\n\n require(amountBought > 0, \"Swapped To Invalid Intermediate\");\n }"
+            }
+        ],
+        "_subtractGoodwill": [
+            {
+                "_subtractGoodwill": "function _subtractGoodwill(\n address token,\n uint256 amount,\n address affiliate,\n bool enableGoodwill\n ) internal returns (uint256 totalGoodwillPortion) {\n bool whitelisted = feeWhitelist[msg.sender];\n\n if (enableGoodwill && !whitelisted && goodwill > 0) {\n totalGoodwillPortion = (amount * goodwill) / 10000;\n\n if (affiliates[affiliate]) {\n if (token == address(0)) {\n token = ETHAddress;\n }\n\n uint256 affiliatePortion = (totalGoodwillPortion *\n affiliateSplit) / 100;\n\n affiliateBalance[affiliate][token] += affiliatePortion;\n\n totalAffiliateBalance[token] += affiliatePortion;\n }\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "ZapOut1": [
+            {
+                "ZapOut": "function ZapOut(\n address fromToken,\n uint256 amountIn,\n address toToken,\n uint256 minToTokens,\n address swapTarget,\n bytes calldata swapData,\n address affiliate\n ) public stopInEmergency returns (uint256 tokensRec) {\n amountIn = _pullTokens(fromToken, amountIn);\n\n address underlyingToken = getUnderlyingToken(fromToken);\n\n uint256 underlyingRec =\n exitCompound(fromToken, amountIn, underlyingToken);\n\n tokensRec = _fillQuote(\n underlyingToken,\n toToken,\n underlyingRec,\n swapTarget,\n swapData\n );\n\n require(tokensRec >= minToTokens, \"High Slippage\");\n\n uint256 totalGoodwillPortion;\n\n if (toToken == address(0)) {\n totalGoodwillPortion = _subtractGoodwill(\n ETHAddress,\n tokensRec,\n affiliate,\n true\n );\n\n payable(msg.sender).transfer(tokensRec - totalGoodwillPortion);\n } else {\n totalGoodwillPortion = _subtractGoodwill(\n toToken,\n tokensRec,\n affiliate,\n true\n );\n\n IERC20(toToken).safeTransfer(\n msg.sender,\n tokensRec - totalGoodwillPortion\n );\n }\n\n tokensRec = tokensRec - totalGoodwillPortion;\n\n emit zapOut(msg.sender, toToken, tokensRec);\n }"
+            },
+            {
+                "_pullTokens": "function _pullTokens(\n address token,\n uint256 amount,\n bool shouldSellEntireBalance\n ) internal returns (uint256) {\n if (shouldSellEntireBalance) {\n require(\n Address.isContract(msg.sender),\n \"ERR: shouldSellEntireBalance is true for EOA\"\n );\n\n uint256 allowance = IERC20(token).allowance(\n msg.sender,\n address(this)\n );\n\n IERC20(token).safeTransferFrom(\n msg.sender,\n address(this),\n allowance\n );\n\n return allowance;\n } else {\n IERC20(token).safeTransferFrom(msg.sender, address(this), amount);\n\n return amount;\n }\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address from,\n address to,\n uint256 id,\n uint256 amount,\n bytes memory data\n ) public virtual override {\n require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n require(\n from == _msgSender() || isApprovedForAll(from, _msgSender()),\n \"ERC1155: caller is not owner nor approved\"\n );\n\n address operator = _msgSender();\n\n _beforeTokenTransfer(\n operator,\n from,\n to,\n _asSingletonArray(id),\n _asSingletonArray(amount),\n data\n );\n\n uint256 fromBalance = _balances[id][from];\n\n require(\n fromBalance >= amount,\n \"ERC1155: insufficient balance for transfer\"\n );\n\n _balances[id][from] = fromBalance - amount;\n\n _balances[id][to] += amount;\n\n emit TransferSingle(operator, from, to, id, amount);\n\n _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n }"
+            }
+        ]
+    }
+}

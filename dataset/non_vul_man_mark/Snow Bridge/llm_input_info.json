@@ -1,0 +1,38 @@
+{
+    "src_chain": {
+        "MessageDispatched1": [
+            {
+                "submit": "function submit(Message calldata message, bytes32[] calldata leafProof, bytes calldata headerProof) external {\n bytes32 leafHash = keccak256(abi.encode(message));\n bytes32 commitment = MerkleProof.processProof(leafProof, leafHash);\n if (!parachainClient.verifyCommitment(commitment, headerProof)) {\n revert InvalidProof();\n }\n if (message.nonce != nonce[message.origin] + 1) {\n revert InvalidNonce();\n }\n \n \n \n \n \n \n \n nonce[message.origin]++;\n \n \n \n vault.withdraw(message.origin, payable(msg.sender), reward);\n \n \n \n \n if (gasleft() < gasToForward + GAS_BUFFER) {\n revert NotEnoughGas();\n }\n address recipient = resolve(message.recipient);\n DispatchResult result = DispatchResult.Success;\n try IRecipient(recipient).handle{gas: gasToForward}(message.origin, message.payload) {}\n catch {\n result = DispatchResult.Failure;\n }\n emit MessageDispatched(message.origin, message.nonce, result);\n }"
+            },
+            {
+                "handle": "function handle(ParaID origin, bytes calldata message) external override onlyRole(SENDER_ROLE) {\n ensureOrigin(origin, assetHubParaID);\n Message memory decoded = abi.decode(message, (Message));\n if (decoded.action == Action.Unlock) {\n UnlockPayload memory payload = abi.decode(decoded.payload, (UnlockPayload));\n vault.withdraw(payload.recipient, payload.token, payload.amount);\n emit Unlocked(payload.recipient, payload.token, payload.amount);\n }\n }"
+            }
+        ],
+        "NewMMRRoot2": [
+            {
+                "submitFinal": "function submitFinal(Commitment calldata commitment, uint256[] calldata bitfield, ValidatorProof[] calldata proofs)\n public\n {\n (bytes32 commitmentHash, bytes32 ticketID) = validate(commitment, bitfield);\n Ticket storage ticket = tickets[ticketID];\n if (commitment.validatorSetID != currentValidatorSet.id) {\n revert InvalidCommitment();\n }\n verifyCommitment(commitmentHash, bitfield, currentValidatorSet, ticket, proofs);\n bytes32 newMMRRoot = getFirstMMRRoot(commitment);\n latestMMRRoot = newMMRRoot;\n latestBeefyBlock = commitment.blockNumber;\n emit NewMMRRoot(newMMRRoot, commitment.blockNumber);\n delete tickets[ticketID];\n }"
+            },
+            {
+                "verifyCommitment": "function verifyCommitment(\n bytes32 commitmentHash,\n uint256[] calldata bitfield,\n ValidatorSet memory vset,\n Ticket storage ticket,\n ValidatorProof[] calldata proofs\n ) internal view {\n \n uint256 signatureCount = minimumSignatureThreshold(vset.length);\n if (proofs.length != signatureCount) {\n revert InvalidValidatorProof();\n }\n \n uint256[] memory finalbitfield = Bitfield.subsample(ticket.prevRandao, bitfield, signatureCount, vset.length);\n for (uint256 i = 0; i < proofs.length;) {\n ValidatorProof calldata proof = proofs[i];\n \n if (!Bitfield.isSet(finalbitfield, proof.index)) {\n revert InvalidValidatorProof();\n }\n \n if (!isValidatorInSet(vset, proof.account, proof.index, proof.proof)) {\n revert InvalidValidatorProof();\n }\n \n if (ECDSA.recover(commitmentHash, proof.v, proof.r, proof.s) != proof.account) {\n revert InvalidSignature();\n }\n \n Bitfield.unset(finalbitfield, proof.index);\n unchecked {\n i++;\n }\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Message": [
+            {
+                "submit": "function submit(ParaID dest, bytes calldata payload) external payable onlyRole(SUBMIT_ROLE) {\n if (msg.value < fee) {\n revert FeePaymentToLow();\n }\n nonce[dest] = nonce[dest] + 1;\n vault.deposit{value: msg.value}(dest);\n emit Message(dest, nonce[dest], payload);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Locked1": [
+            {
+                "lock": "function lock(address token, ParaID dest, bytes calldata recipient, uint128 amount) external payable {\n if (amount == 0) {\n revert InvalidAmount();\n }\n vault.deposit(msg.sender, token, amount);\n bytes memory payload = NativeTokensTypes.Mint(address(registry), token, dest, recipient, amount);\n outboundQueue().submit{value: msg.value}(assetHubParaID, payload);\n emit Locked(recipient, token, amount);\n }"
+            },
+            {
+                "deposit": "function deposit(address sender, address token, uint128 amount) external onlyRole(DEPOSIT_ROLE) {\n balance[token] += amount;\n IERC20(token).safeTransferFrom(sender, address(this), amount);\n emit Deposit(sender, token, amount);\n }"
+            }
+        ],
+        "Created2": []
+    }
+}

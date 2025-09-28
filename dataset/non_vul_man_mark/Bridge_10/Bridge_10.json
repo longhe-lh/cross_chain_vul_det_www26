@@ -1,0 +1,126 @@
+{
+  "contract": "Bridge_10",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_10": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "SwapInitialized1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "RedeemInitialized1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "SwapInitialized1": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "ChainBridge.sol",
+              "key_ops": [
+                "IExampleToken(erc20from).burn(msg.sender, amount)",
+                "nonce += 1"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "balances[account] -= amount",
+                    "totalSupply -= amount"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "isBridgeValid",
+                  "file_name": "ChainBridge.sol",
+                  "key_ops": [
+                    "require(isERC20valid[getChainID()][erc20from], \"ERC20 address from is not valid\")",
+                    "require(isERC20valid[chainIdto][erc20to], \"Chain id or ERC20 address to is not valid\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "getChainID",
+                      "file_name": "ChainBridge.sol",
+                      "key_ops": [
+                        "id := chainid()"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "RedeemInitialized1": {
+            "0": {
+              "func_name": "redeem",
+              "file_name": "ChainBridge.sol",
+              "key_ops": [
+                "require(isERC20valid[chainIdfrom][erc20from], \"Chain id or ERC20 address from is not valid\")",
+                "require(isERC20valid[getChainID()][erc20to], \"ERC20 on this chain is not valid\")",
+                "require(checkSign(recepient, amount, chainIdfrom, erc20from, nonce, v, r, s), \"Input is not valid\")",
+                "redeemStatus[redeemHash] = Status.Undone",
+                "require(redeemStatus[redeemHash] == Status.Undone, \"Hash is not valid\")",
+                "redeemStatus[redeemHash] = Status.Done",
+                "IExampleToken(erc20to).mint(recepient, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "checkSign",
+                  "file_name": "ChainBridge.sol",
+                  "key_ops": [
+                    "addr = ecrecover(hashMessage(message), v, r, s)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "hashMessage",
+                      "file_name": "ChainBridge.sol",
+                      "key_ops": [
+                        "return keccak256(abi.encodePacked(prefix, message))"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "mint",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "balances[account] += amount",
+                    "totalSupply += amount"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

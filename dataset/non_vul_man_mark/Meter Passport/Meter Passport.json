@@ -1,0 +1,457 @@
+{
+  "contract": "Meter Passport",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Meter Passport": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1",
+          "ProposalVote2",
+          "ProposalEvent3"
+        ],
+        "rel_chain": [
+          "RoleGranted",
+          "RoleRevoked",
+          "ProposalVote",
+          "ProposalEvent"
+        ],
+        "det_chain": [
+          "Deposit1",
+          "ProposalEvent2",
+          "ProposalVote3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(msg.value == _fee, \"Incorrect fee supplied\")",
+                "require(handler != address(0), \"resourceID not mapped to handler\");",
+                "uint64 depositNonce = ++_depositCounts[destinationChainID];"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "deposit",
+                  "file_name": "ERC20Handler.sol",
+                  "key_ops": [
+                    "require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\")",
+                    "if (_burnList[tokenAddress]) { burnERC20(tokenAddress, depositer, amount); } else { lockERC20(tokenAddress, depositer, address(this), amount); }"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "burnERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "erc20.burnFrom(owner, amount);"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "lockERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "_safeTransferFrom(erc20, owner, recipient, amount);"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_safeTransferFrom",
+                          "file_name": "ERC20Handler.sol",
+                          "key_ops": [
+                            "_safeCall(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_safeCall",
+                              "file_name": "ERC20Handler.sol",
+                              "key_ops": [
+                                "require(success, \"ERC20: call failed\")",
+                                "require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ProposalVote2": {
+            "0": {
+              "func_name": "voteProposal",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(!_hasVotedOnProposal[nonceAndID][dataHash][msg.sender], \"relayer already voted\")",
+                "proposal._yesVotes.push(msg.sender);",
+                "require(_resourceIDToHandlerAddress[resourceID] != address(0), \"no handler for resourceID\");",
+                "require(uint(proposal._status) <= 1, \"proposal already passed/executed/cancelled\");"
+              ],
+              "child": {}
+            }
+          },
+          "ProposalEvent3": {
+            "0": {
+              "func_name": "executeProposal",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(proposal._status == ProposalStatus.Passed, \"proposal already transferred\")",
+                "require(proposal._status != ProposalStatus.Inactive, \"proposal is not active\");",
+                "require(dataHash == proposal._dataHash, \"data doesn't match datahash\");",
+                "depositHandler.executeProposal(proposal._resourceID, data);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeProposal",
+                  "file_name": "ERC20Handler.sol",
+                  "key_ops": [
+                    "if (_burnList[tokenAddress]) { mintERC20(tokenAddress, address(recipientAddress), amount); } else { releaseERC20(tokenAddress, address(recipientAddress), amount); }"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "mintERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "erc20.mint(recipient, amount);"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "releaseERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "_safeTransfer(erc20, recipient, amount);"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_safeTransfer",
+                          "file_name": "ERC20Handler.sol",
+                          "key_ops": [
+                            "_safeCall(token, abi.encodeWithSelector(token.transfer.selector, to, value));"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_safeCall",
+                              "file_name": "ERC20Handler.sol",
+                              "key_ops": [
+                                "require(success, \"ERC20: call failed\")",
+                                "require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "RoleGranted": {
+            "0": {
+              "func_name": "grantRole",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(hasRole(_roles[role].adminRole, _msgSender()), \"AccessControl: sender must be an admin to grant\")"
+              ],
+              "child": {}
+            }
+          },
+          "RoleRevoked": {
+            "0": {
+              "func_name": "revokeRole",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(hasRole(_roles[role].adminRole, _msgSender()), \"AccessControl: sender must be an admin to revoke\")"
+              ],
+              "child": {}
+            }
+          },
+          "ProposalVote": {
+            "0": {
+              "func_name": "voteProposal",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "require(uint256(proposal._status) <= 1, \"proposal already executed/cancelled\")",
+                "require(_resourceIDToHandlerAddress[resourceID] != address(0),\"no handler for resourceID\");",
+                "require(!_hasVoted(proposal, sender), \"relayer already voted\");",
+                "proposal._yesVotes = (proposal._yesVotes | _relayerBit(sender)).toUint200();"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_relayerBit",
+                  "file_name": "BridgeUpgradeable.sol",
+                  "key_ops": [
+                    "return uint256(1) << sub(AccessControlUpgradeable.getRoleMemberIndex(RELAYER_ROLE, relayer), 1);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "getRoleMemberIndex",
+                      "file_name": "BridgeUpgradeable.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                },
+                "1": {
+                  "func_name": "_hasVoted",
+                  "file_name": "BridgeUpgradeable.sol",
+                  "key_ops": [
+                    "return (_relayerBit(relayer) & uint256(proposal._yesVotes)) > 0;"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_relayerBit",
+                      "file_name": "BridgeUpgradeable.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ProposalEvent": {
+            "0": {
+              "func_name": "executeProposal",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(proposal._status == ProposalStatus.Passed, \"Proposal must have Passed status\")",
+                "depositHandler.executeProposal(resourceID, data);",
+                "require(proposal._status != ProposalStatus.Inactive, \"proposal is not active\");",
+                "require(dataHash == proposal._dataHash, \"data doesn't match datahash\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeProposal",
+                  "file_name": "ERC20HandlerUpgradeable.sol",
+                  "key_ops": [
+                    "if (_burnList[tokenAddress]) { mintERC20(tokenAddress, address(recipientAddress), amount); } else if (isNative[tokenAddress]) { withdrawETH(address(recipientAddress), amount); } else { releaseERC20(tokenAddress, address(recipientAddress), amount); }"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "mintERC20",
+                      "file_name": "ERC20HandlerUpgradeable.sol",
+                      "key_ops": [
+                        "erc20.mint(recipient, amount);"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "releaseERC20",
+                      "file_name": "ERC20HandlerUpgradeable.sol",
+                      "key_ops": [
+                        "_safeTransfer(erc20, recipient, amount);"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_safeTransfer",
+                          "file_name": "ERC20HandlerUpgradeable.sol",
+                          "key_ops": [
+                            "_safeCall(token, abi.encodeWithSelector(token.transfer.selector, to, value));"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_safeCall",
+                              "file_name": "ERC20Handler.sol",
+                              "key_ops": [
+                                "require(success, \"ERC20: call failed\")",
+                                "require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");",
+                                "require(tokenSize > 0, \"ERC20: not a contract\");"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "2": {
+                      "func_name": "withdrawETH",
+                      "file_name": "ERC20HandlerUpgradeable.sol",
+                      "key_ops": [
+                        "_safeTransferETH(recipient, amount);"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_safeTransferETH",
+                          "file_name": "ERC20HandlerUpgradeable.sol",
+                          "key_ops": [
+                            "(bool success, ) = to.call{value: value}(new bytes(0));",
+                            "require(success, \"TransferHelper::safeTransferETH: ETH transfer failed\");"
+                          ],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(msg.value == _fee, \"Incorrect fee supplied\")",
+                "require(handler != address(0), \"resourceID not mapped to handler\");",
+                "uint64 depositNonce = ++_depositCounts[destinationChainID];"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "deposit",
+                  "file_name": "ERC20Handler.sol",
+                  "key_ops": [
+                    "if (_burnList[tokenAddress]) { burnERC20(tokenAddress, depositer, amount); } else { lockERC20(tokenAddress, depositer, address(this), amount); }"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "burnERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "erc20.burnFrom(owner, amount);"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "lockERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "_safeTransferFrom(erc20, owner, recipient, amount);"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_safeTransferFrom",
+                          "file_name": "ERC20Handler.sol",
+                          "key_ops": [
+                            "_safeCall(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_safeCall",
+                              "file_name": "ERC20Handler.sol",
+                              "key_ops": [
+                                "require(success, \"ERC20: call failed\")",
+                                "require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ProposalEvent2": {
+            "0": {
+              "func_name": "executeProposal",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(proposal._status == ProposalStatus.Passed, \"proposal already transferred\")",
+                "require(proposal._status != ProposalStatus.Inactive, \"proposal is not active\");",
+                "require(dataHash == proposal._dataHash, \"data doesn't match datahash\");",
+                "depositHandler.executeProposal(proposal._resourceID, data);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeProposal",
+                  "file_name": "ERC20Handler.sol",
+                  "key_ops": [
+                    "if (_burnList[tokenAddress]) { mintERC20(tokenAddress, address(recipientAddress), amount); } else { releaseERC20(tokenAddress, address(recipientAddress), amount); }"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "mintERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "erc20.mint(recipient, amount);"
+                      ],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "releaseERC20",
+                      "file_name": "ERC20Handler.sol",
+                      "key_ops": [
+                        "_safeTransfer(erc20, recipient, amount);"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_safeTransfer",
+                          "file_name": "ERC20Handler.sol",
+                          "key_ops": [
+                            "_safeCall(token, abi.encodeWithSelector(token.transfer.selector, to, value));"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_safeCall",
+                              "file_name": "ERC20Handler.sol",
+                              "key_ops": [
+                                "require(success, \"ERC20: call failed\")",
+                                "require(abi.decode(returndata, (bool)), \"ERC20: operation did not succeed\");"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ProposalVote3": {
+            "0": {
+              "func_name": "voteProposal",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "require(uint256(proposal._status) <= 1, \"proposal already executed/cancelled\")",
+                "proposal._yesVotes = (proposal._yesVotes | _relayerBit(sender)).toUint200();"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_relayerBit",
+                  "file_name": "BridgeUpgradeable.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

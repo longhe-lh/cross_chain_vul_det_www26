@@ -1,0 +1,53 @@
+{
+    "src_chain": {
+        "Send1": [
+            {
+                "send": "function send(\n address _token,\n uint256 _amount,\n uint32 _destination,\n bytes32 _recipient\n ) external {\n require(_amount > 0, \"!amnt\");\n\n require(_recipient != bytes32(0), \"!recip\");\n\n \n\n bytes32 _remote = _mustHaveRemote(_destination);\n\n \n\n IERC20 _bridgeToken = IERC20(_token);\n\n if (_isLocalOrigin(_bridgeToken)) {\n \n\n \n\n _bridgeToken.safeTransferFrom(msg.sender, address(this), _amount);\n } else {\n \n\n \n\n _downcast(_bridgeToken).burn(msg.sender, _amount);\n }\n\n \n\n bytes29 _action = BridgeMessage.formatTransfer(_recipient, _amount);\n\n \n\n Home(xAppConnectionManager.home()).dispatch(\n _destination,\n _remote,\n BridgeMessage.formatMessage(_formatTokenId(_token), _action)\n );\n\n \n\n emit Send(\n address(_bridgeToken),\n msg.sender,\n _destination,\n _recipient,\n _amount\n );\n }"
+            },
+            {
+                "_mustHaveRemote": "function _mustHaveRemote(uint32 _domain)\n\n internal\n\n view\n\n returns (bytes32 _remote)\n\n {\n\n _remote = remotes[_domain];\n\n require(_remote != bytes32(0), \"!remote\");\n\n }"
+            },
+            {
+                "formatMessage": "function formatMessage(\n bytes29 _tokenId,\n bytes29 _action\n ) internal view typeAssert(_tokenId, Types.TokenId) returns (bytes memory) {\n function isValidAction(...) {...}\nrequire(isValidAction(_action), \"!action\");\n\n bytes29[] memory _views = new bytes29[](2);\n\n _views[0] = _tokenId;\n\n _views[1] = _action;\n\n return TypedMemView.join(_views);\n }"
+            },
+            {
+                "dispatch": "function dispatch(\n uint32 _destinationDomain,\n bytes32 _recipientAddress,\n bytes memory _messageBody\n ) external notFailed {\n require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\");\n\n \n\n uint32 _nonce = nonces[_destinationDomain];\n\n nonces[_destinationDomain] = _nonce + 1;\n\n \n\n bytes memory _message = Message.formatMessage(\n localDomain,\n bytes32(uint256(uint160(msg.sender))),\n _nonce,\n _destinationDomain,\n _recipientAddress,\n _messageBody\n );\n\n \n\n bytes32 _messageHash = keccak256(_message);\n\n tree.insert(_messageHash);\n\n \n\n queue.enqueue(root());\n\n \n\n \n\n emit Dispatch(\n _messageHash,\n count() - 1,\n _destinationAndNonce(_destinationDomain, _nonce),\n committedRoot,\n _message\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Dispatch": [
+            {
+                "dispatch": "function dispatch(\n uint32 _destinationDomain,\n bytes32 _recipientAddress,\n bytes memory _messageBody\n ) external notFailed {\n require(_messageBody.length <= MAX_MESSAGE_BODY_BYTES, \"msg too long\");\n\n \n\n uint32 _nonce = nonces[_destinationDomain];\n\n nonces[_destinationDomain] = _nonce + 1;\n\n \n\n bytes memory _message = Message.formatMessage(\n localDomain,\n bytes32(uint256(uint160(msg.sender))),\n _nonce,\n _destinationDomain,\n _recipientAddress,\n _messageBody\n );\n\n \n\n bytes32 _messageHash = keccak256(_message);\n\n tree.insert(_messageHash);\n\n \n\n queue.enqueue(root());\n\n \n\n \n\n emit Dispatch(\n _messageHash,\n count() - 1,\n _destinationAndNonce(_destinationDomain, _nonce),\n committedRoot,\n _message\n );\n }"
+            }
+        ],
+        "Update": [
+            {
+                "improperUpdate": "function improperUpdate(\n bytes32 _oldRoot,\n bytes32 _newRoot,\n bytes memory _signature\n ) public notFailed returns (bool) {\n require(\n _isUpdaterSignature(_oldRoot, _newRoot, _signature),\n \"!updater sig\"\n );\n\n require(_oldRoot == committedRoot, \"not a current update\");\n\n \n\n \n\n if (!queue.contains(_newRoot)) {\n _fail();\n\n emit ImproperUpdate(_oldRoot, _newRoot, _signature);\n\n return true;\n }\n\n \n\n \n\n return false;\n }"
+            }
+        ],
+        "DoubleUpdate": [
+            {
+                "_fail": "function _fail() internal override {\n \n\n _setFailed();\n\n \n\n updaterManager.slashUpdater(msg.sender);\n\n emit UpdaterSlashed(updater, msg.sender);\n }"
+            }
+        ],
+        "ImproperUpdate": [
+            {
+                "improperUpdate": "function improperUpdate(\n bytes32 _oldRoot,\n bytes32 _newRoot,\n bytes memory _signature\n ) public notFailed returns (bool) {\n require(\n _isUpdaterSignature(_oldRoot, _newRoot, _signature),\n \"!updater sig\"\n );\n\n require(_oldRoot == committedRoot, \"not a current update\");\n\n \n\n \n\n if (!queue.contains(_newRoot)) {\n _fail();\n\n emit ImproperUpdate(_oldRoot, _newRoot, _signature);\n\n return true;\n }\n\n \n\n \n\n return false;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Process1": [
+            {
+                "proveAndProcess": "function proveAndProcess(\n bytes memory _message,\n bytes32[32] calldata _proof,\n uint256 _index\n ) external {\n function prove(...) {...}\nrequire(prove(keccak256(_message), _proof, _index), \"!prove\");\n\n process(_message);\n }"
+            },
+            {
+                "prove": "function prove(\n bytes32 _leaf,\n bytes32[32] calldata _proof,\n uint256 _index\n ) public returns (bool) {\n \n\n require(messages[_leaf] == MessageStatus.None, \"!MessageStatus.None\");\n\n \n\n bytes32 _calculatedRoot = MerkleLib.branchRoot(_leaf, _proof, _index);\n\n \n\n if (acceptableRoot(_calculatedRoot)) {\n messages[_leaf] = MessageStatus.Proven;\n\n return true;\n }\n\n return false;\n }"
+            },
+            {
+                "process": "function process(bytes memory _message) public returns (bool _success) {\n bytes29 _m = _message.ref(0);\n\n \n\n require(_m.destination() == localDomain, \"!destination\");\n\n \n\n bytes32 _messageHash = _m.keccak();\n\n require(messages[_messageHash] == MessageStatus.Proven, \"!proven\");\n\n \n\n require(entered == 1, \"!reentrant\");\n\n entered = 0;\n\n \n\n messages[_messageHash] = MessageStatus.Processed;\n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n require(gasleft() >= PROCESS_GAS + RESERVE_GAS, \"!gas\");\n\n \n\n address _recipient = _m.recipientAddress();\n\n \n\n uint256 _toCopy;\n\n uint256 _maxCopy = 256;\n\n uint256 _gas = PROCESS_GAS;\n\n \n\n bytes memory _returnData = new bytes(_maxCopy);\n\n bytes memory _calldata = abi.encodeWithSignature(\n \"handle(uint32,bytes32,bytes)\",\n _m.origin(),\n _m.sender(),\n _m.body().clone()\n );\n\n \n\n \n\n \n\n \n\n assembly {\n _success := call(\n _gas, \n _recipient, \n 0, \n add(_calldata, 0x20), \n mload(_calldata), \n 0, \n 0 \n )\n\n \n\n _toCopy := returndatasize()\n\n if gt(_toCopy, _maxCopy) {\n _toCopy := _maxCopy\n }\n\n \n\n mstore(_returnData, _toCopy)\n\n \n\n returndatacopy(add(_returnData, 0x20), 0, _toCopy)\n }\n\n \n\n emit Process(_messageHash, _success, _returnData);\n\n \n\n entered = 1;\n }"
+            }
+        ]
+    }
+}

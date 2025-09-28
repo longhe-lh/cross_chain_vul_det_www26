@@ -1,0 +1,29 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "burn": "function burn(\n address _to,\n uint256 _amount,\n uint256 _nonce,\n bytes calldata _signature\n ) external validateProcessedNonce(_nonce) {\n \n configToken.burnToken(msg.sender, _amount);\n emit Transfer(\n msg.sender,\n _to,\n _amount,\n _nonce,\n block.timestamp,\n _signature,\n BridgeSteps.BURN\n );\n }"
+            },
+            {
+                "burnToken": "function burnToken(address _owner, uint256 _amount) external onlyAdmin {\n _burn(_owner, _amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(\n address _from,\n address _to,\n uint256 _amount,\n uint256 _nonce,\n bytes calldata _signature\n ) external {\n \n bytes32 message = prefixed(\n keccak256(abi.encodePacked(_from, _to, _amount, _nonce))\n );\n \n require(recoverSigner(message, _signature) == _from, \"wrong signature\");\n \n require(\n processedTxNonce[_from][_nonce] == false,\n \"transfer has already been processed\"\n );\n processedTxNonce[_from][_nonce] = true;\n configToken.mintToken(_to, _amount);\n emit Transfer(\n _from,\n _to,\n _amount,\n block.timestamp,\n _nonce,\n _signature,\n BridgeSteps.MINT\n );\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 _hash) internal pure returns (bytes32) {\n return\n keccak256(\n abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", _hash)\n );\n }"
+            },
+            {
+                "splitSignature": "function splitSignature(\n bytes memory _signature\n ) internal pure returns (uint8, bytes32, bytes32) {\n \n require(_signature.length == 65, \"invalid signature\");\n uint8 v;\n bytes32 r;\n bytes32 s;\n \n assembly {\n \n r := mload(add(_signature, 32))\n \n s := mload(add(_signature, 64))\n \n v := byte(0, mload(add(_signature, 96)))\n }\n return (v, r, s);\n }"
+            },
+            {
+                "mintToken": "function mintToken(address _to, uint256 _amount) external onlyAdmin {\n _mint(_to, _amount);\n }"
+            }
+        ]
+    }
+}

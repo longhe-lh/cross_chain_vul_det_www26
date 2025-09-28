@@ -1,0 +1,49 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(\n uint8 destinationChainID,\n bytes32 resourceID,\n bytes calldata data,\n uint256[] memory distribution,\n uint256[] memory flags,\n address[] memory path,\n address feeTokenAddress\n ) public virtual nonReentrant whenNotPaused isWhitelisted {\n function _deposit(...) {...}\n_deposit(destinationChainID, resourceID, data, distribution, flags, path, feeTokenAddress);\n }"
+            },
+            {
+                "_deposit": "function _deposit(\n uint8 destinationChainID,\n bytes32 resourceID,\n bytes calldata data,\n uint256[] memory distribution,\n uint256[] memory flags,\n address[] memory path,\n address feeTokenAddress\n ) private {\n IDepositExecute.SwapInfo memory swapDetails = unpackDepositData(data);\n swapDetails.depositer = msg.sender;\n swapDetails.distribution = distribution;\n swapDetails.flags = flags;\n swapDetails.path = path;\n swapDetails.feeTokenAddress = feeTokenAddress;\n swapDetails.handler = _resourceIDToHandlerAddress[resourceID];\n require(swapDetails.handler != address(0), \"resourceID not mapped to handler\");\n swapDetails.depositNonce = ++_depositCounts[destinationChainID];\n IDepositExecute depositHandler = IDepositExecute(swapDetails.handler);\n function deposit(...) {...}\ndepositHandler.deposit(resourceID, destinationChainID, swapDetails.depositNonce, swapDetails);\n emit Deposit(destinationChainID, resourceID, swapDetails.depositNonce);\n }"
+            }
+        ],
+        "Stake2": [
+            {
+                "stake": "function stake(\n address handler,\n address tokenAddress,\n uint256 amount\n ) public virtual whenNotPaused {\n ILiquidityPool depositHandler = ILiquidityPool(handler);\n function stake(...) {...}\ndepositHandler.stake(msg.sender, tokenAddress, amount);\n emit Stake(msg.sender, amount, tokenAddress);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "voteProposal": [
+            {
+                "voteProposal": "function voteProposal(\n uint8 chainID,\n uint64 depositNonce,\n bytes32 resourceID,\n bytes32 dataHash\n ) public virtual isResourceID(resourceID) onlyRole(RELAYER_ROLE) whenNotPaused {\n bytes32 proposalHash = keccak256(abi.encodePacked(chainID, depositNonce, dataHash));\n if (_proposals[proposalHash] == 0) {\n uint256 id = _voter.createProposal(block.number + _expiry, _quorum);\n _proposals[proposalHash] = id;\n _proposalDetails[id] = proposalStruct(chainID, depositNonce, resourceID, dataHash);\n emit ProposalEvent(chainID, depositNonce, IVoterUpgradeable.ProposalStatus.Active, dataHash);\n } else if (_voter.fetchIsExpired(_proposals[proposalHash])) {\n _voter.setStatus(_proposals[proposalHash]);\n emit ProposalEvent(chainID, depositNonce, _voter.getStatus(_proposals[proposalHash]), dataHash);\n return;\n }\n if (_voter.getStatus(_proposals[proposalHash]) != IVoterUpgradeable.ProposalStatus.Cancelled) {\n _voter.vote(_proposals[proposalHash], 1, msg.sender);\n emit ProposalVote(chainID, depositNonce, _voter.getStatus(_proposals[proposalHash]), dataHash);\n if (_voter.getStatus(_proposals[proposalHash]) == IVoterUpgradeable.ProposalStatus.Passed) {\n emit ProposalEvent(chainID, depositNonce, _voter.getStatus(_proposals[proposalHash]), dataHash);\n }\n }\n }"
+            },
+            {
+                "vote": "function vote(\n uint256 issueId,\n uint8 option,\n address relayer\n )\n public\n virtual\n isBridge\n isvalidIssue(issueId)\n isNotVoted(issueId, relayer)\n isValidOption(option)\n isNotEnded(issueId)\n isValidbalance(relayer)\n returns (bool success)\n {\n uint256 balance = balanceOf(relayer);\n hasVoted[issueId][relayer] = hasVotedStruct(true, option);\n voteWeight[issueId][option] = voteWeight[issueId][option] + balance;\n issueMap[issueId].maxVotes = issueMap[issueId].maxVotes + balance;\n uint256 yes = voteWeight[issueId][1];\n uint256 yesPercent = (yes * (10000)) / (totalSupply()); \n if (yesPercent > issueMap[issueId].quorum) _setStatus(issueId, 1, ProposalStatus.Passed);\n emit OnVote(issueId, relayer, balance);\n return true;\n }"
+            }
+        ],
+        "executeProposal": [
+            {
+                "executeProposal": "function executeProposal(SwapInfo memory swapDetails, bytes32 resourceID)\n public\n virtual\n override\n onlyBridgeOrSequencer\n returns (address settlementToken, uint256 settlementAmount)\n {\n swapDetails.destStableTokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[swapDetails.destStableTokenAddress], \"provided token is not whitelisted\");\n if (address(swapDetails.destTokenAddress) == swapDetails.destStableTokenAddress) {\n \n (settlementToken, settlementAmount) = handleExecuteForReserveToken(swapDetails);\n setExecuteRecord(swapDetails.index, swapDetails.depositNonce);\n } else if (\n _reserve._contractToLP(swapDetails.destStableTokenAddress) == address(swapDetails.destTokenAddress)\n ) {\n \n handleExecuteForLPToken(swapDetails);\n settlementToken = address(swapDetails.destTokenAddress);\n settlementAmount = swapDetails.destStableTokenAmount;\n setExecuteRecord(swapDetails.index, swapDetails.depositNonce);\n } else {\n \n (settlementToken, settlementAmount) = handleExecuteForNonReserveToken(swapDetails);\n setExecuteRecord(swapDetails.index, swapDetails.depositNonce);\n }\n }"
+            }
+        ],
+        "cancelProposal": [
+            {
+                "cancelProposal": "function cancelProposal(\n uint8 chainID,\n uint64 depositNonce,\n bytes32 dataHash\n ) public onlyAdminOrRelayer whenNotPaused{\n bytes32 proposalHash = keccak256(abi.encodePacked(chainID, depositNonce, dataHash));\n IVoterUpgradeable.ProposalStatus currentStatus = _voter.getStatus(_proposals[proposalHash]);\n require(\n currentStatus == IVoterUpgradeable.ProposalStatus.Active ||\n currentStatus == IVoterUpgradeable.ProposalStatus.Passed,\n \"Proposal cannot be cancelled\"\n );\n _voter.setStatus(_proposals[proposalHash]);\n currentStatus = _voter.getStatus(_proposals[proposalHash]);\n emit ProposalEvent(chainID, depositNonce, currentStatus, dataHash);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Settlement1": [
+            {
+                "executeProposal": "function executeProposal(\n uint8 chainID,\n uint64 depositNonce,\n bytes calldata data,\n bytes32 resourceID,\n uint256[] memory distribution,\n uint256[] memory flags,\n address[] memory path\n ) public virtual onlyRole(RELAYER_ROLE) whenNotPaused {\n address settlementToken;\n IDepositExecute.SwapInfo memory swapDetails = unpackDepositData(data);\n swapDetails.distribution = distribution;\n swapDetails.flags = flags;\n swapDetails.path = path;\n swapDetails.index = chainID;\n swapDetails.depositNonce = depositNonce;\n bytes32 dataHash = keccak256(abi.encodePacked(_resourceIDToHandlerAddress[resourceID], data));\n bytes32 proposalHash = keccak256(abi.encodePacked(chainID, depositNonce, dataHash));\n IVoterUpgradeable.ProposalStatus currentStatus = _voter.getStatus(_proposals[proposalHash]);\n require(currentStatus == IVoterUpgradeable.ProposalStatus.Passed, \"Proposal must have Passed status\");\n _voter.executeProposal(_proposals[proposalHash]);\n IDepositExecute depositHandler = IDepositExecute(_resourceIDToHandlerAddress[resourceID]);\n (settlementToken, swapDetails.returnAmount) = depositHandler.executeProposal(swapDetails, resourceID);\n emit Settlement(\n chainID,\n depositNonce,\n settlementToken,\n swapDetails.returnAmount,\n IVoterUpgradeable.ProposalStatus.Executed\n );\n emit ProposalEvent(chainID, depositNonce, IVoterUpgradeable.ProposalStatus.Executed, dataHash);\n }"
+            }
+        ],
+        "Unstake2": [
+            {
+                "unstake": "function unstake(\n address handler,\n address tokenAddress,\n uint256 amount\n ) public virtual whenNotPaused {\n ILiquidityPool depositHandler = ILiquidityPool(handler);\n function unstake(...) {...}\ndepositHandler.unstake(msg.sender, tokenAddress, amount);\n emit Unstake(msg.sender, amount, tokenAddress);\n }"
+            }
+        ]
+    }
+}

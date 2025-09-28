@@ -1,0 +1,242 @@
+{
+  "contract": "Metis Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Metis Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "ERC20DepositInitiated1",
+          "ETHDepositInitiated2"
+        ],
+        "rel_chain": [
+          "SentMessage",
+          "RelayedMessage"
+        ],
+        "det_chain": [
+          "ERC20WithdrawalFinalized1",
+          "ETHWithdrawalFinalized2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "L1",
+        "events": {
+          "ERC20DepositInitiated1": {
+            "0": {
+              "func_name": "depositERC20ByChainId",
+              "file_name": "L1StandardBridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_initiateERC20DepositByChainId",
+                  "file_name": "L1StandardBridge.sol",
+                  "key_ops": [
+                    "iMVM_DiscountOracle oracle = iMVM_DiscountOracle(Lib_AddressManager(addressmgr).getAddress('MVM_DiscountOracle'))",
+                    "if (_l2Gas < uint32(oracle.getMinL2Gas())) { _l2Gas = uint32(oracle.getMinL2Gas()); }",
+                    "require(_l2Gas * oracle.getDiscount() <= msg.value, string(abi.encodePacked(\"insufficient fee supplied. send at least \", uint2str(_l2Gas * oracle.getDiscount())))",
+                    "IERC20(_l1Token).safeTransferFrom(_from, address(this), _amount)",
+                    "sendCrossDomainMessageViaChainId(_chainid, l2TokenBridge, _l2Gas, message, msg.value)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "sendCrossDomainMessageViaChainId",
+                      "file_name": "CrossDomainEnabled.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "func_name": "sendMessageViaChainId",
+                          "file_name": "L1CrossDomainMessenger.sol",
+                          "key_ops": [
+                            "oracle.processL2SeqGas{value:msg.value}(msg.sender, _chainId)",
+                            "_sendXDomainMessageViaChainId(_chainId, canonicalTransactionChain, xDomainCalldata, _gasLimit)"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_sendXDomainMessageViaChainId",
+                              "file_name": "L1CrossDomainMessenger.sol",
+                              "key_ops": [
+                                "ICanonicalTransactionChain(_canonicalTransactionChain).enqueueByChainId(_chainId, Lib_PredeployAddresses.L2_CROSS_DOMAIN_MESSENGER, _gasLimit, _message)"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ETHDepositInitiated2": {
+            "0": {
+              "func_name": "depositETHByChainId",
+              "file_name": "L1StandardBridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_initiateETHDepositByChainId",
+                  "file_name": "L1StandardBridge.sol",
+                  "key_ops": [
+                    "iMVM_DiscountOracle oracle = iMVM_DiscountOracle(Lib_AddressManager(addressmgr).getAddress('MVM_DiscountOracle'))",
+                    "uint32 mingas = uint32(oracle.getMinL2Gas())",
+                    "if (_l2Gas < mingas) { _l2Gas = mingas; }",
+                    "require(fee <= msg.value, string(abi.encodePacked(\"insufficient fee supplied. send at least \", uint2str(fee)))",
+                    "bytes memory message = abi.encodeWithSelector(IL2ERC20Bridge.finalizeDeposit.selector, address(0), Lib_PredeployAddresses.OVM_ETH, _from, _to, msg.value - fee, _data)",
+                    "sendCrossDomainMessageViaChainId(_chainId, l2TokenBridge, _l2Gas, message, fee)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "sendCrossDomainMessageViaChainId",
+                      "file_name": "CrossDomainEnabled.sol",
+                      "key_ops": [],
+                      "child": {
+                        "0": {
+                          "func_name": "sendMessageViaChainId",
+                          "file_name": "L1CrossDomainMessenger.sol",
+                          "key_ops": [
+                            "oracle.processL2SeqGas{value:msg.value}(msg.sender, _chainId)",
+                            "_sendXDomainMessageViaChainId(_chainId, canonicalTransactionChain, xDomainCalldata, _gasLimit)"
+                          ],
+                          "child": {
+                            "0": {
+                              "func_name": "_sendXDomainMessageViaChainId",
+                              "file_name": "L1CrossDomainMessenger.sol",
+                              "key_ops": [
+                                "ICanonicalTransactionChain(_canonicalTransactionChain).enqueueByChainId(_chainId, Lib_PredeployAddresses.L2_CROSS_DOMAIN_MESSENGER, _gasLimit, _message)"
+                              ],
+                              "child": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "CanonicalTransactionChain",
+        "events": {
+          "SentMessage": {
+            "0": {
+              "func_name": "sendMessageViaChainId",
+              "file_name": "L1CrossDomainMessenger.sol",
+              "key_ops": [
+                "oracle.processL2SeqGas{value:msg.value}(msg.sender, _chainId)",
+                "_sendXDomainMessageViaChainId(_chainId, canonicalTransactionChain, xDomainCalldata, _gasLimit)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_sendXDomainMessageViaChainId",
+                  "file_name": "L1CrossDomainMessenger.sol",
+                  "key_ops": [
+                    "ICanonicalTransactionChain(_canonicalTransactionChain).enqueueByChainId(_chainId, Lib_PredeployAddresses.L2_CROSS_DOMAIN_MESSENGER, _gasLimit, _message)"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "enqueueByChainId",
+                      "file_name": "CanonicalTransactionChain.sol",
+                      "key_ops": [
+                        "require(msg.sender == resolve(\"Proxy__OVM_L1CrossDomainMessenger\"), \"only the cross domain messenger can enqueue\")",
+                        "require(_data.length <= MAX_ROLLUP_TX_SIZE, \"Transaction data size exceeds maximum for rollup transaction.\")",
+                        "require(_gasLimit <= maxTransactionGasLimit, \"Transaction gas limit exceeds maximum for rollup transaction.\")",
+                        "require(_gasLimit >= MIN_ROLLUP_TX_GAS, \"Transaction gas limit too low to enqueue.\")",
+                        " if (msg.sender == tx.origin) { sender = msg.sender; } else { sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender); }",
+                        "bytes32 transactionHash = keccak256(abi.encode(sender, _target, _gasLimit, _data))",
+                        "queueElements[_chainId].push(Lib_OVMCodec.QueueElement({transactionHash: transactionHash, timestamp: uint40(block.timestamp), blockNumber: uint40(block.number)}))"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "RelayedMessage": {
+            "0": {
+              "func_name": "relayMessageViaChainId",
+              "file_name": "L1CrossDomainMessenger.sol",
+              "key_ops": [
+                "require(_verifyXDomainMessageByChainId(_chainId, xDomainCalldata, _proof) ==true,\"Provided message could not be verified.\");",
+                "require(successfulMessages[xDomainCalldataHash] == false,\"Provided message has already been received.\");",
+                "require(blockedMessages[xDomainCalldataHash] == false,\"Provided message has been blocked.\");",
+                "require(_target != resolve(\"CanonicalTransactionChain\"),\"Cannot send L2->L1 messages to L1 system contracts.\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_verifyXDomainMessageByChainId",
+                  "file_name": "L1CrossDomainMessenger.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_verifyStateRootProofByChainId",
+                      "file_name": "L1CrossDomainMessenger.sol",
+                      "key_ops": [],
+                      "child": {}
+                    },
+                    "1": {
+                      "func_name": "_verifyStorageProofByChainId",
+                      "file_name": "L1CrossDomainMessenger.sol",
+                      "key_ops": [],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "L2",
+        "events": {
+          "ERC20WithdrawalFinalized1": {
+            "0": {
+              "func_name": "finalizeERC20WithdrawalByChainId",
+              "file_name": "L1StandardBridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_finalizeERC20WithdrawalByChainId",
+                  "file_name": "L1StandardBridge.sol",
+                  "key_ops": [
+                    "deposits[_l1Token][_chainid][_l2Token] = deposits[_l1Token][_chainid][_l2Token] - _amount",
+                    "IERC20(_l1Token).safeTransfer(_to, _amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ETHWithdrawalFinalized2": {
+            "0": {
+              "func_name": "finalizeETHWithdrawalByChainId",
+              "file_name": "L1StandardBridge.sol",
+              "key_ops": [
+                "(bool success, ) = _to.call{value: _amount}(new bytes(0))",
+                "require(success, \"TransferHelper::safeTransferETH: ETH transfer failed\")"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,17 @@
+{
+    "src_chain": {
+        "TokensBridged1": [
+            {
+                "bridgeTokens": "function bridgeTokens(\n address _token,\n uint256 _amount,\n bytes32 _destChain,\n address _destAddress\n ) external {\n require(isSupportedToken[_token], \"Token not supported\");\n require(IERC20(_token).balanceOf(msg.sender) >= _amount, \"Not enough tokens\");\n require(_destChain != CHAIN, \"Cannot send to same chain\");\n bytes32 _tokenId = tokenToId[_token];\n bool _handlerType = tokenToHandlerType[_token];\n uint256 _fee = 0;\n if (feeManager != address(0)) {\n uint256 _userFee;\n uint256 _feeBase;\n \n try IRadarBridgeFeeManager(feeManager).getBridgeFee(_token, msg.sender, _amount, _destChain, _destAddress) returns (uint256 _val) {\n _userFee = _val;\n } catch {\n _userFee = 0;\n }\n if (_userFee != 0) {\n try IRadarBridgeFeeManager(feeManager).getFeeBase() returns (uint256 _val2) {\n _feeBase = _val2;\n } catch {\n _feeBase = 0;\n }\n \n if (_feeBase != 0 && (_userFee * 10) <= _feeBase) {\n _fee = (_amount * _userFee) / _feeBase;\n }\n }\n }\n \n if (_handlerType) {\n \n IBridgedToken(_token).burn(msg.sender, _amount);\n if (_fee != 0) {\n IBridgedToken(_token).mint(feeManager, _fee);\n }\n } else {\n \n IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);\n if (_fee != 0) {\n IERC20(_token).safeTransfer(feeManager, _fee);\n }\n }\n emit TokensBridged(\n _tokenId,\n _amount,\n _destChain,\n _destAddress,\n block.timestamp,\n _fee,\n _amount-_fee\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokensClaimed1": [
+            {
+                "claimTokens": "function claimTokens(\n bytes32 _tokenId,\n uint256 _amount,\n bytes32 _srcChain,\n bytes32 _destChain,\n uint256 _srcTimestamp,\n bytes32 _nonce,\n address _destAddress,\n bytes calldata _signature\n ) external {\n address _token = idToToken[_tokenId];\n require(_token != address(0) && isSupportedToken[_token], \"Token not supported.\");\n require(_destChain == CHAIN, \"Claiming tokens on wrong chain\");\n bytes32 message = keccak256(abi.encodePacked(\n _tokenId,\n _amount,\n _srcChain,\n _destChain,\n _srcTimestamp,\n _nonce,\n _destAddress\n ));\n require(doubleSpendingProtection[message] == false, \"Double Spending\");\n require(nonceDoubleSpendingProtection[_nonce] == false, \"Nonce Double Spending\");\n require(SignatureLibrary.verify(message, _signature, idToRouter[_tokenId]) == true, \"Router Signature Invalid\");\n doubleSpendingProtection[message] = true;\n nonceDoubleSpendingProtection[_nonce] = true;\n bool _handlerType = tokenToHandlerType[_token];\n if (_handlerType) {\n \n IBridgedToken(_token).mint(_destAddress, _amount);\n } else {\n \n IERC20(_token).safeTransfer(_destAddress, _amount);\n }\n emit TokensClaimed(_tokenId, _amount, _srcChain, _srcTimestamp, _nonce, _destAddress);\n }"
+            }
+        ]
+    }
+}

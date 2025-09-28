@@ -1,0 +1,34 @@
+{
+    "src_chain": {
+        "verifySignature0": [
+            {
+                "verifySignature": "function verifySignature(bytes32 txid, bytes memory signature, uint256 amount) internal view returns (bool) {\n \n bytes32 r;\n bytes32 vs;\n \n assembly {\n r := mload(add(signature, 32))\n vs := mload(add(signature, 64))\n }\n \n bytes32 s = vs & 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;\n uint8 v = 27 + uint8(uint256(vs) >> 255);\n \n return amount < signers[ecrecover(txid, v, r, s)];\n }"
+            }
+        ],
+        "bridgeSend1": [
+            {
+                "bridgeSend": "function bridgeSend(address beneficiary, uint256 amount, uint256 withdrawChainId) external returns (bytes32) {\n \n bytes32 txid = keccak256(abi.encode(msg.sender, block.chainid, withdrawChainId, _nonces[msg.sender][block.chainid][withdrawChainId]++, beneficiary, amount));\n \n require(_qanx.transferFrom(msg.sender, address(this), amount));\n \n return txid;\n }"
+            },
+            {
+                "transferFrom": "function transferFrom(address sender, address recipient, uint256 amount) external virtual override returns (bool) {\n _transfer(sender, recipient, amount);\n uint256 currentAllowance = _allowances[sender][_msgSender()];\n function transfer(...) {...}\nrequire(currentAllowance >= amount, \"ERC20: transfer amount exceeds allowance\");\n _approve(sender, _msgSender(), currentAllowance - amount);\n return true;\n }"
+            },
+            {
+                "_transfer": "function _transfer(address sender, address recipient, uint256 amount) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n _beforeTokenTransfer(sender, recipient, amount);\n uint256 senderBalance = _balances[sender];\n require(senderBalance >= amount, \"ERC20: transfer amount exceeds balance\");\n _balances[sender] = senderBalance - amount;\n _balances[recipient] += amount;\n emit Transfer(sender, recipient, amount);\n }"
+            },
+            {
+                "_approve": "function _approve(address owner, address spender, uint256 amount) internal virtual {\n require(owner != address(0), \"ERC20: approve from the zero address\");\n require(spender != address(0), \"ERC20: approve to the zero address\");\n _allowances[owner][spender] = amount;\n emit Approval(owner, spender, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "bridgeWithdraw": "function bridgeWithdraw(address beneficiary, uint256 amount, uint256 depositChainId, bytes calldata signature) external returns (bool) {\n \n bytes32 txid = keccak256(abi.encode(msg.sender, depositChainId, block.chainid, _nonces[msg.sender][depositChainId][block.chainid]++, beneficiary, amount));\n \n function verifySignature(...) {...}\nrequire(verifySignature(txid, signature, amount), \"ERR_SIG\");\n \n uint256 fee = amount / 100 * feePercentage;\n feesCollected += fee;\n \n require(_qanx.transfer(beneficiary, amount - fee), \"ERR_TXN\");\n return true;\n }"
+            },
+            {
+                "_transfer": "function _transfer(address sender, address recipient, uint256 amount) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n _beforeTokenTransfer(sender, recipient, amount);\n uint256 senderBalance = _balances[sender];\n require(senderBalance >= amount, \"ERC20: transfer amount exceeds balance\");\n _balances[sender] = senderBalance - amount;\n _balances[recipient] += amount;\n emit Transfer(sender, recipient, amount);\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,52 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "deposit": "function deposit(\n DepositParams memory d\n )\n external\n payable\n override\n nonReentrant\n tokenNotBlacklisted(d.token)\n initializeToken(d.token)\n onlyEmergencyDisabled\n {\n _deposit(d, msg.value, msg.sender);\n }"
+            },
+            {
+                "_deposit": "function _deposit(\n DepositParams memory d,\n uint256 _value,\n address tokens_owner\n ) internal drainGas {\n MultiVaultStorage.Storage storage s = MultiVaultStorage._storage();\n uint fee = _calculateMovementFee(\n d.amount,\n d.token,\n IMultiVaultFacetFees.Fee.Deposit\n );\n bool isNative = s.tokens_[d.token].isNative;\n \n address token = s.tokens_[d.token].custom == address(0) ? d.token : s.tokens_[d.token].custom;\n if (isNative) {\n IMultiVaultToken(token).burn(\n msg.sender,\n d.amount\n );\n d.amount -= fee;\n _transferToEverscaleNative(d, fee, msg.value);\n } else {\n if (tokens_owner != address(this)) {\n IERC20(token).safeTransferFrom(\n tokens_owner,\n address(this),\n d.amount\n );\n }\n d.amount -= fee;\n _transferToEverscaleAlien(d, fee, _value);\n }\n _increaseTokenFee(d.token, fee);\n }"
+            }
+        ],
+        "TokenWithdraw2": [
+            {
+                "_withdraw": "function _withdraw(\n address recipient,\n uint amount,\n uint fee,\n IMultiVaultFacetTokens.TokenType tokenType,\n bytes32 payloadId,\n address token\n ) internal {\n if (tokenType == IMultiVaultFacetTokens.TokenType.Native) {\n IMultiVaultToken(token).mint(recipient, amount - fee);\n } else {\n IERC20(token).safeTransfer(recipient, amount - fee);\n }\n emit Withdraw(\n tokenType,\n payloadId,\n token,\n recipient,\n amount,\n fee\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "NewRound": [
+            {
+                "_setRound": "function _setRound(\n uint32 round,\n uint160[] memory _relays,\n uint32 roundEnd\n ) internal {\n uint32 requiredSignatures = uint32(_relays.length * 2 / 3) + 1;\n rounds[round] = Round(\n roundEnd,\n roundEnd + roundTTL,\n uint32(_relays.length),\n requiredSignatures < minimumRequiredSignatures ? minimumRequiredSignatures : requiredSignatures\n );\n emit NewRound(round, rounds[round]);\n for (uint i=0; i<_relays.length; i++) {\n address relay = address(_relays[i]);\n relays[round][relay] = true;\n emit RoundRelay(round, relay);\n }\n }"
+            }
+        ],
+        "RoundRelay": [
+            {
+                "setRoundRelays": "function setRoundRelays(\n bytes calldata payload,\n bytes[] calldata signatures\n ) override external notCached(payload) {\n require(\n verifySignedEverscaleEvent(\n payload,\n signatures\n ) == 0,\n \"Bridge: signatures verification failed\"\n );\n (EverscaleEvent memory _event) = abi.decode(payload, (EverscaleEvent));\n require(\n _event.configurationWid == roundRelaysConfiguration.wid &&\n _event.configurationAddress == roundRelaysConfiguration.addr,\n \"Bridge: wrong event configuration\"\n );\n (uint32 round, uint160[] memory _relays, uint32 roundEnd) = decodeRoundRelaysEventData(payload);\n require(round == lastRound + 1, \"Bridge: wrong round\");\n _setRound(round, _relays, roundEnd);\n lastRound++;\n }"
+            },
+            {
+                "_setRound": "function _setRound(\n uint32 round,\n uint160[] memory _relays,\n uint32 roundEnd\n ) internal {\n uint32 requiredSignatures = uint32(_relays.length * 2 / 3) + 1;\n rounds[round] = Round(\n roundEnd,\n roundEnd + roundTTL,\n uint32(_relays.length),\n requiredSignatures < minimumRequiredSignatures ? minimumRequiredSignatures : requiredSignatures\n );\n emit NewRound(round, rounds[round]);\n for (uint i=0; i<_relays.length; i++) {\n address relay = address(_relays[i]);\n relays[round][relay] = true;\n emit RoundRelay(round, relay);\n }\n }"
+            }
+        ],
+        "BanRelay": [
+            {
+                "banRelays": "function banRelays(\n address[] calldata _relays\n ) override external onlyOwner {\n for (uint i=0; i<_relays.length; i++) {\n blacklist[_relays[i]] = true;\n emit BanRelay(_relays[i], true);\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "_withdraw": "function _withdraw(\n address recipient,\n uint amount,\n uint fee,\n IMultiVaultFacetTokens.TokenType tokenType,\n bytes32 payloadId,\n address token\n ) internal {\n if (tokenType == IMultiVaultFacetTokens.TokenType.Native) {\n IMultiVaultToken(token).mint(recipient, amount - fee);\n } else {\n IERC20(token).safeTransfer(recipient, amount - fee);\n }\n emit Withdraw(\n tokenType,\n payloadId,\n token,\n recipient,\n amount,\n fee\n );\n }"
+            }
+        ],
+        "TokenDeposit2": [
+            {
+                "depositByNativeToken": "function depositByNativeToken(\n DepositNativeTokenParams memory d\n )\n external\n payable\n override\n nonReentrant\n wethNotBlacklisted\n initializeWethToken\n onlyEmergencyDisabled\n {\n require(msg.value >= d.amount, \"Msg value to low\");\n MultiVaultStorage.Storage storage s = MultiVaultStorage._storage();\n function deposit(...) {...}\nIWETH(s.weth).deposit{value: d.amount}();\n _deposit(\n DepositParams({\n recipient: d.recipient,\n token: s.weth,\n amount: d.amount,\n expected_evers: d.expected_evers,\n payload: d.payload\n }),\n msg.value - d.amount,\n address(this)\n );\n }"
+            },
+            {
+                "_transferToEverscaleNative": "function _transferToEverscaleNative(\n IMultiVaultFacetDeposit.DepositParams memory deposit,\n uint fee,\n uint value\n ) internal checkDepositAmount(deposit.amount) {\n MultiVaultStorage.Storage storage s = MultiVaultStorage._storage();\n IEverscale.EverscaleAddress memory native = s.natives_[deposit.token];\n emit NativeTransfer(\n native.wid,\n native.addr,\n uint128(deposit.amount),\n deposit.recipient.wid,\n deposit.recipient.addr,\n value,\n deposit.expected_evers,\n deposit.payload\n );\n _emitDeposit(deposit, fee, true);\n }"
+            }
+        ]
+    }
+}

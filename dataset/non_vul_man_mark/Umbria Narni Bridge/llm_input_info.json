@@ -1,0 +1,33 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "transfer": "function transfer(\n address recipient,\n uint256 amount\n ) public virtual override returns (bool) {\n function _transfer(...) {...}\nfunction _msgSender(...) {...}\n_transfer(_msgSender(), recipient, amount);\n\n return true;\n }"
+            },
+            {
+                "_transfer": "function _transfer(\n address sender,\n address recipient,\n uint256 amount\n ) internal virtual {\n require(sender != address(0), \"ERC20: transfer from the zero address\");\n\n require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n _beforeTokenTransfer(sender, recipient, amount);\n\n _balances[sender] = _balances[sender].sub(\n amount,\n \"ERC20: transfer amount exceeds balance\"\n );\n\n _balances[recipient] = _balances[recipient].add(amount);\n\n emit Transfer(sender, recipient, amount);\n }"
+            }
+        ],
+        "Approval2": [
+            {
+                "approve": "function approve(\n address spender,\n uint256 amount\n ) public virtual override returns (bool) {\n function _msgSender(...) {...}\nfunction _approve(...) {...}\n_approve(_msgSender(), spender, amount);\n\n return true;\n }"
+            },
+            {
+                "_approve": "function _approve(\n address owner,\n address spender,\n uint256 amount\n ) internal virtual {\n require(owner != address(0), \"ERC20: approve from the zero address\");\n\n require(spender != address(0), \"ERC20: approve to the zero address\");\n\n _allowances[owner][spender] = amount;\n\n emit Approval(owner, spender, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n\n _beforeTokenTransfer(address(0), account, amount);\n\n function add(...) {...}\n_totalSupply = _totalSupply.add(amount);\n\n _balances[account] = _balances[account].add(amount);\n\n emit Transfer(address(0), account, amount);\n }"
+            }
+        ],
+        "Approval2": [
+            {
+                "_approve": "function _approve(\n address owner,\n address spender,\n uint256 amount\n ) internal virtual {\n require(owner != address(0), \"ERC20: approve from the zero address\");\n\n require(spender != address(0), \"ERC20: approve to the zero address\");\n\n _allowances[owner][spender] = amount;\n\n emit Approval(owner, spender, amount);\n }"
+            }
+        ]
+    }
+}

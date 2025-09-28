@@ -1,0 +1,167 @@
+{
+  "contract": "OpenSwap",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "OpenSwap": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "AddLiquidity1",
+          "RemoveLiquidity2"
+        ],
+        "rel_chain": [
+          "Swap",
+          "SwappedOneProvider"
+        ],
+        "det_chain": [
+          "AddLiquidity1",
+          "RemoveLiquidity2",
+          "Swap3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "AddLiquidity1": {
+            "0": {
+              "func_name": "addLiquidity",
+              "file_name": "OSWAP_RestrictedPair1.sol",
+              "key_ops": [
+                "require(IOSWAP_RestrictedFactory(factory).isLive(), 'GLOBALLY PAUSED')",
+                "require(isLive, 'PAUSED')",
+                "require(amountIn > 0, \"No amount in\");",
+                "require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, \"Not from router or owner\");"
+              ],
+              "child": {}
+            }
+          },
+          "RemoveLiquidity2": {
+            "0": {
+              "func_name": "removeLiquidity",
+              "file_name": "OSWAP_RestrictedPair1.sol",
+              "key_ops": [
+                "require(msg.sender == restrictedLiquidityProvider || msg.sender == provider, 'Not from router or owner')"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_removeLiquidity",
+                  "file_name": "OSWAP_RestrictedPair1.sol",
+                  "key_ops": [
+                    "require(index > 0, \"Provider liquidity not found\");",
+                    "require(offer.provider == provider, \"Not from provider\");",
+                    "require(offer.expire < block.timestamp, \"Not expired\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Swap": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "OSWAP_OraclePair.sol",
+              "key_ops": [
+                "require(isLive, 'PAUSED')"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_swap",
+                  "file_name": "OSWAP_OraclePair.sol",
+                  "key_ops": [
+                    "require(amountOut >= _amountOut, \"INSUFFICIENT_AMOUNT\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "SwappedOneProvider": {
+            "0": {
+              "func_name": "removeLiquidity",
+              "file_name": "OSWAP_OraclePair.sol",
+              "key_ops": [
+                "require(msg.sender == oracleLiquidityProvider || msg.sender == provider, 'Not from router or owner')",
+                "require(expire > block.timestamp, 'Already expired')",
+                "require(index > 0, \"Provider liquidity not found\");",
+                "require(newAmount == 0 || newAmount >= minLotSize(direction), \"Minium lot size not met\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_dequeue",
+                  "file_name": "OSWAP_OraclePair.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "AddLiquidity1": {
+            "0": {
+              "func_name": "addLiquidity",
+              "file_name": "OSWAP_RestrictedPair1.sol",
+              "key_ops": [
+                "require(IOSWAP_RestrictedFactory(factory).isLive(), 'GLOBALLY PAUSED')",
+                "require(isLive, 'PAUSED')",
+                "require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, 'Not from router or owner')",
+                "require(amountIn > 0, 'No amount in')"
+              ],
+              "child": {}
+            }
+          },
+          "RemoveLiquidity2": {
+            "0": {
+              "func_name": "removeLiquidity",
+              "file_name": "OSWAP_RestrictedPair1.sol",
+              "key_ops": [
+                "require(msg.sender == restrictedLiquidityProvider || msg.sender == provider, 'Not from router or owner')"
+              ],
+              "child": {}
+            }
+          },
+          "Swap3": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "OSWAP_RestrictedPair.sol",
+              "key_ops": [
+                "require(tx.origin == msg.sender && !Address.isContract(msg.sender) && trader == msg.sender, 'Invalid trader')",
+                "require(isLive, 'PAUSED')"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_swap",
+                  "file_name": "OSWAP_RestrictedPair.sol",
+                  "key_ops": [
+                    "require(offer.amount >= amountOut, 'Amount exceeds available fund')"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

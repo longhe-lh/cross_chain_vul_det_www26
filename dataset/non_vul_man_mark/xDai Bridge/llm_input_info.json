@@ -1,0 +1,50 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "_relayTokens": "function _relayTokens(\n address _sender,\n address _receiver,\n uint256 _amount\n ) internal {\n require(_receiver != address(0));\n\n require(_receiver != address(this));\n\n require(_amount > 0);\n\n function withinLimit(...) {...}\nrequire(withinLimit(_amount));\n\n setTotalSpentPerDay(\n getCurrentDay(),\n totalSpentPerDay(getCurrentDay()).add(_amount)\n );\n\n erc20token().transferFrom(_sender, address(this), _amount);\n\n emit UserRequestForAffirmation(_receiver, _amount);\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "claimTokens": "function claimTokens(\n address _token,\n address _to\n ) public onlyIfUpgradeabilityOwner validAddress(_to) {\n function claimValues(...) {...}\nclaimValues(_token, _to);\n }"
+            },
+            {
+                "claimValues": "function claimValues(address _token, address _to) internal {\n if (_token == address(0)) {\n function claimNativeCoins(...) {...}\nfunction claimErc20Tokens(...) {...}\nclaimNativeCoins(_to);\n } else {\n claimErc20Tokens(_token, _to);\n }\n }"
+            },
+            {
+                "claimErc20Tokens": "function claimErc20Tokens(address _token, address _to) internal {\n\n IERC20 token = IERC20(_token);\n\n uint256 balance = token.balanceOf(address(this));\n\n token.safeTransfer(_to, balance);\n\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "executeSignatures": "function executeSignatures(bytes _data, bytes _signatures) public {\n function _allowMessageExecution(...) {...}\n_allowMessageExecution(_data, _signatures);\n\n bytes32 msgId;\n\n address sender;\n\n address executor;\n\n uint32 gasLimit;\n\n uint8 dataType;\n\n uint256[2] memory chainIds;\n\n bytes memory data;\n\n (\n msgId,\n sender,\n executor,\n gasLimit,\n dataType,\n chainIds,\n data\n ) = ArbitraryMessage.unpackData(_data);\n\n _executeMessage(\n msgId,\n sender,\n executor,\n gasLimit,\n dataType,\n chainIds,\n data\n );\n }"
+            }
+        ],
+        "withdraw": [
+            {
+                "executeSignaturesGSN": "function executeSignaturesGSN(\n bytes message,\n bytes signatures,\n uint256 maxTokensFee\n ) external {\n \n\n require(isTrustedForwarder(msg.sender), \"invalid forwarder\");\n\n Message.hasEnoughValidSignatures(\n message,\n signatures,\n validatorContract(),\n false\n );\n\n address recipient;\n\n uint256 amount;\n\n bytes32 txHash;\n\n address contractAddress;\n\n (recipient, amount, txHash, contractAddress) = Message.parseMessage(\n message\n );\n\n if (withinExecutionLimit(amount)) {\n require(maxTokensFee <= amount);\n\n require(contractAddress == address(this));\n\n require(!relayedMessages(txHash));\n\n setRelayedMessages(txHash, true);\n\n require(onExecuteMessageGSN(recipient, amount, maxTokensFee));\n\n emit RelayedMessage(recipient, amount, txHash);\n } else {\n onFailedMessage(recipient, amount, txHash);\n }\n }"
+            },
+            {
+                "onExecuteMessageGSN": "function onExecuteMessageGSN(\n address recipient,\n uint256 amount,\n uint256 fee\n ) internal returns (bool) {\n function addTotalExecutedPerDay(...) {...}\nfunction getCurrentDay(...) {...}\nfunction erc20token(...) {...}\naddTotalExecutedPerDay(getCurrentDay(), amount);\n\n \n\n ERC20 token = erc20token();\n\n bool first = token.transfer(addressStorage[PAYMASTER], fee);\n\n bool second = token.transfer(recipient, amount - fee);\n\n return first && second;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "claimTokens": "function claimTokens(\n address _token,\n address _to\n ) external onlyIfUpgradeabilityOwner {\n \n\n require(_token != address(erc20token()));\n\n function claimValues(...) {...}\nclaimValues(_token, _to);\n }"
+            },
+            {
+                "claimErc20Tokens": "function claimErc20Tokens(address _token, address _to) internal {\n ERC20Basic token = ERC20Basic(_token);\n\n uint256 balance = token.balanceOf(this);\n\n function safeTransfer(...) {...}\n_token.safeTransfer(_to, balance);\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "onExecuteMessage": "function onExecuteMessage(\n address _recipient,\n uint256 _amount,\n bytes32 \n ) internal returns (bool) {\n function addTotalExecutedPerDay(...) {...}\nfunction getCurrentDay(...) {...}\naddTotalExecutedPerDay(getCurrentDay(), _amount);\n\n return erc20token().transfer(_recipient, _unshiftValue(_amount));\n }"
+            }
+        ]
+    }
+}

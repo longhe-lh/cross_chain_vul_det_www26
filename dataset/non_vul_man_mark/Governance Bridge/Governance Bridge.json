@@ -1,0 +1,84 @@
+{
+  "contract": "Governance Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Governance Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenRedeem1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenWithdraw1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokenRedeem1": {
+            "0": {
+              "func_name": "processMessageFromRoot",
+              "file_name": "PolygonBridgeExecutor.sol",
+              "key_ops": [
+                "if (rootMessageSender != _fxRootSender) revert UnauthorizedRootOrigin();"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_queue",
+                  "file_name": "BridgeExecutorBase.sol",
+                  "key_ops": [
+                    "if (targets.length == 0) revert EmptyTargets();",
+                    "if (targetsLength != values.length || targetsLength != signatures.length || targetsLength != calldatas.length || targetsLength != withDelegatecalls.length) revert InconsistentParamsLength();"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Arbitrum",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "Polygon",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "processMessageFromRoot",
+              "file_name": "PolygonBridgeExecutor.sol",
+              "key_ops": [
+                "if (rootMessageSender != _fxRootSender) revert UnauthorizedRootOrigin();"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_queue",
+                  "file_name": "BridgeExecutorBase.sol",
+                  "key_ops": [
+                    "if (targets.length == 0) revert EmptyTargets();",
+                    "if (targetsLength != values.length || targetsLength != signatures.length || targetsLength != calldatas.length || targetsLength != withDelegatecalls.length) revert InconsistentParamsLength();"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

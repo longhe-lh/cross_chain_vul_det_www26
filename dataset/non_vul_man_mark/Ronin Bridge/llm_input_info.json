@@ -1,0 +1,62 @@
+{
+    "src_chain": {
+        "TokenDeposited1": [
+            {
+                "depositEthFor": "function depositEthFor(address _owner)\n public\n whenNotPaused\n payable\n returns (uint256)\n {\n address _weth = registry.getContract(registry.WETH_TOKEN());\n WETH(_weth).deposit.value(msg.value)();\n return _createDepositEntry(_owner, _weth, 20, msg.value);\n }"
+            },
+            {
+                "_createDepositEntry": "function _createDepositEntry(\n address _owner,\n address _token,\n uint32 _standard,\n uint256 _number\n )\n internal\n onlyMappedToken(_token, _standard)\n returns (uint256 _depositId)\n {\n (,address _sidechainToken, uint32 _tokenStandard) = registry.getMappedToken(_token, true);\n require(_standard == _tokenStandard);\n DepositEntry memory _entry = DepositEntry(\n _owner,\n _token,\n _sidechainToken,\n _standard,\n _number\n );\n deposits.push(_entry);\n _depositId = depositCount++;\n emit TokenDeposited(\n _depositId,\n _owner,\n _token,\n _sidechainToken,\n _standard,\n _number\n );\n }"
+            },
+            {
+                "depositERC20For": "function depositERC20For(address _user, address _token, uint256 _amount)\n public\n whenNotPaused\n returns (uint256)\n {\n require(\n IERC20(_token).transferFrom(msg.sender, address(this), _amount),\n \"MainchainGatewayManager: ERC-20 token transfer failed\"\n );\n return _createDepositEntry(_user, _token, 20, _amount);\n }"
+            },
+            {
+                "depositERC721For": "function depositERC721For(address _user, address _token, uint256 _tokenId)\n public\n whenNotPaused\n returns (uint256)\n {\n function transferFrom(...) {...}\nfunction _createDepositEntry(...) {...}\nIERC721(_token).transferFrom(msg.sender, address(this), _tokenId);\n return _createDepositEntry(_user, _token, 721, _tokenId);\n }"
+            }
+        ],
+        "TokenWithdrew2": [
+            {
+                "withdrawERC20For": "function withdrawERC20For(\n uint256 _withdrawalId,\n address _user,\n address _token,\n uint256 _amount,\n bytes memory _signatures\n )\n public\n whenNotPaused\n onlyMappedToken(_token, 20)\n {\n bytes32 _hash = keccak256(\n abi.encodePacked(\n \"withdrawERC20\",\n _withdrawalId,\n _user,\n _token,\n _amount\n )\n );\n function verifySignatures(...) {...}\nfunction sub(...) {...}\nfunction mint(...) {...}\nfunction transfer(...) {...}\nrequire(verifySignatures(_hash, _signatures));\n if (_token == registry.getContract(registry.WETH_TOKEN())) {\n _withdrawETHFor(_user, _amount);\n } else {\n uint256 _gatewayBalance = IERC20(_token).balanceOf(address(this));\n if (_gatewayBalance < _amount) {\n require(\n IERC20Mintable(_token).mint(address(this), _amount.sub(_gatewayBalance)),\n \"MainchainGatewayManager: Minting ERC20 token to gateway failed\"\n );\n }\n require(IERC20(_token).transfer(_user, _amount), \"Transfer failed\");\n }\n _insertWithdrawalEntry(\n _withdrawalId,\n _user,\n _token,\n _amount\n );\n }"
+            },
+            {
+                "withdrawERC721For": "function withdrawERC721For(\n uint256 _withdrawalId,\n address _user,\n address _token,\n uint256 _tokenId,\n bytes memory _signatures\n )\n public\n whenNotPaused\n onlyMappedToken(_token, 721)\n {\n bytes32 _hash = keccak256(\n abi.encodePacked(\n \"withdrawERC721\",\n _withdrawalId,\n _user,\n _token,\n _tokenId\n )\n );\n function verifySignatures(...) {...}\nfunction mint(...) {...}\nrequire(verifySignatures(_hash, _signatures));\n if (!_tryERC721TransferFrom(_token, address(this), _user, _tokenId)) {\n require(\n IERC721Mintable(_token).mint(_user, _tokenId),\n \"MainchainGatewayManager: Minting ERC721 token to gateway failed\"\n );\n }\n _insertWithdrawalEntry(_withdrawalId, _user, _token, _tokenId);\n }"
+            },
+            {
+                "_insertWithdrawalEntry": "function _insertWithdrawalEntry(\n uint256 _withdrawalId,\n address _owner,\n address _token,\n uint256 _number\n )\n internal\n onlyNewWithdrawal(_withdrawalId)\n {\n WithdrawalEntry memory _entry = WithdrawalEntry(\n _owner,\n _token,\n _number\n );\n withdrawals[_withdrawalId] = _entry;\n emit TokenWithdrew(_withdrawalId, _owner, _token, _number);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ValidatorAdded": [
+            {
+                "addValidators": "function addValidators(address[] calldata _validators) external onlyAdmin {\n for (uint256 _i; _i < _validators.length; ++_i) {\n function _addValidator(...) {...}\n_addValidator(nonce++, _validators[_i]);\n }\n }"
+            },
+            {
+                "_addValidator": "function _addValidator(uint256 _id, address _validator)\n internal\n {\n require(!validatorMap[_validator]);\n validators.push(_validator);\n validatorMap[_validator] = true;\n validatorCount++;\n emit ValidatorAdded(_id, _validator);\n }"
+            }
+        ],
+        "ValidatorRemoved": [
+            {
+                "removeValidator": "function removeValidator(address _validator) external onlyAdmin {\n function _removeValidator(...) {...}\n_removeValidator(nonce++, _validator);\n }"
+            },
+            {
+                "_removeValidator": "function _removeValidator(uint256 _id, address _validator)\n internal\n {\n function isValidator(...) {...}\nrequire(isValidator(_validator));\n uint256 _index;\n for (uint256 _i = 0; _i < validatorCount; _i++) {\n if (validators[_i] == _validator) {\n _index = _i;\n break;\n }\n }\n validatorMap[_validator] = false;\n validators[_index] = validators[validatorCount - 1];\n validators.pop();\n validatorCount--;\n emit ValidatorRemoved(_id, _validator);\n }"
+            }
+        ],
+        "ThresholdUpdated": [
+            {
+                "updateQuorum": "function updateQuorum(uint256 _numerator, uint256 _denominator) external onlyAdmin {\n function _updateQuorum(...) {...}\n_updateQuorum(nonce++, _numerator, _denominator);\n }"
+            },
+            {
+                "_updateQuorum": "function _updateQuorum(uint256 _id, uint256 _numerator, uint256 _denominator)\n internal\n {\n require(_numerator <= _denominator);\n uint256 _previousNumerator = num;\n uint256 _previousDenominator = denom;\n num = _numerator;\n denom = _denominator;\n emit ThresholdUpdated(\n _id,\n _numerator,\n _denominator,\n _previousNumerator,\n _previousDenominator\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Claimed1": [
+            {
+                "claim": "function claim(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) external {\n require(!claimed[account], 'MerkleDistributor: Already claimed.');\n \n bytes32 node = keccak256(abi.encodePacked(index, account, amount));\n function verify(...) {...}\nrequire(MerkleProof.verify(merkleProof, merkleRoot, node), 'MerkleDistributor: Invalid proof.');\n \n claimed[account] = true;\n require(IERC20(token).transfer(account, amount), 'MerkleDistributor: Transfer failed.');\n emit Claimed(index, account, amount);\n }"
+            }
+        ]
+    }
+}

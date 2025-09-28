@@ -1,0 +1,126 @@
+{
+  "contract": "NFT OmniBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "NFT OmniBridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokensBridgingInitiated1"
+        ],
+        "rel_chain": [
+          "UserRequestForAffirmation",
+          "UserRequestForSignature"
+        ],
+        "det_chain": [
+          "TokensBridged1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "ForeignNFTOmnibridge",
+        "events": {
+          "TokensBridgingInitiated1": {
+            "0": {
+              "func_name": "bridgeSpecificActionsOnTokenTransfer",
+              "file_name": "BasicNFTOmnibridge.sol",
+              "key_ops": [
+                "if (!isTokenRegistered(_token)) { _setNativeTokenIsRegistered(_token, REGISTERED); }",
+                "bytes memory data = _prepareMessage(_token, _receiver, _tokenIds, _values);",
+                "bytes32 _messageId = _passMessage(data, _isOracleDrivenLaneAllowed(_token, _from, _receiver));",
+                "_recordBridgeOperation(_messageId, _token, _from, _tokenIds, _values);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_prepareMessage",
+                  "file_name": "BasicNFTOmnibridge.sol",
+                  "key_ops": [
+                    "require(_receiver != address(0) && _receiver != mediatorContractOnOtherSide());",
+                    "string[] memory tokenURIs = new string[](_tokenIds.length);",
+                    "for (uint256 i = 0; i < _tokenIds.length; i++) { uint256 oldBalance = mediatorOwns(_token, _tokenIds[i]); uint256 newBalance = oldBalance.add(_values[i]); require(IERC1155(_token).balanceOf(address(this), _tokenIds[i]) >= newBalance); _setMediatorOwns(_token, _tokenIds[i], newBalance); tokenURIs[i] = _readERC1155TokenURI(_token, _tokenIds[i]); }",
+                    "for (uint256 i = 0; i < _tokenIds.length; i++) { require(mediatorOwns(_token, _tokenIds[i]) == 0); require(IERC721(_token).ownerOf(_tokenIds[i]) == address(this)); _setMediatorOwns(_token, _tokenIds[i], 1); tokenURIs[i] = _readERC721TokenURI(_token, _tokenIds[i]); }",
+                    "return abi.encodeWithSelector(this.deployAndHandleBridgedNFT.selector, _token, name, symbol, _receiver, _tokenIds, _values, tokenURIs);",
+                    "IBurnableMintableERC1155Token(_token).burn(_tokenIds, _values);",
+                    "for (uint256 i = 0; i < _tokenIds.length; i++) { IBurnableMintableERC721Token(_token).burn(_tokenIds[i]); }",
+                    "return abi.encodeWithSelector(this.handleNativeNFT.selector, nativeToken, _receiver, _tokenIds, _values);"
+                  ],
+                  "1": {
+                    "func_name": "_recordBridgeOperation",
+                    "file_name": "BasicNFTOmnibridge.sol",
+                    "key_ops": [
+                      "setMessageChecksum(_messageId, _messageChecksum(_token, _sender, _tokenIds, _values));",
+                      "emit TokensBridgingInitiated(_token, _sender, _tokenIds, _values, _messageId);"
+                    ],
+                    "child": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "AMB Bridge",
+        "events": {
+          "UserRequestForAffirmation": {
+            "0": {
+              "func_name": "requireToPassMessage",
+              "file_name": "IAMB.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "UserRequestForSignature": {
+            "0": {
+              "func_name": "requireToConfirmMessage",
+              "file_name": "IAMB.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "ForeignNFTOmnibridge",
+        "events": {
+          "TokensBridged1": {
+            "0": {
+              "func_name": "_handleTokens",
+              "file_name": "BasicNFTOmnibridge.sol",
+              "key_ops": [
+                "require(isTokenExecutionAllowed(_token));",
+                "_releaseTokens(_token, _isNative, _recipient, _tokenIds, _values);",
+                "emit TokensBridged(_token, _recipient, _tokenIds, _values, messageId());"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_releaseTokens",
+                  "file_name": "BasicNFTOmnibridge.sol",
+                  "key_ops": [
+                    "for (uint256 i = 0; i < _tokenIds.length; i++) { _setMediatorOwns(_token, _tokenIds[i], mediatorOwns(_token, _tokenIds[i]).sub(_values[i])); }",
+                    "IERC1155(_token).safeBatchTransferFrom(address(this), _recipient, _tokenIds, _values, new bytes(0));",
+                    "IBurnableMintableERC1155Token(_token).mint(_recipient, _tokenIds, _values);",
+                    "for (uint256 i = 0; i < _tokenIds.length; i++) { _setMediatorOwns(_token, _tokenIds[i], 0); IERC721(_token).transferFrom(address(this), _recipient, _tokenIds[i]); }",
+                    "for (uint256 i = 0; i < _tokenIds.length; i++) { IBurnableMintableERC721Token(_token).mint(_recipient, _tokenIds[i]); }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

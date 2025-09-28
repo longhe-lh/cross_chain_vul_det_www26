@@ -1,0 +1,236 @@
+{
+  "contract": "Cross-Chain Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Cross-Chain Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokensDeposited1",
+          "TokensReleased2"
+        ],
+        "rel_chain": [
+          "RoleGranted",
+          "RoleRevoked",
+          "Upgraded",
+          "Transfer",
+          "Approval"
+        ],
+        "det_chain": [
+          "TokensReleased1",
+          "BoughtBackAndBurned2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokensDeposited1": {
+            "0": {
+              "func_name": "depositERC20",
+              "file_name": "CrossChainBridgeERC20.sol",
+              "key_ops": [
+                "require(token.balanceOf(address(this)) == balanceBefore + amount,\"CrossChainBridgeERC20: deposited token amount incorrect\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_depositERC20",
+                  "file_name": "CrossChainBridgeERC20.sol",
+                  "key_ops": [
+                    "require(amount > 0, 'CrossChainBridgeERC20: amount cannot be 0')",
+                    "require(receiverAddress != address(0), 'CrossChainBridgeERC20: invalid receiverAddress provided')",
+                    "require(address(token) != address(0), 'CrossChainBridgeERC20: invalid token address provided')"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "createPool",
+                      "file_name": "CrossChainBridgeERC20LiquidityManager.sol",
+                      "key_ops": [
+                        "require(_msgSender() == address(bridgeERC20),\"LiquidityManager: this function can only be called by the ERC20 bridge\");"
+                      ],
+                      "child": {
+                        "0": {
+                          "func_name": "_createPool",
+                          "file_name": "CrossChainBridgeERC20LiquidityManager.sol",
+                          "key_ops": [
+                            "require(!lpTokens[tokenAddress].exists, 'LiquidityManager: a pool already exists for this token')"
+                          ],
+                          "child": {}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "TokensReleased2": {
+            "0": {
+              "func_name": "_releaseERC20",
+              "file_name": "CrossChainBridgeERC20.sol",
+              "key_ops": [
+                "require(!releasedDeposits[depositChainId][depositNumber], 'CrossChainBridgeERC20: Deposit was already processed and released')",
+                "require(receiverAddress != address(0), 'CrossChainBridgeERC20: invalid receiverAddress provided')",
+                "require(sourceNetworkTokenAddress != address(0), 'CrossChainBridgeERC20: invalid sourceNetworkTokenAddress provided')",
+                "require(token.balanceOf(address(this)) >= amount, 'CrossChainBridgeERC20: Not enough liquidity in bridge')"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "addRewards",
+                  "file_name": "RewardPoolsV1.sol",
+                  "key_ops": [
+                    "token.safeTransferFrom(_msgSender(), address(this), amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "RoleGranted": {
+            "0": {
+              "func_name": "grantRole",
+              "file_name": "AccessControl.sol",
+              "key_ops": [
+                "_grantRole(role, account)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_grantRole",
+                  "file_name": "AccessControl.sol",
+                  "key_ops": [
+                    "if (!hasRole(role, account)) { _roles[role].members[account] = true; emit RoleGranted(role, account, _msgSender()); }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "RoleRevoked": {
+            "0": {
+              "func_name": "revokeRole",
+              "file_name": "AccessControl.sol",
+              "key_ops": [
+                "_revokeRole(role, account)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_revokeRole",
+                  "file_name": "AccessControl.sol",
+                  "key_ops": [
+                    "if (hasRole(role, account)) { _roles[role].members[account] = false; emit RoleRevoked(role, account, _msgSender()); }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Upgraded": {
+            "0": {
+              "func_name": "_upgradeTo",
+              "file_name": "ERC1967Proxy.sol",
+              "key_ops": [
+                "emit Upgraded(newImplementation)"
+              ],
+              "child": {}
+            }
+          },
+          "Transfer": {
+            "0": {
+              "func_name": "transfer",
+              "file_name": "ERC20.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_transfer",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "require(sender != address(0), \"ERC20: transfer from the zero address\");",
+                    "require(recipient != address(0), \"ERC20: transfer to the zero address\");",
+                    "require(senderBalance >= amount,\"ERC20: transfer amount exceeds balance\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Approval": {
+            "0": {
+              "func_name": "approve",
+              "file_name": "ERC20.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_approve",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "require(spender != address(0), 'ERC20: approve to the zero address')",
+                    "_allowances[owner][spender] = amount; emit Approval(owner, spender, amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokensReleased1": {
+            "0": {
+              "func_name": "releaseERC20",
+              "file_name": "CrossChainBridgeERC20.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_releaseERC20",
+                  "file_name": "CrossChainBridgeERC20.sol",
+                  "key_ops": [
+                    "releasedDeposits[depositChainId][depositNumber] = true",
+                    "token.safeTransfer(receiverAddress, releaseAmountAfterFees)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BoughtBackAndBurned2": {
+            "0": {
+              "func_name": "buyBackAndBurnERC20",
+              "file_name": "BuyBackAndBurn.sol",
+              "key_ops": [
+                "require(collectedToken != address(0), 'BuyBackAndBurnV1: invalid token address')",
+                "uint256 amount = collectedERC20ToBurn[collectedToken]",
+                "ERC20Burnable(address(burnToken)).burn(balanceBurnToken)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "tradeERC20",
+                  "file_name": "IRouter.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

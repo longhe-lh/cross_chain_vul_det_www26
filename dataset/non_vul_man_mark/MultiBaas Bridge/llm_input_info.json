@@ -1,0 +1,33 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(\n bytes32 resourceID,\n uint8 destinationChainID,\n uint64 depositNonce,\n address depositer,\n bytes calldata data\n ) external override onlyBridge {\n bytes memory recipientAddress;\n uint256 amount;\n uint256 lenRecipientAddress;\n (amount, lenRecipientAddress) = abi.decode(data, (uint, uint));\n recipientAddress = bytes(data[64:64 + lenRecipientAddress]);\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (_burnList[tokenAddress]) {\n burnERC20(tokenAddress, depositer, amount);\n } else {\n lockERC20(tokenAddress, depositer, address(this), amount);\n }\n _depositRecords[destinationChainID][depositNonce] = DepositRecord(\n tokenAddress,\n destinationChainID,\n resourceID,\n recipientAddress,\n depositer,\n amount\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ProposalEvent": [
+            {
+                "voteProposal": "function voteProposal(uint8 chainID, uint64 depositNonce, bytes32 resourceID, bytes32 dataHash) external onlyRelayers whenNotPaused {\n uint72 nonceAndID = (uint72(depositNonce) << 8) | uint72(chainID);\n Proposal memory proposal = _proposals[nonceAndID][dataHash];\n require(_resourceIDToHandlerAddress[resourceID] != address(0), \"no handler for resourceID\");\n require(uint(proposal._status) <= 1, \"proposal already passed/executed/cancelled\");\n function _hasVoted(...) {...}\nrequire(!_hasVoted(proposal, msg.sender), \"relayer already voted\");\n if (proposal._status == ProposalStatus.Inactive) {\n proposal = Proposal({\n _status : ProposalStatus.Active,\n _yesVotes : 0,\n _yesVotesTotal : 0,\n _proposedBlock : uint40(block.number) \n });\n emit ProposalEvent(chainID, resourceID, depositNonce, ProposalStatus.Active, dataHash);\n } else if (uint40(sub(block.number, proposal._proposedBlock)) > _expiry) {\n \n \n proposal._status = ProposalStatus.Cancelled;\n emit ProposalEvent(chainID, resourceID, depositNonce, ProposalStatus.Cancelled, dataHash);\n }\n if (proposal._status != ProposalStatus.Cancelled) {\n proposal._yesVotes = (proposal._yesVotes | _relayerBit(msg.sender)).toUint200();\n proposal._yesVotesTotal++; \n emit ProposalVote(chainID, resourceID, depositNonce, proposal._status, dataHash);\n \n if (proposal._yesVotesTotal >= _relayerThreshold) {\n proposal._status = ProposalStatus.Passed;\n emit ProposalEvent(chainID, resourceID, depositNonce, ProposalStatus.Passed, dataHash);\n }\n }\n _proposals[nonceAndID][dataHash] = proposal;\n }"
+            }
+        ],
+        "ProposalVote": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint256 amount;\n uint256 lenDestinationRecipientAddress;\n bytes memory destinationRecipientAddress;\n (amount, lenDestinationRecipientAddress) = abi.decode(data, (uint, uint));\n destinationRecipientAddress = bytes(data[64:64 + lenDestinationRecipientAddress]);\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint256 amount;\n uint256 lenDestinationRecipientAddress;\n bytes memory destinationRecipientAddress;\n (amount, lenDestinationRecipientAddress) = abi.decode(data, (uint, uint));\n destinationRecipientAddress = bytes(data[64:64 + lenDestinationRecipientAddress]);\n bytes20 recipientAddress;\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (_burnList[tokenAddress]) {\n mintERC20(tokenAddress, address(recipientAddress), amount);\n } else {\n releaseERC20(tokenAddress, address(recipientAddress), amount);\n }\n }"
+            }
+        ],
+        "NFTMint2": [
+            {
+                "executeProposal": "function executeProposal(bytes32 resourceID, bytes calldata data) external override onlyBridge {\n uint tokenID;\n uint lenDestinationRecipientAddress;\n bytes memory destinationRecipientAddress;\n uint offsetMetaData;\n uint lenMetaData;\n bytes memory metaData;\n (tokenID, lenDestinationRecipientAddress) = abi.decode(data, (uint, uint));\n offsetMetaData = 64 + lenDestinationRecipientAddress;\n destinationRecipientAddress = bytes(data[64:offsetMetaData]);\n lenMetaData = abi.decode(data[offsetMetaData:], (uint));\n metaData = bytes(data[offsetMetaData + 32:offsetMetaData + 32 + lenMetaData]);\n bytes20 recipientAddress;\n assembly {\n recipientAddress := mload(add(destinationRecipientAddress, 0x20))\n }\n address tokenAddress = _resourceIDToTokenContractAddress[resourceID];\n require(_contractWhitelist[address(tokenAddress)], \"provided tokenAddress is not whitelisted\");\n if (_burnList[tokenAddress]) {\n mintERC721(tokenAddress, address(recipientAddress), tokenID, metaData);\n } else {\n releaseERC721(tokenAddress, address(this), address(recipientAddress), tokenID);\n }\n }"
+            }
+        ]
+    }
+}

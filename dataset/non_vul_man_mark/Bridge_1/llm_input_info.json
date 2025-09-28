@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "TokensLocked1": [
+            {
+                "lockTokens": "function lockTokens(uint256 _bridgedAmount) public onlyGateway {\n IERC20(ethToken).burn(msg.sender, _bridgedAmount);\n emit TokensLocked(msg.sender, _bridgedAmount, block.timestamp);\n }"
+            },
+            {
+                "_burn": "function _burn(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: burn from the zero address\");\n _beforeTokenTransfer(account, address(0), amount);\n uint256 accountBalance = _balances[account];\n require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n unchecked {\n _balances[account] = accountBalance - amount;\n }\n _totalSupply -= amount;\n emit Transfer(account, address(0), amount);\n _afterTokenTransfer(account, address(0), amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokensBridged1": [
+            {
+                "bridgeTokens": "function bridgeTokens(\n address _requester,\n uint aaamount\n ) external onlyGateway verifyInitialization {\n IERC20(bnbToken).mint(_requester, aaamount);\n emit TokensBridged(_requester, aaamount, block.timestamp);\n }"
+            },
+            {
+                "_mint": "function _mint(address account, uint256 amount) internal virtual {\n require(account != address(0), \"ERC20: mint to the zero address\");\n _beforeTokenTransfer(address(0), account, amount);\n _totalSupply += amount;\n _balances[account] += amount;\n emit Transfer(address(0), account, amount);\n _afterTokenTransfer(address(0), account, amount);\n }"
+            }
+        ]
+    }
+}

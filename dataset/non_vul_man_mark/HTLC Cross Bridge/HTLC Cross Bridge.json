@@ -1,0 +1,96 @@
+{
+  "contract": "HTLC Cross Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "HTLC Cross Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "NewPortal1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "DestinationPortalOpened1",
+          "DestinationTransferFinalized2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "NewPortal1": {
+            "0": {
+              "func_name": "initPortal",
+              "file_name": "htlcBridge.sol",
+              "key_ops": [
+                "require(tokenContract.allowance(msg.sender, address(this)) >= _amount, \"Error: Insuficient allowance\")",
+                "_hasActiveTransferOut[msg.sender] = true",
+                "_transfersOut[msg.sender] = Transfer(_commitment, msg.sender, _receiver, _tokenContract, _amount, _hashLock, block.timestamp + 1 hours)",
+                "tokenContract.transferFrom(msg.sender, address(this), _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transferFrom",
+                  "file_name": "IERC20.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "DestinationPortalOpened1": {
+            "0": {
+              "func_name": "portalFromOtherChain",
+              "file_name": "htlcBridge.sol",
+              "key_ops": [
+                "require(contractToContract[_tokenContract] != address(0x0), \"Error: Token contract doesn't have a match in this chain\")",
+                "_transfersIn[_receiver] = Transfer(_commitment, _sender, _receiver, contractToContract[_tokenContract], _amount, _hashLock, _timeLock)"
+              ],
+              "child": {}
+            }
+          },
+          "DestinationTransferFinalized2": {
+            "0": {
+              "func_name": "finalizeInterPortalTransferDest",
+              "file_name": "htlcBridge.sol",
+              "key_ops": [
+                "require(hashThis(abi.encode(_secretKey)) == transfer.hashLock, \"Error: hash lock does not match\")",
+                "require(block.timestamp <= transfer.timeLock, \"Error: transfer wasn't finalized within time\")",
+                "require(tokenContract.balanceOf(address(this)) >= transfer.amount, \"Error: not enough liquidity to bridge funds\")",
+                "tokenContract.transfer(_receiver, transfer.amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "IERC20.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,22 @@
+{
+  "bridge_name": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [],
+      "rel_chain": [],
+      "det_chain": []
+    },
+    "src_chain": {
+      "chain_name": "",
+      "events": {}
+    },
+    "rel_chain": {
+      "chain_name": "",
+      "events": {}
+    },
+    "det_chain": {
+      "chain_name": "",
+      "events": {}
+    }
+  }
+}

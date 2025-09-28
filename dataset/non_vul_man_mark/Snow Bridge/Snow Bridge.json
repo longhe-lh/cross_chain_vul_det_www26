@@ -1,0 +1,139 @@
+
+
+
+{
+  "contract": "Snow Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg":{
+  "Snow Bridge": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [
+        "MessageDispatched1",
+        "NewMMRRoot2"
+      ],
+      "rel_chain": [
+        "Message"
+      ],
+      "det_chain": [
+        "Locked1",
+        "Created2"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "Ethereum",
+      "events": {
+        "MessageDispatched1": {
+          "0": {
+            "func_name": "submit",
+            "file_name": "InboundQueue.sol",
+            "key_ops": [
+              "vault.withdraw(message.origin, payable(msg.sender), reward)",
+              "if (gasleft() < gasToForward + GAS_BUFFER) { revert NotEnoughGas(); }"
+            ],
+            "child": {
+              "0": {
+                "func_name": "handle",
+                "file_name": "NativeTokens.sol",
+                "key_ops": [
+                  "vault.withdraw(payload.recipient, payload.token, payload.amount)"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "NewMMRRoot2": {
+          "0": {
+            "func_name": "submitFinal",
+            "file_name": "BeefyClient.sol",
+            "key_ops": [
+              "latestMMRRoot = newMMRRoot",
+              "latestBeefyBlock = commitment.blockNumber"
+            ],
+            "child": {
+              "0": {
+                "func_name": "verifyCommitment",
+                "file_name": "BeefyClient.sol",
+                "key_ops": [
+                  "if (proof.index >= vset.length) { revert InvalidValidatorProof(); }",
+                  "Bitfield.unset(finalbitfield, proof.index)"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "Polkadot Relay Chain",
+      "events": {
+        "Message": {
+          "0": {
+            "func_name": "submit",
+            "file_name": "OutboundQueue.sol",
+            "key_ops": [
+              "nonce[dest] = nonce[dest] + 1",
+              "vault.deposit{value: msg.value}(dest)"
+            ],
+            "child": {}
+          }
+        }
+      }
+    },
+    "det_chain": {
+      "chain_name": "Substrate-based Parachain",
+      "events": {
+        "Locked1": {
+          "0": {
+            "func_name": "lock",
+            "file_name": "NativeTokens.sol",
+            "key_ops": [
+              "vault.deposit(msg.sender, token, amount)"
+            ],
+            "child": {
+              "0": {
+                "func_name": "deposit",
+                "file_name": "TokenVault.sol",
+                "key_ops": [
+                  "balance[token] += amount",
+                  "IERC20(token).safeTransferFrom(sender, address(this), amount)"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "Created2": {
+          "0": {
+            "func_name": "create",
+            "file_name": "NativeTokens.sol",
+            "key_ops": [],
+            "child": {
+              "0": {
+                "func_name": "Create",
+                "file_name": "NativeTokensTypes.sol",
+                "key_ops": [],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+},
+  "cag": []
+}

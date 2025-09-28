@@ -1,0 +1,22 @@
+{
+    "src_chain": {
+        "NewPortal1": [
+            {
+                "initPortal": "function initPortal(bytes32 _commitment, bytes32 _hashLock, address _tokenContract, address _receiver, uint _amount) external noActiveTransferOut{\n IERC20 tokenContract = IERC20(_tokenContract);\n require(tokenContract.allowance(msg.sender, address(this)) >= _amount, \"Error: Insuficient allowance\");\n _hasActiveTransferOut[msg.sender] = true;\n _transfersOut[msg.sender] = Transfer(_commitment, msg.sender, _receiver, _tokenContract, _amount, _hashLock, block.timestamp + 1 hours);\n tokenContract.transferFrom(msg.sender, address(this), _amount);\n emit NewPortal(msg.sender, _amount, _tokenContract);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "DestinationPortalOpened1": [
+            {
+                "portalFromOtherChain": "function portalFromOtherChain(\n bytes32 _commitment, \n bytes32 _hashLock, \n uint _timeLock, \n address _tokenContract, \n address _sender, \n address _receiver, \n uint _amount) \n external {\n \n require(contractToContract[_tokenContract] != address(0x0), \"Error: Token contract doesn't have a match in this chain\");\n _transfersIn[_receiver] = Transfer(_commitment, _sender, _receiver, contractToContract[_tokenContract], _amount, _hashLock, _timeLock);\n emit DestinationPortalOpened(_sender, _receiver, _amount);\n }"
+            }
+        ],
+        "DestinationTransferFinalized2": [
+            {
+                "finalizeInterPortalTransferDest": "function finalizeInterPortalTransferDest(address _receiver, string memory _secretKey) public { \n Transfer memory transfer = _transfersIn[_receiver];\n IERC20 tokenContract = IERC20(contractToContract[transfer.tokenContract]);\n function hashThis(...) {...}\nfunction encode(...) {...}\nrequire(hashThis(abi.encode(_secretKey)) == transfer.hashLock, \"Error: hash lock does not match\");\n require(block.timestamp <= transfer.timeLock, \"Error: transfer wasn't finalized within time\");\n require(tokenContract.balanceOf(address(this)) >= transfer.amount, \"Error: not enough liquidity to bridge funds\");\n tokenContract.transfer(_receiver, transfer.amount);\n emit DestinationTransferFinalized(transfer.sender);\n }"
+            }
+        ]
+    }
+}

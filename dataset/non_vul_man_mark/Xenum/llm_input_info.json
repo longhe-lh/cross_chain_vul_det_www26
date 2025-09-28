@@ -1,0 +1,53 @@
+{
+    "src_chain": {
+        "TokenTransferFungible1": [
+            {
+                "_transferFungible": "function _transferFungible(\n address token,\n uint256 amount,\n uint256 networkId\n ) internal {\n \n\n IERC20Upgradeable(token).transferFrom(\n _msgSender(),\n address(this),\n amount\n );\n\n emit TokenTransferFungible(_msgSender(), token, amount, networkId);\n }"
+            }
+        ],
+        "TokenTransferNonFungible2": [
+            {
+                "_transferNonFungible": "function _transferNonFungible(\n address _token,\n uint256 _tokenId,\n uint256 _networkId\n ) internal {\n \n\n IERC721Upgradeable(_token).transferFrom(\n _msgSender(),\n address(this),\n _tokenId\n );\n\n emit TokenTransferNonFungible(\n _msgSender(),\n _token,\n _tokenId,\n _networkId\n );\n }"
+            }
+        ],
+        "TokenTransferMixedFungible3": [
+            {
+                "_transferMixedFungible": "function _transferMixedFungible(\n address _token,\n uint256 _tokenId,\n uint256 _amount,\n uint256 _networkId\n ) internal {\n \n\n IERC1155Upgradeable(_token).safeTransferFrom(\n _msgSender(),\n address(this),\n _tokenId,\n _amount,\n \"\"\n );\n\n emit TokenTransferMixedFungible(\n _msgSender(),\n _token,\n _tokenId,\n _amount,\n _networkId\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "MessageSent": [
+            {
+                "sendMessage": "function sendMessage(\n uint256 _messageId,\n uint256 _destination,\n string calldata _recipient,\n bool _receipt,\n bytes calldata _message,\n bytes calldata\n ) external payable virtual override {\n \n\n if (msg.value != 0) revert FunctionNotPayable();\n\n function _sendMessage(...) {...}\n_sendMessage(_messageId, _destination, _recipient, _receipt, _message);\n }"
+            }
+        ],
+        "BroadcastSent": [
+            {
+                "sendBroadcast": "function sendBroadcast(\n uint256 _messageId,\n bool _receipt,\n bytes calldata _message,\n bytes calldata\n ) external payable virtual override {\n \n\n if (msg.value != 0) revert FunctionNotPayable();\n\n function _sendBroadcast(...) {...}\n_sendBroadcast(_messageId, _receipt, _message);\n }"
+            }
+        ],
+        "MessageReceived": [
+            {
+                "relayMessage": "function relayMessage(\n IMessageReceiver _recipient,\n uint256 _messageId,\n string calldata _sender,\n uint256 _fromNetworkId,\n bool _receipt,\n bytes calldata _message\n ) external virtual override onlyController returns (bool success) {\n try\n _recipient.receiveBridgeMessage(_sender, _fromNetworkId, _message)\n returns (bool result) {\n success = result;\n } catch {\n success = false;\n }\n\n emit MessageReceived(\n _recipient,\n _sender,\n _fromNetworkId,\n success,\n _messageId,\n _receipt\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenClaimedFungible1": [
+            {
+                "bridgeClaimFungible": "function bridgeClaimFungible(\n address _token,\n address _to,\n uint256 _amount\n ) external virtual override onlyController {\n if (IERC20Upgradeable(_token).balanceOf(address(this)) < _amount)\n revert InsufficientFunds(\n _amount,\n IERC20Upgradeable(_token).balanceOf(address(this))\n );\n\n IERC20Upgradeable(_token).transfer(_to, _amount);\n\n emit TokenClaimedFungible(_to, _token, _amount);\n }"
+            }
+        ],
+        "TokenClaimedNonFungible2": [
+            {
+                "bridgeClaimNonFungible": "function bridgeClaimNonFungible(\n address _token,\n address _to,\n uint256 _tokenId\n ) external virtual override onlyController {\n address tokenOwner;\n\n \n\n try IERC721Bridgable(_token).ownerOf(_tokenId) returns (address owner) {\n tokenOwner = owner;\n } catch {\n tokenOwner = address(0);\n }\n\n \n\n \n\n \n\n \n\n if (tokenOwner == address(0)) {\n IERC721Bridgable(_token).bridgeMint(_to, _tokenId);\n } else {\n \n\n IERC721Bridgable(_token).transferFrom(address(this), _to, _tokenId);\n }\n\n emit TokenClaimedNonFungible(_to, _token, _tokenId);\n }"
+            }
+        ],
+        "TokenClaimedMixedFungible3": [
+            {
+                "bridgeClaimMixedFungible": "function bridgeClaimMixedFungible(\n address token,\n address to,\n uint256 tokenId,\n uint256 amount\n ) external virtual override onlyController {\n \n\n uint256 balance = IERC1155Bridgable(token).balanceOf(\n address(this),\n tokenId\n );\n\n uint256 balanceToMint = 0;\n\n uint256 balanceToTransfer = amount;\n\n if (balance < amount) {\n balanceToMint = amount - balance;\n\n balanceToTransfer = balance;\n }\n\n IERC1155Bridgable(token).safeTransferFrom(\n address(this),\n to,\n tokenId,\n balanceToTransfer,\n \"\"\n );\n\n if (balanceToMint > 0) {\n IERC1155Bridgable(token).bridgeMint(to, tokenId, balanceToMint);\n }\n\n emit TokenClaimedMixedFungible(to, token, tokenId, amount);\n }"
+            }
+        ]
+    }
+}

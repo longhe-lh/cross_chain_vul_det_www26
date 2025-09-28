@@ -1,0 +1,133 @@
+{
+  "contract": "Zapper",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Zapper": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "ZapIn1"
+        ],
+        "rel_chain": [
+          "_fillQuote",
+          "_subtractGoodwill"
+        ],
+        "det_chain": [
+          "ZapOut1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "ZapIn1": {
+            "0": {
+              "func_name": "ZapIn",
+              "file_name": "Compound_Zap_V1.sol",
+              "key_ops": [
+                "require(cTokensRec > minCtokens, \"High Slippage\");",
+                "uint256 toInvest = _pullTokens(fromToken, amountIn, affiliate, true);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_pullTokens",
+                  "file_name": "ZapOutBaseV3.sol",
+                  "key_ops": [
+                    "require(Address.isContract(msg.sender),\"ERR: shouldSellEntireBalance is true for EOA\");",
+                    "IERC20(token).safeTransferFrom(msg.sender, address(this), amount);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "safeTransferFrom",
+                      "file_name": "ERC1155.sol",
+                      "key_ops": [
+                        "require(to != address(0), \"ERC1155: transfer to the zero address\");",
+                        "require(from == _msgSender() || isApprovedForAll(from, _msgSender()),\"ERC1155: caller is not owner nor approved\");",
+                        "require(fromBalance >= amount,\"ERC1155: insufficient balance for transfer\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Polygon",
+        "events": {
+          "_fillQuote": {
+            "0": {
+              "func_name": "_fillQuote",
+              "file_name": "Compound_Zap_V1.sol",
+              "key_ops": [
+                "require(approvedTargets[swapTarget], \"Target not Authorized\");",
+                "(bool success, ) = swapTarget.call{ value: valueToSend }(swapCallData); require(success, \"Error Swapping Tokens\");"
+              ],
+              "child": {}
+            }
+          },
+          "_subtractGoodwill": {
+            "0": {
+              "func_name": "_subtractGoodwill",
+              "file_name": "ZapBaseV2_1.sol",
+              "key_ops": [
+                "totalGoodwillPortion = (amount * goodwill) / 10000;",
+                "affiliateBalance[affiliate][token] += affiliatePortion;"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Polygon",
+        "events": {
+          "ZapOut1": {
+            "0": {
+              "func_name": "ZapOut",
+              "file_name": "Compound_Zap_V1.sol",
+              "key_ops": [
+                "amountIn = _pullTokens(fromToken, amountIn);",
+                "IERC20(toToken).safeTransfer(msg.sender, tokensRec);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_pullTokens",
+                  "file_name": "ZapOutBaseV3.sol",
+                  "key_ops": [
+                    "IERC20(token).safeTransferFrom(msg.sender, address(this), amount);"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "safeTransferFrom",
+                      "file_name": "ERC1155.sol",
+                      "key_ops": [
+                        "require(to != address(0), \"ERC1155: transfer to the zero address\");",
+                        "require(from == _msgSender() || isApprovedForAll(from, _msgSender()),\"ERC1155: caller is not owner nor approved\");",
+                        "_doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);"
+                      ]
+                      ,"child":{}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

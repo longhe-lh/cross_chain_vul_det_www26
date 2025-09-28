@@ -1,0 +1,92 @@
+{
+  "contract": "WAX Token Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "WAX Token Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "transfer",
+              "file_name": "WaxToken.sol",
+              "key_ops": [
+                "require(_to != address(0))",
+                "require(_to != contractAddress)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "BasicToken.sol",
+                  "key_ops": [
+                    "require(_to != address(0))",
+                    "require(_to != contractAddress)",
+                    "require(_value <= balances[msg.sender])",
+                    "balances[msg.sender] = balances[msg.sender].sub(_value)",
+                    "balances[_to] = balances[_to].add(_value)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "transfer",
+              "file_name": "WaxToken.sol",
+              "key_ops": [
+                "require(_to != address(0))",
+                "require(_to != contractAddress)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "transfer",
+                  "file_name": "BasicToken.sol",
+                  "key_ops": [
+                    "require(_to != address(0))",
+                    "require(_to != contractAddress)",
+                    "require(_value <= balances[msg.sender])",
+                    "balances[msg.sender] = balances[msg.sender].sub(_value)",
+                    "balances[_to] = balances[_to].add(_value)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,123 @@
+{
+  "contract": "Zeroswap",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Zeroswap": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1"
+        ],
+        "rel_chain": [
+          "mint"
+        ],
+        "det_chain": [
+          "TokenWithdraw1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "stake",
+              "file_name": "Cfl365Staking.sol",
+              "key_ops": [
+                "require(amount > 0, \"Cannot stake 0\")",
+                "_totalSupply = _totalSupply.add(amount)",
+                "_balances[msg.sender] = _balances[msg.sender].add(amount)",
+                "stakeToken.safeTransferFrom(msg.sender, address(this), amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "Cfl365Staking.sol",
+                  "key_ops": [
+                    "_callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value))"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_callOptionalReturn",
+                      "file_name": "Cfl365Staking.sol",
+                      "key_ops": [
+                        "bytes memory returndata = address(token).functionCall(data, \"SafeERC20: low-level call failed\")",
+                        "require(abi.decode(returndata, (bool)), \"SafeERC20: ERC20 operation did not succeed\")"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "notifyRewardAmount",
+              "file_name": "Cfl365Staking.sol",
+              "key_ops": [
+                "if (block.timestamp >= periodFinish) { rewardRate = reward.div(DURATION); }",
+                "lastUpdateTime = block.timestamp",
+                "periodFinish = block.timestamp.add(DURATION)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "unstake",
+              "file_name": "Cfl365Staking.sol",
+              "key_ops": [
+                "require(amount > 0, \"Cannot withdraw 0\")",
+                "_totalSupply = _totalSupply.sub(amount)",
+                "_balances[msg.sender] = _balances[msg.sender].sub(amount)",
+                "stakeToken.safeTransfer(msg.sender, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransfer",
+                  "file_name": "Cfl365Staking.sol",
+                  "key_ops": [
+                    "_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value))"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_callOptionalReturn",
+                      "file_name": "Cfl365Staking.sol",
+                      "key_ops": [
+                        "bytes memory returndata = address(token).functionCall(data, \"SafeERC20: low-level call failed\")",
+                        "require(abi.decode(returndata, (bool)), \"SafeERC20: ERC20 operation did not succeed\")"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

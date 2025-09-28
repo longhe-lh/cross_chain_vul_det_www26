@@ -1,0 +1,102 @@
+{
+  "contract": "Bridge_1",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_1": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokensLocked1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokensBridged1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "main_chain",
+        "events": {
+          "TokensLocked1": {
+            "0": {
+              "func_name": "lockTokens",
+              "file_name": "mainBridge.sol",
+              "key_ops": [
+                "IERC20(ethToken).burn(msg.sender , _bridgedAmount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_burn",
+                      "file_name": "ERC20.sol",
+                      "key_ops": [
+                        "require(account != address(0), \"ERC20: burn from the zero address\")",
+                        "uint256 accountBalance = _balances[account];",
+                        "require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\")",
+                        "unchecked { _balances[account] = accountBalance - amount; }",
+                        "_totalSupply -= amount;"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "side_chain",
+        "events": {
+          "TokensBridged1": {
+            "0": {
+              "func_name": "bridgeTokens",
+              "file_name": "sideBridge.sol",
+              "key_ops": [
+                "IERC20(bnbToken).mint(_requester, aaamount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "mint",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "_mint",
+                      "file_name": "ERC20.sol",
+                      "key_ops": [
+                        "require(account != address(0), \"ERC20: mint to the zero address\")",
+                        "_totalSupply += amount;",
+                        "_balances[account] += amount;"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

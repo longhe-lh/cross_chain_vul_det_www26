@@ -1,0 +1,141 @@
+{
+  "contract": "Gravity Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Gravity Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "SendToCosmosEvent1",
+          "TransactionBatchExecutedEvent1",
+          "LogicCallEvent1",
+          "ERC20DeployedEvent1"
+        ],
+        "rel_chain": [
+          "ValsetUpdatedEvent"
+        ],
+        "det_chain": [
+          "SendToCosmosEvent1",
+          "TransactionBatchExecutedEvent1",
+          "LogicCallEvent1",
+          "ERC20DeployedEvent1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "SendToCosmosEvent1": {
+            "0": {
+              "func_name": "sendToCosmos",
+              "file_name": "Gravity.sol",
+              "key_ops": [
+                "IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TransactionBatchExecutedEvent1": {
+            "0": {
+              "func_name": "submitBatch",
+              "file_name": "Gravity.sol",
+              "key_ops": [
+                "IERC20(_tokenContract).safeTransfer(_destinations[i], _amounts[i])",
+                "IERC20(_tokenContract).safeTransfer(msg.sender, totalFee)"
+              ],
+              "child": {}
+            }
+          },
+          "LogicCallEvent1": {
+            "0": {
+              "func_name": "submitLogicCall",
+              "file_name": "Gravity.sol",
+              "key_ops": [
+                "IERC20(_args.transferTokenContracts[i]).safeTransfer(_args.logicContractAddress, _args.transferAmounts[i])",
+                "IERC20(_args.feeTokenContracts[i]).safeTransfer(msg.sender, _args.feeAmounts[i])"
+              ],
+              "child": {}
+            }
+          },
+          "ERC20DeployedEvent1": {
+            "0": {
+              "func_name": "deployERC20",
+              "file_name": "Gravity.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Cosmos",
+        "events": {
+          "ValsetUpdatedEvent": {
+            "0": {
+              "func_name": "updateValset",
+              "file_name": "Gravity.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "SendToCosmosEvent1": {
+            "0": {
+              "func_name": "sendToCosmos",
+              "file_name": "Gravity.sol",
+              "key_ops": [
+                "IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TransactionBatchExecutedEvent1": {
+            "0": {
+              "func_name": "submitBatch",
+              "file_name": "Gravity.sol",
+              "key_ops": [
+                "IERC20(_tokenContract).safeTransfer(_destinations[i], _amounts[i])",
+                "IERC20(_tokenContract).safeTransfer(msg.sender, totalFee)"
+              ],
+              "child": {}
+            }
+          },
+          "LogicCallEvent1": {
+            "0": {
+              "func_name": "submitLogicCall",
+              "file_name": "Gravity.sol",
+              "key_ops": [
+                "IERC20(_args.transferTokenContracts[i]).safeTransfer(_args.logicContractAddress, _args.transferAmounts[i])",
+                "IERC20(_args.feeTokenContracts[i]).safeTransfer(msg.sender, _args.feeAmounts[i])"
+              ],
+              "child": {}
+            }
+          },
+          "ERC20DeployedEvent1": {
+            "0": {
+              "func_name": "deployERC20",
+              "file_name": "Gravity.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

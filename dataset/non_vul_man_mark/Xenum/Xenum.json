@@ -1,0 +1,180 @@
+{
+  "contract": "Xenum",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Xenum": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenTransferFungible1",
+          "TokenTransferNonFungible2",
+          "TokenTransferMixedFungible3"
+        ],
+        "rel_chain": [
+          "MessageSent",
+          "BroadcastSent",
+          "MessageReceived"
+        ],
+        "det_chain": [
+          "TokenClaimedFungible1",
+          "TokenClaimedNonFungible2",
+          "TokenClaimedMixedFungible3"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "SourceChain",
+        "events": {
+          "TokenTransferFungible1": {
+            "0": {
+              "func_name": "transferFungible",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_transferFungible",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "IERC20Upgradeable(token).transferFrom(_msgSender(), address(this), amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenTransferNonFungible2": {
+            "0": {
+              "func_name": "transferNonFungible",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_transferNonFungible",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "IERC721Upgradeable(_token).transferFrom(_msgSender(), address(this), _tokenId)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenTransferMixedFungible3": {
+            "0": {
+              "func_name": "transferMixedFungible",
+              "file_name": "Bridge.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_transferMixedFungible",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "IERC1155Upgradeable(_token).safeTransferFrom(_msgSender(), address(this), _tokenId, _amount, \"\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "MessageSent": {
+            "0": {
+              "func_name": "sendMessage",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "_sendMessage(_messageId, _destination, _recipient, _receipt, _message)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_sendMessage",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BroadcastSent": {
+            "0": {
+              "func_name": "sendBroadcast",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "_sendBroadcast(_messageId, _receipt, _message)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_sendBroadcast",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "MessageReceived": {
+            "0": {
+              "func_name": "relayMessage",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "_recipient.receiveBridgeMessage(_sender, _fromNetworkId, _message)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "TokenClaimedFungible1": {
+            "0": {
+              "func_name": "bridgeClaimFungible",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "IERC20Upgradeable(_token).transfer(_to, _amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenClaimedNonFungible2": {
+            "0": {
+              "func_name": "bridgeClaimNonFungible",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "IERC721Bridgable(_token).bridgeMint(_to, _tokenId)",
+                "IERC721Bridgable(_token).transferFrom(address(this), _to, _tokenId)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenClaimedMixedFungible3": {
+            "0": {
+              "func_name": "bridgeClaimMixedFungible",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "IERC1155Bridgable(token).safeTransferFrom(address(this), to, tokenId, balanceToTransfer, \"\")",
+                "IERC1155Bridgable(token).bridgeMint(to, tokenId, balanceToMint)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

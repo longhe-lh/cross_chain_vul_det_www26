@@ -1,0 +1,165 @@
+{
+  "contract": "Rainbow Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Rainbow Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TransferToNearInitiated1",
+          "Deposited2"
+        ],
+        "rel_chain": [
+          "ConsumedProof",
+          "BlockHashAdded"
+        ],
+        "det_chain": [
+          "NearToEthTransferFinalised1",
+          "Withdrawn2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TransferToNearInitiated1": {
+            "0": {
+              "func_name": "transferToNear",
+              "file_name": "eNear.sol",
+              "key_ops": [
+                "_burn(msg.sender, _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "require(account != address(0), \"ERC20: burn from the zero address\");",
+                    "_balances[account] = _balances[account].sub(amount)",
+                    "emit Transfer(account, address(0), amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Deposited2": {
+            "0": {
+              "func_name": "depositToEVM",
+              "file_name": "EthCustodian.sol",
+              "key_ops": [
+                "require(fee < msg.value,'The fee cannot be bigger than the transferred amount.')"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "ConsumedProof": {
+            "0": {
+              "func_name": "_parseAndConsumeProof",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(prover.proveOutcome(proofData, proofBlockHeight), \"Proof should be valid\");",
+                "require(fullOutcomeProof.block_header_lite.inner_lite.height >= minBlockAcceptanceHeight),\"Proof is from the ancient block\");",
+                "usedProofs[receiptId] = true",
+                "require(borshData.finished(), \"Argument should be exact borsh serialization\");",
+                "require(!usedProofs[receiptId], \"The burn event proof cannot be reused\");",
+                "require(keccak256(fullOutcomeProof.outcome_proof.outcome_with_id.outcome.executor_id) == keccak256(nearConnector),\"Can only unlock tokens from the linked proof producer on Near blockchain\");",
+                "require(!result.failed, \"Cannot use failed execution outcome for unlocking the tokens\");",
+                "require(!result.unknown, \"Cannot use unknown execution outcome for unlocking the tokens\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "proveOutcome",
+                  "file_name": "INearProver.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BlockHashAdded": {
+            "0": {
+              "func_name": "addLightClientBlock",
+              "file_name": "NearBridge.sol",
+              "key_ops": [
+                "require(initialized, \"Contract is not initialized\");",
+                "require(balanceOf[msg.sender] >= lockEthAmount, \"Balance is not enough\");",
+                "require(nearBlock.inner_lite.timestamp >= untrustedTimestamp.add(replaceDuration),\"Can only replace with a sufficiently newer block\");",
+                "require(nearBlock.inner_lite.height > curHeight, \"New block must have higher height\");",
+                "require(nearBlock.approvals_after_next.length >= thisEpoch.numBPs, \"Approval list is too short\");",
+                "require(votedFor > thisEpoch.stakeThreshold, \"Too few approvals\");",
+                "require(nearBlock.next_bps.some, \"Next next_bps should not be None\");",
+                "require(nearBlock.next_bps.hash == nearBlock.inner_lite.next_bp_hash,\"Hash of block producers does not match\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "setBlockProducers",
+                  "file_name": "NearBridge.sol",
+                  "key_ops": [
+                    "epoch.keys[i] = src[i].publicKey.k",
+                    "epoch.stakeThreshold = (totalStake * 2) / 3"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "NearToEthTransferFinalised1": {
+            "0": {
+              "func_name": "finaliseNearToEthTransfer",
+              "file_name": "eNear.sol",
+              "key_ops": [
+                "_mint(result.recipient, result.amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "ERC20.sol",
+                  "key_ops": [
+                    "require(account != address(0), \"ERC20: mint to the zero address\");",
+                    "_totalSupply = _totalSupply.add(amount)",
+                    "_balances[account] = _balances[account].add(amount)",
+                    "emit Transfer(address(0), account, amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Withdrawn2": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "EthCustodian.sol",
+              "key_ops": [
+                "require(result.ethCustodian == address(this),'Can only withdraw coins that were expected for the current contract');",
+                "payable(result.recipient).transfer(result.amount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,17 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "burn": "function burn(address owner, uint amount) external {\n require(msg.sender == admin, \"only admin\");\n _burn(owner, amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address to, uint amount) external {\n require(msg.sender == admin, \"only admin\");\n _mint(to, amount);\n }"
+            }
+        ]
+    }
+}

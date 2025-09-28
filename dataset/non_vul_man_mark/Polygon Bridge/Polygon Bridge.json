@@ -1,0 +1,135 @@
+{
+  "contract": "Polgon Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Polygon Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "depositEther1"
+        ],
+        "rel_chain": [
+          "submitCheckpoint"
+        ],
+        "det_chain": [
+          "withdraw1",
+          "ExitedERC7212"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Root Chain",
+        "events": {
+          "depositEther1": {
+            "0": {
+              "func_name": "delegationDeposit",
+              "file_name": "StakeManager.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Relay Chain",
+        "events": {
+          "submitCheckpoint": {
+            "0": {
+              "func_name": "submitCheckpoint",
+              "file_name": "ERC721PredicateBurnOnly.sol",
+              "key_ops": [
+                "require(CHAINID == _borChainID, \"Invalid bor chain id\");",
+                "require(_buildHeaderBlock(proposer, start, end, rootHash), \"INCORRECT_HEADER_DATA\");",
+                "uint256 _reward = stakeManager.checkSignatures(end.sub(start).add(1), keccak256(abi.encodePacked(bytes(hex\"01\"), data)), accountHash, proposer, sigs);",
+                "require(_reward != 0, \"Invalid checkpoint\");",
+                "emit NewHeaderBlock(proposer, _nextHeaderBlock, _reward, start, end, rootHash);",
+                "_nextHeaderBlock = _nextHeaderBlock.add(MAX_DEPOSITS);",
+                "_blockDepositId = 1;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "checkSignatures",
+                  "file_name": "StakeManager.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Child Chain",
+        "events": {
+          "withdraw1": {
+            "0": {
+              "func_name": "_depositFor",
+              "file_name": "RootChainManager.sol",
+              "key_ops": [
+                "require(rootToChildToken[rootToken] != address(0x0) && tokenType != 0,\"RootChainManager: TOKEN_NOT_MAPPED\");",
+                "address predicateAddress = typeToPredicate[tokenType];",
+                "require(predicateAddress != address(0), \"INVALID_TOKEN_TYPE\");",
+                "require(user != address(0), \"INVALID_USER\");",
+                "ITokenPredicate(predicateAddress).lockTokens(_msgSender(), user, rootToken, depositData);",
+                "bytes memory syncData = abi.encode(user, rootToken, depositData);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "lockTokens",
+                  "file_name": "MintableERC1155Predicate.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "safeBatchTransferFrom",
+                      "file_name": "ERC1155.sol",
+                      "key_ops": [
+                        "require(ids.length == amounts.length,\"ERC1155: ids and amounts length mismatch\");",
+                        "require(to != address(0), \"ERC1155: transfer to the zero address\");",
+                        "require(from == _msgSender() || isApprovedForAll(from, _msgSender()),\"ERC1155: transfer caller is not owner nor approved\");",
+                        "require(fromBalance >= amount,\"ERC1155: insufficient balance for transfer\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ExitedERC7212": {
+            "0": {
+              "func_name": "exitTokens",
+              "file_name": "ERC721Predicate.sol",
+              "key_ops": [
+                "require(bytes32(logTopicRLPList[0].toUint()) == TRANSFER_EVENT_SIG, \"ERC721Predicate: INVALID_SIGNATURE\");",
+                "require(address(logTopicRLPList[2].toUint()) == address(0), // topic2 is to address\"ERC721Predicate: INVALID_RECEIVER\");",
+                "IERC721(rootToken).safeTransferFrom(address(this), withdrawer, tokenId);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "safeTransferFrom",
+                  "file_name": "ERC721.sol",
+                  "key_ops": [
+                    "require(_isApprovedOrOwner(_msgSender(), tokenId),\"ERC721: transfer caller is not owner nor approved\");",
+                    "_safeTransfer(from, to, tokenId, _data);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

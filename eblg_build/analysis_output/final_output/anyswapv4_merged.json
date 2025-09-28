@@ -1,0 +1,127 @@
+{
+  "bridge_name": {
+    "interoperability": "homogeneous",
+    "roles": {
+      "src_chain": [
+        "LogSwapout1",
+        "LogAnySwapOut2"
+      ],
+      "rel_chain": [],
+      "det_chain": [
+        "LogSwapin1",
+        "LogAnySwapIn2"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "source_chain",
+      "events": {
+        "LogSwapout1": {
+          "0": {
+            "func_name": "Swapout",
+            "file_name": "AnyswapV1ERC20.sol",
+            "key_ops": [
+              "_burn(_msgSender(), amount);",
+              "require(bindaddr != address(0), \"bind address is the zero address\");"
+            ],
+            "child": {}
+          }
+        },
+        "LogAnySwapOut2": {
+          "0": {
+            "func_name": "_anySwapOut",
+            "file_name": "AnyswapV4Router.sol",
+            "key_ops": [
+              "AnyswapV1ERC20(token).burn(from, amount);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "burn",
+                "file_name": "AnyswapV4ERC20.sol",
+                "key_ops": [
+                  "require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");",
+                  "_burn(from, amount);"
+                ],
+                "child": {
+                  "0": {
+                    "func_name": "_burn",
+                    "file_name": "AnyswapV4ERC20.sol",
+                    "key_ops": [
+                      "require(account != address(0), \"ERC20: burn from the zero address\");",
+                      "balanceOf[account] -= amount;",
+                      "_totalSupply -= amount;",
+                      "emit Transfer(account, address(0), amount);"
+                    ],
+                    "child": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "relay_chain",
+      "events": {}
+    },
+    "det_chain": {
+      "chain_name": "destination_chain",
+      "events": {
+        "LogSwapin1": {
+          "0": {
+            "func_name": "Swapin",
+            "file_name": "AnyswapV1ERC20.sol",
+            "key_ops": [
+              "_mint(account, amount);",
+              "require(newOwner != address(0), \"new owner is the zero address\");"
+            ],
+            "child": {
+              "0": {
+                "func_name": "_mint",
+                "file_name": "AnyswapV4ERC20.sol",
+                "key_ops": [
+                  "require(account != address(0), \"ERC20: mint to the zero address\");",
+                  "balanceOf[account] += amount;",
+                  "_totalSupply += amount;",
+                  "emit Transfer(address(0), account, amount);"
+                ],
+                "child": {}
+              }
+            }
+          }
+        },
+        "LogAnySwapIn2": {
+          "0": {
+            "func_name": "_anySwapIn",
+            "file_name": "AnyswapV4Router.sol",
+            "key_ops": [
+              "AnyswapV1ERC20(token).mint(to, amount);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "mint",
+                "file_name": "AnyswapV4ERC20.sol",
+                "key_ops": [
+                  "_mint(to, amount);"
+                ],
+                "child": {
+                  "0": {
+                    "func_name": "_mint",
+                    "file_name": "AnyswapV4ERC20.sol",
+                    "key_ops": [
+                      "require(account != address(0), \"ERC20: mint to the zero address\");",
+                      "balanceOf[account] += amount;",
+                      "_totalSupply += amount;",
+                      "emit Transfer(address(0), account, amount);"
+                    ],
+                    "child": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

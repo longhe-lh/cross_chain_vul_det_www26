@@ -1,0 +1,103 @@
+{
+  "contract": "XP Network Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "XP Network Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "XPNft.sol",
+              "key_ops": [
+                "_safeMint(to, id)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_safeMint",
+                  "file_name": "ERC721.sol",
+                  "key_ops": [
+                    "_mint(to, tokenId)",
+                    "require(_checkOnERC721Received(address(0), to, tokenId, _data), \"ERC721: transfer to non ERC721Receiver implementer\")"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_mint",
+                      "file_name": "ERC721.sol",
+                      "key_ops": [
+                        "require(to != address(0), \"ERC721: mint to the zero address\")",
+                        "require(!_exists(tokenId), \"ERC721: token already minted\")",
+                        "_beforeTokenTransfer(address(0), to, tokenId)",
+                        "_balances[to] += 1",
+                        "_owners[tokenId] = to",
+                        "_afterTokenTransfer(address(0), to, tokenId)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "burnFor",
+              "file_name": "XPNft.sol",
+              "key_ops": [
+                "require(ownerOf(id) == from, \"You don't own this nft!\")",
+                "_burn(id)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "ERC721.sol",
+                  "key_ops": [
+                    "address owner = ERC721.ownerOf(tokenId)",
+                    "_beforeTokenTransfer(owner, address(0), tokenId)",
+                    "_approve(address(0), tokenId)",
+                    "_balances[owner] -= 1",
+                    "delete _owners[tokenId]",
+                    "_afterTokenTransfer(owner, address(0), tokenId)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,20 @@
+{
+    "src_chain": {
+        "Deposit": [
+            {
+                "deposit": "function deposit(bytes32 resourceID, address depositer, bytes calldata data) external override onlyBridge {\n uint option;\n uint amount;\n (option, amount) = abi.decode(data, (uint, uint));\n address tokenAddress = resourceIDToTokenContractAddress[resourceID];\n require(contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");\n if (burnList[tokenAddress]) {\n require(amount >= withdrawalFees[resourceID], \"less than withdrawal fee\");\n QBridgeToken(tokenAddress).burnFrom(depositer, amount);\n } else {\n require(amount >= minAmounts[resourceID][option], \"less than minimum amount\");\n tokenAddress.safeTransferFrom(depositer, address(this), amount);\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "ProposalEvent": [
+            {
+                "voteProposal": "function voteProposal(uint8 originDomainID, uint64 depositNonce, bytes32 resourceID, bytes calldata data) external onlyRelayers notPaused {\n address handlerAddress = resourceIDToHandlerAddress[resourceID];\n require(handlerAddress != address(0), \"QBridge: invalid handler\");\n uint72 proposalID = combinedProposalId(originDomainID, depositNonce);\n bytes32 dataHash = keccak256(abi.encodePacked(handlerAddress, data));\n Proposal memory proposal = _proposals[proposalID][dataHash];\n if (proposal._status == ProposalStatus.Passed) {\n executeProposal(originDomainID, depositNonce, resourceID, data, true);\n return;\n }\n require(uint(proposal._status) <= 1, \"QBridge: proposal already executed/cancelled\");\n function _hasVoted(...) {...}\nfunction executeProposal(...) {...}\nrequire(!_hasVoted(proposal, msg.sender), \"QBridge: relayer already voted\");\n if (proposal._status == ProposalStatus.Inactive) {\n proposal = Proposal({_status : ProposalStatus.Active, _yesVotes : 0, _yesVotesTotal : 0, _proposedBlock : uint40(block.number)});\n emit ProposalEvent(originDomainID, depositNonce, ProposalStatus.Active, data);\n }\n\n\n\n\n if (proposal._status != ProposalStatus.Cancelled) {\n proposal._yesVotes = _bitmap(proposal._yesVotes, _relayerBit(msg.sender));\n proposal._yesVotesTotal++;\n emit ProposalVote(originDomainID, depositNonce, proposal._status, dataHash);\n if (proposal._yesVotesTotal >= relayerThreshold) {\n proposal._status = ProposalStatus.Passed;\n emit ProposalEvent(originDomainID, depositNonce, ProposalStatus.Passed, data);\n }\n }\n _proposals[proposalID][dataHash] = proposal;\n if (proposal._status == ProposalStatus.Passed) {\n executeProposal(originDomainID, depositNonce, resourceID, data, false);\n }\n }"
+            },
+            {
+                "executeProposal": "function executeProposal(uint8 originDomainID, uint64 depositNonce, bytes32 resourceID, bytes calldata data, bool revertOnFail) public onlyRelayers notPaused {\n address handlerAddress = resourceIDToHandlerAddress[resourceID];\n uint72 proposalID = combinedProposalId(originDomainID, depositNonce);\n bytes32 dataHash = keccak256(abi.encodePacked(handlerAddress, data));\n Proposal storage proposal = _proposals[proposalID][dataHash];\n require(proposal._status == ProposalStatus.Passed, \"QBridge: Proposal must have Passed status\");\n proposal._status = ProposalStatus.Executed;\n IQBridgeHandler handler = IQBridgeHandler(handlerAddress);\n if (revertOnFail) {\n function executeProposal(...) {...}\nhandler.executeProposal(resourceID, data);\n } else {\n try handler.executeProposal(resourceID, data) {\n } catch (bytes memory lowLevelData) {\n proposal._status = ProposalStatus.Passed;\n emit FailedHandlerExecution(lowLevelData);\n return;\n }\n }\n emit ProposalEvent(originDomainID, depositNonce, ProposalStatus.Executed, data);\n }"
+            }
+        ]
+    }
+}

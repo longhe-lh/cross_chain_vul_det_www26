@@ -1,0 +1,130 @@
+{
+  "contract": "Transit Swap",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Transit Swap": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TransitSwapped1"
+        ],
+        "rel_chain": [
+          "callbytes"
+        ],
+        "det_chain": [
+          "TransitSwapped1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TransitSwapped1": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "TransitSwapRouter.sol",
+              "key_ops": [
+                "require(callbytesDesc.calldatas.length > 0, \"TransitSwap: data should be not zero\");",
+                "require(desc.amount > 0, \"TransitSwap: amount should be greater than 0\");",
+                "require(desc.dstReceiver != address(0), \"TransitSwap: receiver should be not address(0)\");",
+                "require(desc.minReturnAmount > 0, \"TransitSwap: minReturnAmount should be greater than 0\");",
+                "(uint256 swapAmount, uint256 fee, uint256 beforeBalance) = _beforeSwap(preTradeModel, desc);",
+                "(bool success, bytes memory result) = _transit_swap.call{value:swapAmount}(abi.encodeWithSelector(0xccbe4007, callbytesDesc));",
+                "revert(RevertReasonParser.parse(result,\"TransitSwap:\"));",
+                "(uint256 returnAmount, uint256 postFee) = _afterSwap(preTradeModel, desc, beforeBalance);",
+                "if (postFee > fee) { fee = postFee; }"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_beforeSwap",
+                  "file_name": "TransitSwapRouter.sol",
+                  "key_ops": [
+                    "fee = ITransitSwapFees(_transit_fees).getFeeRate(msg.sender, desc.amount, desc.swapType, desc.channel);",
+                    "require(msg.value == desc.amount, \"TransitSwap: invalid msg.value\");",
+                    "TransferHelper.safeTransferFrom(desc.srcToken, msg.sender, address(this), desc.amount);",
+                    "TransferHelper.safeTransfer(desc.srcToken, desc.srcReceiver, desc.amount.sub(fee));",
+                    "beforeBalance = desc.dstReceiver.balance;",
+                    "beforeBalance = IERC20(desc.dstToken).balanceOf(desc.dstReceiver);"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_afterSwap",
+                  "file_name": "TransitSwapRouter.sol",
+                  "key_ops": [
+                    "returnAmount = desc.dstReceiver.balance.sub(beforeBalance);",
+                    "require(returnAmount >= desc.minReturnAmount, \"TransitSwap: insufficient return amount\");",
+                    "returnAmount = IERC20(desc.dstToken).balanceOf(desc.dstReceiver).sub(beforeBalance);",
+                    "require(returnAmount >= desc.minReturnAmount, \"TransitSwap: insufficient return amount\");",
+                    "fee = ITransitSwapFees(_transit_fees).getFeeRate(msg.sender, returnAmount, desc.swapType, desc.channel);",
+                    "returnAmount = returnAmount.sub(fee);",
+                    "TransferHelper.safeTransferETH(desc.dstReceiver, returnAmount);"
+                  ],
+                  "child": {}
+                }
+              }
+            },
+            "1": {
+              "func_name": "cross",
+              "file_name": "TransitSwapRouter.sol",
+              "key_ops": [
+                "require(callbytesDesc.calldatas.length > 0, \"TransitSwap: data should be not zero\");",
+                "require(desc.amount > 0, \"TransitSwap: amount should be greater than 0\");",
+                "require(desc.srcToken == callbytesDesc.srcToken, \"TransitSwap: invalid callbytesDesc\");",
+                "(uint256 swapAmount, uint256 fee, uint256 beforeBalance) = _beforeCross(desc);",
+                "(bool success, bytes memory result) = _transit_cross.call{value:swapAmount}(abi.encodeWithSelector(0xccbe4007, callbytesDesc));",
+                "revert(RevertReasonParser.parse(result,\"TransitSwap:\"));",
+                "require(IERC20(desc.srcToken).balanceOf(_transit_cross) >= beforeBalance, \"TransitSwap: invalid cross\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_beforeCross",
+                  "file_name": "TransitSwapRouter.sol",
+                  "key_ops": [
+                    "fee = ITransitSwapFees(_transit_fees).getFeeRate(msg.sender, desc.amount, desc.swapType, desc.channel);",
+                    "require(msg.value == desc.amount, \"TransitSwap: invalid msg.value\");",
+                    "TransferHelper.safeTransferFrom(desc.srcToken, msg.sender, _transit_cross, desc.amount);",
+                    "TransferHelper.safeTransferFrom(desc.srcToken, msg.sender, address(this), desc.amount);",
+                    "TransferHelper.safeTransfer(desc.srcToken, _transit_cross, desc.amount.sub(fee));",
+                    "beforeBalance = IERC20(desc.srcToken).balanceOf(_transit_cross);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "TransitSwapped1": {
+            "0": {
+              "func_name": "_emitTransit",
+              "file_name": "TransitSwapRouter.sol",
+              "key_ops": [
+                "emit TransitSwapped(desc.srcToken, desc.dstToken, desc.dstReceiver, msg.sender, preTradeModel, desc.amount, returnAmount, desc.minReturnAmount, fee, desc.toChainID, desc.channel, block.timestamp);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

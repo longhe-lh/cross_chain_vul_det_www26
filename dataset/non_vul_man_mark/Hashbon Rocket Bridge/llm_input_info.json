@@ -1,0 +1,80 @@
+{
+    "src_chain": {
+        "OfferAdd1": [
+            {
+                "addOffer": "function addOffer(\n address _token,\n uint _amount,\n address _payToken,\n uint _rate,\n address _payAddress,\n uint _minPurchase\n ) public {\n require(_amount > 0, \"Amount must be greater than 0\");\n require(\n _amount >= _minPurchase,\n \"Amount must not be less than the minimum purchase\"\n );\n require(_rate > 0, \"Rate must be greater than 0\");\n TransferHelper.safeTransferFrom(\n _token,\n msg.sender,\n address(this),\n _amount\n );\n uint offerId = offers.length;\n offers.push(\n Offer(\n _token,\n _amount,\n _payToken,\n _rate,\n msg.sender,\n _payAddress,\n _minPurchase,\n true\n )\n );\n emit OfferAdd(\n offerId,\n _token,\n _payToken,\n msg.sender,\n _payAddress,\n _amount,\n _rate,\n _minPurchase,\n true\n );\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0x23b872dd, from, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::transferFrom: transferFrom failed\"\n );\n }"
+            }
+        ],
+        "OfferUpdate2": [
+            {
+                "updateOffer": "function updateOffer(\n uint _offerId,\n uint _amount,\n uint _rate,\n address _payAddress,\n uint _minPurchase\n ) public {\n _checkOfferAccess(_offerId);\n require(_rate > 0, \"Rate must be greater than 0\");\n uint blockedAmount = _getBlockedAmount(_offerId);\n require(\n _amount >= blockedAmount,\n \"You can not withdraw tokens ordered by customers\"\n );\n if (_amount > offers[_offerId].amount) {\n TransferHelper.safeTransferFrom(\n offers[_offerId].token,\n msg.sender,\n address(this),\n _amount - offers[_offerId].amount\n );\n } else {\n TransferHelper.safeTransfer(\n offers[_offerId].token,\n msg.sender,\n offers[_offerId].amount - _amount\n );\n }\n offers[_offerId].amount = _amount;\n offers[_offerId].rate = _rate;\n offers[_offerId].payAddress = _payAddress;\n offers[_offerId].minPurchase = _minPurchase;\n emit OfferUpdate(\n _offerId,\n _payAddress,\n _amount,\n _rate,\n _minPurchase,\n offers[_offerId].active\n );\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0x23b872dd, from, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::transferFrom: transferFrom failed\"\n );\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::safeTransfer: transfer failed\"\n );\n }"
+            }
+        ],
+        "OrderAdd3": [
+            {
+                "addOrder": "function addOrder(\n uint _offerId,\n address _withdrawAddress,\n uint _amount,\n uint _payAmount\n ) public {\n require(_offerId < offers.length, \"Incorrect offerId\");\n require(offers[_offerId].active == true, \"Offer is inactive\");\n require(_amount > 0 || _payAmount > 0, \"Amount must be greater than 0\");\n uint rate = offers[_offerId].rate;\n if (_amount > 0) {\n _payAmount = (_amount * rate) / (10 ** RATE_DECIMALS);\n } else {\n _amount = (_payAmount * (10 ** RATE_DECIMALS)) / rate;\n }\n require(\n _amount >= offers[_offerId].minPurchase,\n \"Amount is less than the minimum purchase\"\n );\n uint blockedAmount = _getBlockedAmount(_offerId);\n require(\n _amount <= offers[_offerId].amount - blockedAmount,\n \"Not enough tokens in the offer\"\n );\n address _payAddress = offers[_offerId].payAddress;\n uint reservedUntil = block.timestamp + reservationTime;\n uint orderId = orders.length;\n orders.push(\n Order(\n _offerId,\n rate,\n msg.sender,\n _withdrawAddress,\n _amount,\n _payAmount,\n _payAddress,\n reservedUntil,\n false\n )\n );\n emit OrderAdd(\n orderId,\n _offerId,\n msg.sender,\n rate,\n _withdrawAddress,\n _amount,\n _payAmount,\n _payAddress,\n reservedUntil\n );\n }"
+            }
+        ],
+        "OrderPay4": [
+            {
+                "payOrder": "function payOrder(\n uint _orderId,\n uint _payAmount,\n address _payToken,\n address _payAddress\n ) public {\n require(_payAmount > 0, \"Amount must be greater than 0\");\n TransferHelper.safeTransferFrom(\n _payToken,\n msg.sender,\n _payAddress,\n _payAmount\n );\n uint paymentId = payments.length;\n payments.push(Payment(_orderId, _payAmount, _payToken, _payAddress));\n emit OrderPay(paymentId, _orderId, _payAmount, _payToken, _payAddress);\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0x23b872dd, from, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::transferFrom: transferFrom failed\"\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "OrderComplete": [
+            {
+                "_recoverAddresses": "function _recoverAddresses(\n bytes32 _hash,\n bytes memory _signatures\n ) private pure returns (address[] memory addresses) {\n uint8 v;\n bytes32 r;\n bytes32 s;\n uint count = _countSignatures(_signatures);\n addresses = new address[](count);\n for (uint i = 0; i < count; i++) {\n (v, r, s) = _parseSignature(_signatures, i);\n addresses[i] = ecrecover(_hash, v, r, s);\n }\n }"
+            },
+            {
+                "_parseSignature": "function _parseSignature(\n bytes memory _signatures,\n uint _pos\n ) private pure returns (uint8 v, bytes32 r, bytes32 s) {\n uint offset = _pos * 65;\n assembly {\n r := mload(add(_signatures, add(32, offset)))\n s := mload(add(_signatures, add(64, offset)))\n v := and(mload(add(_signatures, add(65, offset))), 0xff)\n }\n if (v < 27) v += 27;\n require(v == 27 || v == 28);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "OfferAdd1": [
+            {
+                "withdrawTokens": "function withdrawTokens(uint _orderId, bytes calldata _sign) public {\n require(_orderId < orders.length, \"Incorrect orderId\");\n require(orders[_orderId].complete == false, \"Tokens already withdrawn\");\n uint offerId = orders[_orderId].offerId;\n uint amount = orders[_orderId].amount;\n uint payAmount = orders[_orderId].payAmount;\n address payToken = offers[offerId].payToken;\n address payAddress = orders[_orderId].payAddress;\n require(\n orders[_orderId].reservedUntil >= block.timestamp ||\n offers[offerId].amount - _getBlockedAmount(offerId) >= amount,\n \"Not enough tokens in the offer\"\n );\n bytes32 data = keccak256(\n abi.encodePacked(_orderId, payAmount, payToken, payAddress)\n );\n require(_verifySign(data, _sign), \"Incorrect signature\");\n TransferHelper.safeTransfer(\n offers[offerId].token,\n orders[_orderId].withdrawAddress,\n amount\n );\n orders[_orderId].complete = true;\n offers[offerId].amount -= amount;\n emit OrderComplete(_orderId, offers[offerId].amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::safeTransfer: transfer failed\"\n );\n }"
+            }
+        ],
+        "OfferUpdate2": [
+            {
+                "withdrawTokens": "function withdrawTokens(uint _orderId, bytes calldata _sign) public {\n require(_orderId < orders.length, \"Incorrect orderId\");\n require(orders[_orderId].complete == false, \"Tokens already withdrawn\");\n uint offerId = orders[_orderId].offerId;\n uint amount = orders[_orderId].amount;\n uint payAmount = orders[_orderId].payAmount;\n address payToken = offers[offerId].payToken;\n address payAddress = orders[_orderId].payAddress;\n require(\n orders[_orderId].reservedUntil >= block.timestamp ||\n offers[offerId].amount - _getBlockedAmount(offerId) >= amount,\n \"Not enough tokens in the offer\"\n );\n bytes32 data = keccak256(\n abi.encodePacked(_orderId, payAmount, payToken, payAddress)\n );\n require(_verifySign(data, _sign), \"Incorrect signature\");\n TransferHelper.safeTransfer(\n offers[offerId].token,\n orders[_orderId].withdrawAddress,\n amount\n );\n orders[_orderId].complete = true;\n offers[offerId].amount -= amount;\n emit OrderComplete(_orderId, offers[offerId].amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::safeTransfer: transfer failed\"\n );\n }"
+            }
+        ],
+        "OrderAdd3": [
+            {
+                "withdrawTokens": "function withdrawTokens(uint _orderId, bytes calldata _sign) public {\n require(_orderId < orders.length, \"Incorrect orderId\");\n require(orders[_orderId].complete == false, \"Tokens already withdrawn\");\n uint offerId = orders[_orderId].offerId;\n uint amount = orders[_orderId].amount;\n uint payAmount = orders[_orderId].payAmount;\n address payToken = offers[offerId].payToken;\n address payAddress = orders[_orderId].payAddress;\n require(\n orders[_orderId].reservedUntil >= block.timestamp ||\n offers[offerId].amount - _getBlockedAmount(offerId) >= amount,\n \"Not enough tokens in the offer\"\n );\n bytes32 data = keccak256(\n abi.encodePacked(_orderId, payAmount, payToken, payAddress)\n );\n require(_verifySign(data, _sign), \"Incorrect signature\");\n TransferHelper.safeTransfer(\n offers[offerId].token,\n orders[_orderId].withdrawAddress,\n amount\n );\n orders[_orderId].complete = true;\n offers[offerId].amount -= amount;\n emit OrderComplete(_orderId, offers[offerId].amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::safeTransfer: transfer failed\"\n );\n }"
+            }
+        ],
+        "OrderPay4": [
+            {
+                "withdrawTokens": "function withdrawTokens(uint _orderId, bytes calldata _sign) public {\n require(_orderId < orders.length, \"Incorrect orderId\");\n require(orders[_orderId].complete == false, \"Tokens already withdrawn\");\n uint offerId = orders[_orderId].offerId;\n uint amount = orders[_orderId].amount;\n uint payAmount = orders[_orderId].payAmount;\n address payToken = offers[offerId].payToken;\n address payAddress = orders[_orderId].payAddress;\n require(\n orders[_orderId].reservedUntil >= block.timestamp ||\n offers[offerId].amount - _getBlockedAmount(offerId) >= amount,\n \"Not enough tokens in the offer\"\n );\n bytes32 data = keccak256(\n abi.encodePacked(_orderId, payAmount, payToken, payAddress)\n );\n require(_verifySign(data, _sign), \"Incorrect signature\");\n TransferHelper.safeTransfer(\n offers[offerId].token,\n orders[_orderId].withdrawAddress,\n amount\n );\n orders[_orderId].complete = true;\n offers[offerId].amount -= amount;\n emit OrderComplete(_orderId, offers[offerId].amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(address token, address to, uint256 value) internal {\n \n (bool success, bytes memory data) = token.call(\n abi.encodeWithSelector(0xa9059cbb, to, value)\n );\n require(\n success && (data.length == 0 || abi.decode(data, (bool))),\n \"TransferHelper::safeTransfer: transfer failed\"\n );\n }"
+            }
+        ]
+    }
+}

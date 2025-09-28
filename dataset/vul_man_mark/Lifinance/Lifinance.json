@@ -1,0 +1,130 @@
+{
+    "contract": "CBridgeFacet",
+    "source_code_path": "../vul_src_code/Lifinance/",
+    "type": "call injection",
+    "vulnerable_entry_function": {
+        "file": "CBridgeFacet.sol",
+        "name": "swapAndStartBridgeTokensViaCBridge",
+        "signature": "function swapAndStartBridgeTokensViaCBridge(LiFiData calldata _lifiData, LibSwap.SwapData[] calldata _swapData, CBridgeData calldata _cBridgeData) external",
+        "lines": "72-118",
+        "attack_type": "batch call injection using swapData array",
+        "vul_reason": "The function accepts arbitrary _swapData entries and invokes LibSwap.swap() on each without validation or whitelist. This unchecked external call allows malicious payloads to include transferFrom calls, draining tokens from user approvals.",
+        "code_snippet": "for (uint i = 0; i < _swapData.length; i++) {\n    LibSwap.swap(_swapData[i]);\n}\n_startBridge(_cBridgeData)"
+    },
+    "detail": "The attacker crafted a payload where the first element performs a small legitimate swap to pass the function's flow, while subsequent entries invoke transferFrom calls directly—leveraging users' infinite token approvals to siphon assets from multiple wallets. After draining funds, the contract continues normal bridge execution (_startBridge) to avoid transaction failure. The root cause is swapAndStartBridgeTokensViaCBridge allowing arbitrary call execution via LibSwap.swap() without any parameter validation or restrictions.",
+    "blg": {
+        "LiFinance": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "LiFiTransferStarted1"
+                ],
+                "rel_chain": [
+                    "handleMsg"
+                ],
+                "det_chain": [
+                    "Send1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "Ethereum",
+                "events": {
+                    "LiFiTransferStarted1": {
+                        "0": {
+                            "func_name": "swapAndStartBridgeTokensViaCBridge",
+                            "file_name": "CBridgeFacet.sol",
+                            "key_ops": [
+                                "for (uint8 i; i < _swapData.length; i++) {LibSwap.swap(_lifiData.transactionId, _swapData[i]);}",
+                                "require(_postSwapBalance > 0, \"ERR_INVALID_AMOUNT\");"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "swap",
+                                    "file_name": "LibSwap.sol",
+                                    "key_ops": [
+                                        "LibAsset.transferFromERC20(_swapData.sendingAssetId, msg.sender, address(this), fromAmount);",
+                                        "LibAsset.approveERC20(IERC20(fromAssetId), _swapData.approveTo, fromAmount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "AssetSwapped",
+                                            "file_name": "LibSwap.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "func_name": "_startBridge",
+                                    "file_name": "CBridgeFacet.sol",
+                                    "key_ops": [
+                                        "require(s.cBridgeChainId != _cBridgeData.dstChainId, \"Cannot bridge to the same network.\");"
+                                    ],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "event_name": "LiFiTransferStarted",
+                                    "file_name": "CBridgeFacet.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "CBridge",
+                "events": {
+                    "handleMsg": {
+                        "0": {
+                            "func_name": "handleMsgSubmitChange",
+                            "file_name": "handler.go",
+                            "key_ops": [],
+                            "child": {}
+                        },
+                        "1":{
+                            "func_name": "handleMsgApprove",
+                            "file_name": "handler.go",
+                            "key_ops": [],
+                            "child": {}
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "Send1": {
+                        "0": {
+                            "func_name": "send",
+                            "file_name": "Bridge.sol",
+                            "key_ops": [
+                                "IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_send",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [
+                                        "require(_amount > minSend[_token],\"amount too small\");",
+                                        "require(maxSend[_token] == 0 || _amount <= maxSend[_token], \"amount too large\");",
+                                        "require(_maxSlippage > minimalMaxSlippage, \"max slippage too small\");",
+                                        "require(transfers[transferId] == false, \"transfer exists\");"
+                                    ]
+                                },
+                                "1": {
+                                    "event_name": "Send",
+                                    "file_name": "Bridge.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

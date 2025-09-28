@@ -1,0 +1,86 @@
+{
+  "contract": "DeGate Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "DeGate Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1"
+        ],
+        "rel_chain": [
+          "BlockSubmission"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "SourceChain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "ExchangeV3.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "BlockSubmission": {
+            "0": {
+              "func_name": "submitBlocks",
+              "file_name": "ExchangeV3.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "withdrawFromMerkleTree",
+              "file_name": "ExchangeWithdrawals.sol",
+              "key_ops": [
+                "require(S.isInWithdrawalMode(), \"NOT_IN_WITHDRAW_MODE\")",
+                "ExchangeBalances.verifyAccountBalance(uint(S.merkleAssetRoot()), merkleProof)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "withdrawFromDepositRequest",
+              "file_name": "ExchangeWithdrawals.sol",
+              "key_ops": [
+                "require(deposit.timestamp != 0, \"DEPOSIT_NOT_WITHDRAWABLE_YET\")",
+                "delete S.pendingDeposits[from][tokenID]"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

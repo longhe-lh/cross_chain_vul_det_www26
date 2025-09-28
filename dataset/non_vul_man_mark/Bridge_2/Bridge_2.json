@@ -1,0 +1,94 @@
+{
+  "contract": "Bridge_2",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_2": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Swap1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenMint1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Swap1": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "if (_tokenFrom == address(0x0) || _tokenTo == address(0x0)) revert ZeroAddress()",
+                "if (!chains[block.chainid].tokens[_tokenFrom]) revert IncorrectAction(_tokenFrom, false)",
+                "if (!chains[_chainId].tokens[_tokenTo]) revert IncorrectAction(_tokenTo, false)",
+                "_nonce++",
+                "ITokenForBridge(_tokenFrom).burn(msg.sender, _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "FuseBlock.sol",
+                  "key_ops": [
+                    "require(msg.sender == ownerOf(_tokenId), \"not owner of the token\")",
+                    "auraAmounts[_tokenId] = 0",
+                    "IERC20(auraAddress).transfer(msg.sender, amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenMint1": {
+            "0": {
+              "func_name": "reedem",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "bytes32 signedHash = keccak256(abi.encodePacked(_tokenTo, _to, _amount, _nonce_))",
+                "bytes32 messageHash = signedHash.toEthSignedMessageHash()",
+                "address messageSender = messageHash.recover(_signature)",
+                "if (messageSender != validator) revert IncorrectSignature()",
+                "ITokenForBridge(_tokenTo).mint(_to, _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "mint",
+                  "file_name": "FuseBlock.sol",
+                  "key_ops": [
+                    "require(_amount > 0, \"invalid amount\")",
+                    "IERC20(auraAddress).transferFrom(msg.sender, address(this), _amount)",
+                    "auraAmounts[tokenId] = _amount"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

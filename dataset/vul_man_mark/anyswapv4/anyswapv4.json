@@ -1,0 +1,288 @@
+{
+    "contract": "anyswapv4",
+    "source_code_path": "../vul_src_code/anyswapv4/",
+    "type": "ImproperSignatureVerification",
+    "vulnerable_entry_function": {
+        "file": "AnyswapV4Router.sol",
+        "name": "anySwapOutUnderlyingWithPermit",
+        "signature": "function anySwapOutUnderlyingWithPermit(address from,address token,address to,uint amount,uint deadline,uint8 v,bytes32 r,bytes32 s,uint toChainID)",
+        "lines": "261-277",
+        "attack_type": "MEV frontrunning",
+        "vul_reason": "The function relied on the existence of the permit function in the underlying token contract, but WETH did not implement permit. As a result, the fallback function was triggered, allowing the attacker to proceed without signature verification and transfer tokens via safeTransferFrom.",
+        "code_snippet": "IERC20(_underlying).permit(from, address(this), amount, deadline, v, r, s);"
+    },
+    "detail": "On February 15, 2023, the AnyswapV4Router contract of Multichain was exploited via a frontrunning MEV bot. The attacker used a crafted transaction to call the anySwapOutUnderlyingWithPermit function before a legitimate user's transaction could execute. The function assumed the underlying token (WETH) supported the ERC-2612 permit interface, but WETH lacked the permit method. Consequently, the fallback deposit function was triggered instead of validating the signature. The attacker then successfully used safeTransferFrom to transfer the WETH to their own address without proper authorization, gaining approximately 87 ETH (~$130,000).",
+    "blg": {
+        "Anyswap": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "LogAnySwapOut0",
+                    "LogAnySwapOut1"
+                ],
+                "rel_chain": [
+                    "relayer"
+                ],
+                "det_chain": [
+                    "Transfer1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "ethereum",
+                "events": {
+                    "LogAnySwapOut0": {
+                        "0": {
+                            "func_name": "anySwapOutUnderlyingWithPermit",
+                            "file_name": "AnyswapV4Router.sol",
+                            "key_ops": [
+                                "IERC20(_underlying).permit(from, address(this), amount, deadline, v, r, s);",
+                                "TransferHelper.safeTransferFrom(_underlying, from, token, amount);",
+                                "AnyswapV1ERC20(token).depositVault(amount, from);",
+                                "_anySwapOut(from, token, to, amount, toChainID);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "permit",
+                                    "file_name": "AnyswapV4ERC20.sol",
+                                    "key_ops": [
+                                        "require(block.timestamp <= deadline, \"AnyswapV3ERC20: Expired permit\");",
+                                        "require(verifyEIP712(target, hashStruct, v, r, s) || verifyPersonalSign(target, hashStruct, v, r, s));"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "Approval",
+                                            "file_name": "AnyswapV4ERC20.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                },
+                                "1": {
+                                    "func_name": "safeTransferFrom",
+                                    "file_name": "AnyswapV4Router.sol",
+                                    "key_ops": [
+                                        "require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');"
+                                    ],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "func_name": "depositVault",
+                                    "file_name": "AnyswapV4ERC20.sol",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "_deposit",
+                                            "file_name": "AnyswapV4ERC20.sol",
+                                            "key_ops": [
+                                                "require(underlying != address(0x0) && underlying != address(this));"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_mint",
+                                                    "file_name": "AnyswapV4ERC20.sol",
+                                                    "key_ops": [
+                                                        "require(account != address(0), \"ERC20: mint to the zero address\");",
+                                                        "_totalSupply += amount;",
+                                                        "balanceOf[account] += amount;"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "event_name": "Transfer",
+                                                            "file_name": "AnyswapV4ERC20.sol",
+                                                            "key_ops": [],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "3": {
+                                    "func_name": "_anySwapOut",
+                                    "file_name": "AnyswapV4Router.sol",
+                                    "key_ops": [
+                                        "AnyswapV1ERC20(token).burn(from, amount);"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "burn",
+                                            "file_name": "AnyswapV4ERC20.sol",
+                                            "key_ops": [
+                                                "require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");",
+                                                "_burn(from, amount);"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_burn",
+                                                    "file_name": "AnyswapV4ERC20.sol",
+                                                    "key_ops": [
+                                                        "require(account != address(0), \"ERC20: burn from the zero address\");",
+                                                        "balanceOf[account] -= amount;",
+                                                        "_totalSupply -= amount;"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "event_name": "Transfer",
+                                                            "file_name": "AnyswapV4ERC20.sol",
+                                                            "key_ops": [],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "1": {
+                                            "event_name": "LogAnySwapOut",
+                                            "file_name": "AnyswapV4Router.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "LogAnySwapOut1":{
+                        "0":{
+                            "func_name":"anySwapOut",
+                            "file_name":"AnyswapV4Router.sol",
+                            "key_ops":[],
+                            "child":{
+                                "0":{
+                                    "func_name":"_anySwapOut",
+                                    "file_name":"AnyswapV4Router.sol",
+                                    "key_ops":[],
+                                    "child":{
+                                        "0":{
+                                            "func_name": "burn",
+                                            "file_name": "AnyswapV4ERC20.sol",
+                                            "key_ops": [
+                                                "require(from != address(0), \"AnyswapV3ERC20: address(0x0)\");",
+                                                "_burn(from, amount);"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "_burn",
+                                                    "file_name": "AnyswapV4ERC20.sol",
+                                                    "key_ops": [
+                                                        "require(account != address(0), \"ERC20: burn from the zero address\");",
+                                                        "balanceOf[account] -= amount;",
+                                                        "_totalSupply -= amount;"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "event_name": "Transfer",
+                                                            "file_name": "AnyswapV4ERC20.sol",
+                                                            "key_ops": [],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "1":{
+                                            "event_name":"LogAnySwapOut",
+                                            "file_name":"AnyswapV4Router.sol",
+                                            "key_ops":[],
+                                            "child":{}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "ChainName": "anyswap",
+                "events": {
+                    "relayer": {
+                        "0": {
+                            "func_name": "StartSwapJob",
+                            "file_name": "swap.go",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "startSwapProducer",
+                                    "file_name": "swap.go",
+                                    "key_ops": [],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "processRouterSwap",
+                                            "file_name": "swap.go",
+                                            "key_ops": [
+                                                "if router.IsChainIDPaused(swap.FromChainID) || router.IsChainIDPaused(swap.ToChainID) {return errChainIsPaused}",
+                                                "if cachedSwapTasks.Contains(swap.Key) {return errAlreadySwapped}",
+                                                "if isBlacked(swap)",
+                                                "args.SwapInfo, err = mongodb.ConvertFromSwapInfo(&res.SwapInfo)"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "dispatchSwapTask",
+                                                    "file_name": "swap.go",
+                                                    "key_ops": [
+                                                        "if !args.SwapType.IsValidType() {return fmt.Errorf(\"unknown router swap type %d\", args.SwapType)}"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "startSwapConsumer",
+                                                            "file_name": "swap.go",
+                                                            "key_ops": [],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "doSwap",
+                                                                    "file_name": "swap.go",
+                                                                    "key_ops": [
+                                                                        "sentTxHash, err := sendSignedTransaction(resBridge, signedTx, args)"
+                                                                    ],
+                                                                    "child": {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "ChainName": "Fantom",
+                "events": {
+                    "Transfer1": {
+                        "0": {
+                            "func_name": "mint",
+                            "file_name": "AnyswapV4ERC20.sol",
+                            "key_ops": [],
+                            "child": {
+                                "0": {
+                                    "func_name": "_mint",
+                                    "file_name": "AnyswapV4ERC20.sol",
+                                    "key_ops": [
+                                        "require(account != address(0), \"ERC20: mint to the zero address\");",
+                                        "_totalSupply += amount;",
+                                        "balanceOf[account] += amount;"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "event_name": "Transfer",
+                                            "file_name": "AnyswapV4ERC20.sol",
+                                            "key_ops": [],
+                                            "child": {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

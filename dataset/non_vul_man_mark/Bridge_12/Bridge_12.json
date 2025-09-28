@@ -1,0 +1,88 @@
+{
+  "contract": "Bridge_12",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_12": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "BSC",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "token.burn(msg.sender, amount)",
+                "nonce++"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burn",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [
+                    "require(msg.sender == admin, 'only admin')",
+                    "_burn(owner, amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "ETH",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "BridgeBase.sol",
+              "key_ops": [
+                "require(msg.sender == admin, 'only admin')",
+                "require(processedNonces[otherChainNonce] == false, 'transfer already processed')",
+                "processedNonces[otherChainNonce] = true",
+                "token.mint(to, amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "mint",
+                  "file_name": "TokenBase.sol",
+                  "key_ops": [
+                    "require(msg.sender == admin, 'only admin')",
+                    "_mint(to, amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

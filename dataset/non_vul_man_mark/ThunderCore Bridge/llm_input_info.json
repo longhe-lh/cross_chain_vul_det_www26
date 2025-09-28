@@ -1,0 +1,41 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "transferAndCall": "function transferAndCall(address _to, uint _value, bytes _data)\n external validRecipient(_to) returns (bool)\n {\n function superTransfer(...) {...}\nfunction fundReceiver(...) {...}\nfunction contractFallback(...) {...}\nrequire(superTransfer(_to, _value));\n fundReceiver(_to);\n emit Transfer(msg.sender, _to, _value, _data);\n\n if (isContract(_to)) {\n require(contractFallback(_to, _value, _data));\n }\n return true;\n }"
+            },
+            {
+                "superTransfer": "function superTransfer(address _to, uint256 _value) internal returns(bool)\n {\n function transfer(...) {...}\nreturn super.transfer(_to, _value);\n }"
+            },
+            {
+                "fundReceiver": "function fundReceiver(address _to) internal {\n \n if(block.number > fundingRules.periodLength + lastFundingPeriod) {\n lastFundingPeriod = block.number;\n totalPeriodFundedAmount = 0;\n }\n \n if(address(_to).balance < fundingRules.threshold && fundingRules.amount + totalPeriodFundedAmount <= fundingRules.maxPeriodFunds) {\n if(address(_to).send(fundingRules.amount)){\n totalPeriodFundedAmount += fundingRules.amount;\n }\n }\n }"
+            },
+            {
+                "contractFallback": "function contractFallback(address _to, uint _value, bytes _data)\n private\n returns(bool)\n {\n return _to.call(abi.encodeWithSignature(\"onTokenTransfer(address,uint256,bytes)\", msg.sender, _value, _data));\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "executeSignatures": [
+            {
+                "executeSignatures": "function executeSignatures(uint8[] vs, bytes32[] rs, bytes32[] ss, bytes message) external {\n function hasEnoughValidSignatures(...) {...}\nfunction validatorContract(...) {...}\nfunction relayedMessages(...) {...}\nfunction setRelayedMessages(...) {...}\nfunction onExecuteMessage(...) {...}\nMessage.hasEnoughValidSignatures(message, vs, rs, ss, validatorContract());\n address recipient;\n uint256 amount;\n bytes32 txHash;\n address contractAddress;\n (recipient, amount, txHash, contractAddress) = Message.parseMessage(message);\n if (messageWithinLimits(amount)) {\n require(contractAddress == address(this));\n require(!relayedMessages(txHash));\n setRelayedMessages(txHash, true);\n require(onExecuteMessage(recipient, amount));\n emit RelayedMessage(recipient, amount, txHash);\n } else {\n onFailedMessage(recipient, amount, txHash);\n }\n }"
+            },
+            {
+                "hasEnoughValidSignatures": "function hasEnoughValidSignatures(\n bytes _message,\n uint8[] _vs,\n bytes32[] _rs,\n bytes32[] _ss,\n IBridgeValidators _validatorContract) internal view {\n function isMessageValid(...) {...}\nfunction requiredSignatures(...) {...}\nrequire(isMessageValid(_message));\n uint256 requiredSignatures = _validatorContract.requiredSignatures();\n require(_vs.length >= requiredSignatures);\n bytes32 hash = hashMessage(_message);\n address[] memory encounteredAddresses = new address[](requiredSignatures);\n\n for (uint256 i = 0; i < requiredSignatures; i++) {\n address recoveredAddress = ecrecover(hash, _vs[i], _rs[i], _ss[i]);\n require(_validatorContract.isValidator(recoveredAddress));\n if (addressArrayContains(encounteredAddresses, recoveredAddress)) {\n revert();\n }\n encounteredAddresses[i] = recoveredAddress;\n }\n }"
+            },
+            {
+                "onExecuteMessage": "function onExecuteMessage(address _recipient, uint256 _amount) internal returns(bool){\n setTotalExecutedPerDay(getCurrentDay(), totalExecutedPerDay(getCurrentDay()).add(_amount));\n if (feePercent() == 0) {\n function tokenTransfer(...) {...}\nreturn tokenTransfer(_recipient, _amount);\n } else {\n bool result = true;\n uint256 userValue = subtractFee(_amount);\n address[] memory validators = validatorContract().validatorsList();\n uint256 entireValidatorValue = _amount.sub(userValue);\n uint256 particularValidatorValue = entireValidatorValue.div(validators.length);\n for(uint256 i = 0; i < validators.length - 1; i++) {\n result = result && tokenTransfer(validators[i], particularValidatorValue);\n }\n \n uint256 lastValidatorValue = entireValidatorValue.sub(\n particularValidatorValue.mul(validators.length.sub(1))\n );\n result = result && tokenTransfer(validators[validators.length - 1], lastValidatorValue);\n result = result && tokenTransfer(_recipient, userValue);\n return result;\n }\n }"
+            },
+            {
+                "tokenTransfer": "function tokenTransfer(address _recipient, uint256 _amount) internal returns(bool) {\n function erc20token(...) {...}\nreturn erc20token().call(bytes4(keccak256(\"transfer(address,uint256)\")), _recipient, _amount);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "RelayedMessage1": [
+            {
+                "tokenTransfer": "function tokenTransfer(address _recipient, uint256 _amount) internal returns(bool) {\n return erc20token().call(bytes4(keccak256(\"transfer(address,uint256)\")), _recipient, _amount);\n }"
+            }
+        ]
+    }
+}

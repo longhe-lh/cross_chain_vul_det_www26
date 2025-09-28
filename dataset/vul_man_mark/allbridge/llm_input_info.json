@@ -1,0 +1,34 @@
+{
+    "src_chain": {
+        "SwappedVUsd0": [
+            {
+                "swap": "function swap(uint256 amount, bytes32 token, bytes32 receiveToken, address recipient) external {\n Pool tokenPool = pools[token];\n Pool receiveTokenPool = pools[receiveToken];\n require(address(tokenPool) != address(0), \"Router: no pool\");\n require(address(receiveTokenPool) != address(0), \"Router: no pool\");\n uint256 vUsdAmount = tokenPool.swapToVUsd(msg.sender, amount);\n function swapFromVUsd(...) {...}\nreceiveTokenPool.swapFromVUsd(recipient, vUsdAmount);\n }"
+            },
+            {
+                "swapToVUsd": "function swapToVUsd(address user, uint256 amount) external onlyRouter returns (uint256) {\n uint256 result; \n uint256 fee;\n if (amount > 0) {\n fee = amount * feeShareBP / BP;\n uint256 amountIn = toSystemPrecision(amount - fee);\n \n fee = amount - fromSystemPrecision(amountIn);\n tokenBalance += amountIn;\n uint256 vUsdNewAmount = this.getY(tokenBalance);\n if (vUsdBalance > vUsdNewAmount) {\n result = vUsdBalance - vUsdNewAmount;\n }\n vUsdBalance = vUsdNewAmount;\n function safeTransferFrom(...) {...}\nfunction _addRewards(...) {...}\ntoken.safeTransferFrom(user, address(this), amount);\n _addRewards(fee);\n }\n emit SwappedToVUsd(user, address(token), amount, result, fee);\n return result;\n }"
+            },
+            {
+                "swapFromVUsd": "function swapFromVUsd(address user, uint256 amount) external onlyRouter returns (uint256) {\n uint256 result; \n uint256 fee;\n if (amount > 0) {\n vUsdBalance += amount;\n uint256 newAmount = this.getY(vUsdBalance);\n if (tokenBalance > newAmount) {\n result = fromSystemPrecision(tokenBalance - newAmount);\n } \n fee = result * feeShareBP / BP;\n \n unchecked {\n result -= fee;\n }\n tokenBalance = newAmount;\n function safeTransfer(...) {...}\nfunction _addRewards(...) {...}\ntoken.safeTransfer(user, result);\n _addRewards(fee);\n }\n emit SwappedFromVUsd(user, address(token), amount, result, fee);\n return result;\n }"
+            }
+        ],
+        "TokensSent1": [
+            {
+                "sendTokens": "function sendTokens(\n uint256 amount,\n bytes32 recipient,\n uint8 destinationChainId,\n bytes32 receiveToken,\n uint256 nonce,\n MessengerProtocol messenger\n ) internal override {\n uint8 sourceChainId = chainId; \n require(\n destinationChainId != sourceChainId,\n \"Bridge: wrong destination chain\"\n );\n require(\n otherBridgeTokens[destinationChainId][receiveToken],\n \"Bridge: unknown chain or token\"\n );\n bytes32 message = this.hashMessage(\n amount,\n recipient,\n sourceChainId,\n destinationChainId,\n receiveToken,\n nonce,\n messenger\n );\n bool wasMessageSent;\n assembly {\n mstore(0x00, message)\n mstore(0x20, sentMessages.slot)\n let key := keccak256(0, 0x40)\n wasMessageSent := sload(key)\n sstore(key, true)\n }\n require(!wasMessageSent, \"Bridge: tokens already sent\");\n uint256 bridgeTransactionCost = this.getTransactionCost(destinationChainId);\n uint256 messageTransactionCost = sendMessage(message, messenger);\n unchecked {\n require(\n msg.value >= bridgeTransactionCost + messageTransactionCost,\n \"Bridge: not enough fee\"\n );\n }\n emit TokensSent(\n amount,\n recipient,\n destinationChainId,\n receiveToken,\n nonce,\n messenger\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "SwappedFromVUsd1": [
+            {
+                "receiveTokens": "function receiveTokens(\n uint256 amount,\n bytes32 recipient,\n uint8 sourceChainId,\n bytes32 receiveToken,\n uint256 nonce,\n MessengerProtocol messenger\n ) external override {\n require(otherBridges[sourceChainId] != bytes32(0), \"Bridge: source not registered\");\n bytes32 messageWithSender = this.hashMessage(\n amount,\n recipient,\n sourceChainId,\n chainId,\n receiveToken,\n nonce,\n messenger\n ).hashWithSender(otherBridges[sourceChainId]);\n bool wasMessageProcessed;\n assembly {\n mstore(0x00, messageWithSender)\n mstore(0x20, processedMessages.slot)\n let key := keccak256(0, 0x40)\n wasMessageProcessed := sload(key)\n sstore(key, true)\n }\n require(!wasMessageProcessed, \"Bridge: message processed\");\n function hasReceivedMessage(...) {...}\nrequire(this.hasReceivedMessage(messageWithSender, messenger), \"Bridge: no message\");\n receiveAndSwap(\n amount,\n receiveToken,\n address(uint160(uint256(recipient)))\n );\n }"
+            },
+            {
+                "receiveAndSwap": "function receiveAndSwap(uint256 vUsdAmount, bytes32 token, address recipient) internal {\n Pool tokenPool = pools[token];\n require(address(tokenPool) != address(0), \"Router: no pool\");\n function swapFromVUsd(...) {...}\ntokenPool.swapFromVUsd(recipient, vUsdAmount);\n }"
+            },
+            {
+                "swapFromVUsd": "function swapFromVUsd(address user, uint256 amount) external onlyRouter returns (uint256) {\n uint256 result; \n uint256 fee;\n if (amount > 0) {\n vUsdBalance += amount;\n uint256 newAmount = this.getY(vUsdBalance);\n if (tokenBalance > newAmount) {\n result = fromSystemPrecision(tokenBalance - newAmount);\n } \n fee = result * feeShareBP / BP;\n \n unchecked {\n result -= fee;\n }\n tokenBalance = newAmount;\n function safeTransfer(...) {...}\nfunction _addRewards(...) {...}\ntoken.safeTransfer(user, result);\n _addRewards(fee);\n }\n emit SwappedFromVUsd(user, address(token), amount, result, fee);\n return result;\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,165 @@
+{
+    "contract": "BSCTokenHub",
+    "source_code_path": "../vul_src_code/BSCTokenHub/",
+    "type": "Business logic flaw",
+    "vulnerable_entry_function": {
+        "file": "proof.go",
+        "name": "Hash",
+        "signature": "func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error)",
+        "lines": "63-103",
+        "attack_type": "Forged Merkle proof bypass",
+        "vul_reason": "When `pin.Left` is non-empty, the branch computes the hash using only `pin.Left` and `childHash`, completely ignoring `pin.Right`. This allows attackers to insert arbitrary data in `pin.Right` without affecting the computed root hash, thus bypassing the Merkle proof validation.",
+        "code_snippet": "if len(pin.Left) == 0"
+    },
+    "detail": "An attacker exploited this by constructing an IAVL proof containing multiple leaves and deliberately populating `LeftPath[1].Right` and `Leaves[1]` with fabricated values. Since the `Hash` function ignored `pin.Right` when `pin.Left` was set, the resulting root hash remained correct and passed `bytes.Equal(rootHash, lpath.Right)` checks. SharkTeam explicitly notes the vulnerability: “when pin.Left is not empty, the situation where pin.Right is null or not is not handled… pin.Right does not participate in the calculation of Hash” :contentReference[oaicite:1]{index=1}.",
+    "blg": {
+        "BSCTokenHub": {
+            "interoperability": "homogeneous",
+            "roles": {
+                "src_chain": [
+                    "transferOutSuccess1"
+                ],
+                "rel_chain": [
+                    "receivedPackage"
+                ],
+                "det_chain": [
+                    "transferInSuccess1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "BNB",
+                "events": {
+                    "transferOutSuccess1": {
+                        "0": {
+                            "func_name": "transferOut",
+                            "file_name": "TokenHub.sol",
+                            "key_ops": [
+                                "require(expireTime>=block.timestamp + 120, \"expireTime must be two minutes later\");",
+                                "require(msg.value%TEN_DECIMALS==0, \"invalid received BNB amount: precision loss in amount conversion\");",
+                                "require(msg.value>=amount.add(relayFee), \"received BNB amount should be no less than the sum of transferOut BNB amount and minimum relayFee\");",
+                                "require(amount%TEN_DECIMALS==0, \"invalid transfer amount: precision loss in amount conversion\");",
+                                "require(bep2TokenSymbol!=bytes32(0x00), \"the contract has not been bound to any bep2 token\");",
+                                "require(msg.value>=relayFee, \"received BNB amount should be no less than the minimum relayFee\");",
+                                "require(bep20TokenDecimals<=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS))==0), \"invalid transfer amount: precision loss in amount conversion\");",
+                                "require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), \"amount is too large, uint256 overflow\");",
+                                "require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, \"amount is too large, exceed maximum bep2 token amount\");",
+                                "require(IBEP20(contractAddr).transferFrom(msg.sender, address(this), amount));",
+                                "ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(TEN_DECIMALS));"
+                            ],
+                            "child": {
+                                "0": {
+                                    "event_name": "transferOutSuccess",
+                                    "file_name": "TokenHub.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "BSCTokenHub",
+                "events": {
+                    "receivedPackage": {
+                        "0": {
+                            "func_name": "handlePackage",
+                            "file_name": "CrossChain.sol",
+                            "key_ops": [
+                                "require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height),STORE_NAME,generateKey(packageSequence, channelId),payloadLocal,proofLocal),\"invalid merkle proof\");",
+                                "try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes)",
+                                "IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer,msg.sender, relayFee,isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "validateMerkleProof",
+                                    "file_name": "MerkleProof.sol",
+                                    "key_ops": [
+                                        "if iszero(staticcall(not(0), 0x65, input, length, result, 0x20))"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "Run",
+                                            "file_name": "contracts_lightclient.go",
+                                            "key_ops": [],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "Validate",
+                                                    "file_name": "type.go",
+                                                    "key_ops": [
+                                                        "err := prt.VerifyAbsence(kvmp.Proof, kvmp.AppHash, kp.String())",
+                                                        "err := prt.VerifyValue(kvmp.Proof, kvmp.AppHash, kp.String(), kvmp.Value)"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "DefaultProofRuntime",
+                                                            "file_name": "multistoreproof.go",
+                                                            "key_ops": [
+                                                                "prt.RegisterOpDecoder(iavl.ProofOpIAVLValue, iavl.IAVLValueOpDecoder)",
+                                                                "prt.RegisterOpDecoder(iavl.ProofOpIAVLAbsence, iavl.IAVLAbsenceOpDecoder)"
+                                                            ],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "Hash",
+                                                                    "file_name": "proof.go",
+                                                                    "key_ops": [
+                                                                        "if len(pin.Left) == 0"
+                                                                    ],
+                                                                    "child": {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "1":{
+                                    "event_name":"unsupportedPackage",
+                                    "file_name":"CrossChain.sol",
+                                    "key_ops":[],
+                                    "child":{}
+                                    
+                                },
+                                "2":{
+                                    "event_name":"receivedPackage",
+                                    "file_name":"CrossChain.sol",
+                                    "key_ops":[],
+                                    "child":{}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "BSC",
+                "events": {
+                    "transferInSuccess1": {
+                        "0": {
+                            "func_name": "doTransferIn",
+                            "file_name": "TokenHub.sol",
+                            "key_ops": [
+                                "if (transInSynPkg.contractAddr==address(0x0)",
+                                "if (address(this).balance < transInSynPkg.amount)",
+                                "if (block.timestamp > transInSynPkg.expireTime)",
+                                "if (contractAddrToBEP2Symbol[transInSynPkg.contractAddr]!= transInSynPkg.bep2TokenSymbol)",
+                                "if (actualBalance < transInSynPkg.amount)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "event_name": "transferInSuccess",
+                                    "file_name": "TokenHub.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

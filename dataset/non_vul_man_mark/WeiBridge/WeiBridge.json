@@ -1,0 +1,77 @@
+{
+  "contract": "WeiBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "WeiBridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenLock1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenUnlock1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Goerli",
+        "events": {
+          "TokenLock1": {
+            "0": {
+              "func_name": "lockTokensForOptimism",
+              "file_name": "BridgeMsgValue.sol",
+              "key_ops": [
+                "if (msg.value != 1003 ) { revert msgValueNot1003(); }",
+                "enqueue();",
+                "payable(Owner).transfer(msg.value);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "enqueue",
+                  "file_name": "BridgeMsgValue.sol",
+                  "key_ops": [
+                    "last += 1;",
+                    "queue[last] = msg.sender;"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "Optimism",
+        "events": {
+          "TokenUnlock1": {
+            "0": {
+              "func_name": "ownerUnlockGoerliETH",
+              "file_name": "BridgeMsgValue.sol",
+              "key_ops": [
+                "if (msg.sender != Owner) { revert notOwnerAddress(); }",
+                "payable(userToBridge).transfer(1000);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

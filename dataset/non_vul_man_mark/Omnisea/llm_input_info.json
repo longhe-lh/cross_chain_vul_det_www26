@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "CollectionCreated1": [
+            {
+                "create": "function create(CreateParams calldata params) public payable {\n require(bytes(params.name).length >= 2);\n if (keccak256(bytes(params.dstChainName)) == keccak256(bytes(chainName))) {\n function create(...) {...}\n_collectionsRepository.create(params, msg.sender);\n return;\n }\n omnichainRouter.send{value : msg.value}(\n params.dstChainName,\n remoteChainToOA[params.dstChainName],\n abi.encode(params, msg.sender),\n params.gas,\n msg.sender,\n params.redirectFee\n );\n }"
+            },
+            {
+                "_lzProcess": "function _lzProcess(uint16 chainId, RouteCall memory params, bool isRedirect, bool isRedirected) internal {\n require(trustedRemoteLookup[chainId].length != 0, \"LzSend: destination chain is not a trusted source.\");\n bytes memory adapter = _getAdapter(isRedirect ? 0 : params.gas);\n if (isRedirected) {\n (uint messageFee,) = lzEndpoint.estimateFees(chainId, address(this), params.payload, false, adapter);\n lzEndpoint.send{value : messageFee}(chainId, this.getTrustedRemote(chainId), params.payload, payable(params.user), lzConfig.zroPaymentAddress, adapter);\n return;\n }\n lzEndpoint.send{value : (msg.value - params.redirectFee)}(chainId, this.getTrustedRemote(chainId), params.payload, payable(params.user), lzConfig.zroPaymentAddress, adapter);\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Created1": [
+            {
+                "omReceive": "function omReceive(bytes calldata _payload, address srcOA, string memory srcChain) external override {\n emit OmReceived(srcChain, srcOA);\n function isOA(...) {...}\nfunction create(...) {...}\nrequire(isOA(srcChain, srcOA));\n (CreateParams memory params, address creator) = abi.decode(_payload, (CreateParams, address));\n _collectionsRepository.create(\n params,\n creator\n );\n }"
+            },
+            {
+                "create": "function create(\n CreateParams calldata params,\n address creator\n ) external override {\n require(msg.sender == collectionFactory);\n OmniERC721 collection = function _getSymbolByName(...) {...}\nnew OmniERC721(_getSymbolByName(params.name), params, creator, tokenFactory);\n userCollections[creator].push(address(collection));\n emit Created(address(collection), creator);\n }"
+            }
+        ]
+    }
+}

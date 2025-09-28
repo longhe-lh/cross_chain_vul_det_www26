@@ -1,0 +1,143 @@
+
+
+
+{
+  "contract": "WanBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+  "WanBridge": {
+    "interoperability": "homogeneous",
+    "roles": {
+      "src_chain": [
+        "TokenMint1",
+        "TokenClaim2"
+      ],
+      "rel_chain": [],
+      "det_chain": [
+        "Transfer1",
+        "claimTokens2"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "Ethereum",
+      "events": {
+        "TokenMint1": {
+          "0": {
+            "func_name": "buyWanCoin",
+            "file_name": "WanchainContribution.sol",
+            "key_ops": [
+              "require(receipient != 0x0);",
+              "require(msg.value >= 0.1 ether);",
+              "require(!isContract(msg.sender));",
+              "buyEarlyAdopters(receipient);",
+              "buyNormal(receipient);",
+              "require(tx.gasprice <= 50000000000 wei );",
+              "require(msg.value <= normalBuyLimit);"
+            ],
+            "child": {
+              "0": {
+                "func_name": "buyEarlyAdopters",
+                "file_name": "WanchainContribution.sol",
+                "key_ops": [
+                  "require(quotaAvailable > 0);",
+                  "earlyUserQuotas[receipient] = earlyUserQuotas[receipient].sub(toFund);"
+                ],
+                "child": {
+                  "0": {
+                    "func_name": "buyCommon",
+                    "file_name": "WanchainContribution.sol",
+                    "key_ops": [
+                      "require(msg.value >= toFund);",
+                      "require(wanToken.mintToken(receipient, wanTokenCollect));",
+                      "wanport.transfer(toFund);",
+                      "openSoldTokens = openSoldTokens.add(wanTokenCollect);"
+                    ],
+                    "child": {}
+                  }
+                }
+              },
+              "1": {
+                "func_name": "buyNormal",
+                "file_name": "WanchainContribution.sol",
+                "key_ops": [
+                  "require(inWhiteListTag > 0);",
+                  "require(tokenAvailable > 0);"
+                ],
+                "child": {
+                  "0": {
+                    "func_name": "costAndBuyTokens",
+                    "file_name": "WanchainContribution.sol",
+                    "key_ops": [],
+                    "child": {}
+                  },
+                  "1": {
+                    "func_name": "buyCommon",
+                    "file_name": "WanchainContribution.sol",
+                    "key_ops": [
+                      "require(msg.value >= toFund);",
+                      "require(wanToken.mintToken(receipient, wanTokenCollect));",
+                      "wanport.transfer(toFund);",
+                      "openSoldTokens = openSoldTokens.add(wanTokenCollect);"
+                    ],
+                    "child": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "TokenClaim2": {
+          "0": {
+            "func_name": "claimTokens",
+            "file_name": "WanchainContribution.sol",
+            "key_ops": [],
+            "child": {}
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "relay",
+      "events": {}
+    },
+    "det_chain": {
+      "chain_name": "Ethereum",
+      "events": {
+        "Transfer1": {
+          "0": {
+            "func_name": "transfer",
+            "file_name": "WanToken.sol",
+            "key_ops": [
+              "if (balances[msg.sender] >= _value) { balances[msg.sender] -= _value; balances[_to] += _value; return true; } else { return false; }"
+            ],
+            "child": {}
+          }
+        },
+        "claimTokens2": {
+          "0": {
+            "func_name": "claimTokens",
+            "file_name": "WanToken.sol",
+            "key_ops": [
+              "balances[receipent] = balances[receipent].add(lockedBalances[receipent]);",
+              "lockedBalances[receipent] = 0;"
+            ],
+            "child": {}
+          }
+        }
+      }
+    }
+  }
+},
+  "cag": []
+}

@@ -1,0 +1,27 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "purchaseIDO": "function purchaseIDO(uint256 pid) public payable nonReentrant {\n uint256 poolIndex = pid.sub(1);\n\n require(\n pools[poolIndex].IsActived && !pools[poolIndex].IsStoped,\n \"invalid pool\"\n );\n\n require(\n block.timestamp >= pools[poolIndex].Begin &&\n block.timestamp <= pools[poolIndex].End,\n \"invalid time\"\n );\n\n \n\n require(\n whitelist[pid][msg.sender].IsWhitelist &&\n whitelist[pid][msg.sender].IsActived,\n \"invalid user\"\n );\n\n \n\n uint256 ethAmount = msg.value;\n\n uint256 tokenAmount = ethAmount.mul(pools[poolIndex].RatePerETH).div(\n 1e18\n );\n\n require(\n ethAmount <= pools[poolIndex].MaxPurchase,\n \"invalid maximum contribute\"\n );\n\n whitelist[pid][msg.sender].TotalETHPurchase = whitelist[pid][msg.sender]\n .TotalETHPurchase\n .add(ethAmount);\n\n if (\n whitelist[pid][msg.sender].TotalETHPurchase >\n pools[poolIndex].MaxPurchase\n ) {\n revert(\"invalid maximum contribute\"); \n }\n\n uint256 remainToken = getRemainIDOToken(pid);\n\n require(\n remainToken > pools[poolIndex].MinimumTokenSoldout,\n \"IDO sold out\"\n );\n\n require(remainToken >= tokenAmount, \"IDO sold out\");\n\n if (pools[poolIndex].Type == 2) \n\n {\n require(\n polkaBridgeToken.balanceOf(msg.sender) >=\n pools[poolIndex].AmountPBRRequire,\n \"must hold enough PBR\"\n );\n }\n\n whitelist[pid][msg.sender].TotalTokenPurchase = whitelist[pid][\n msg.sender\n ].TotalTokenPurchase.add(tokenAmount);\n\n pools[poolIndex].TotalSold = pools[poolIndex].TotalSold.add(\n tokenAmount\n );\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "claimToken": "function claimToken(uint256 pid) public nonReentrant {\n require(!whitelist[pid][msg.sender].IsClaimed, \"user already claimed\");\n\n uint256 poolIndex = pid.sub(1);\n\n require(\n block.timestamp >=\n pools[poolIndex].End.add(pools[poolIndex].LockDuration),\n \"not on time for claiming token\"\n );\n\n uint256 userBalance = getUserTotalPurchase(pid);\n\n require(userBalance > 0, \"invalid claim\");\n\n pools[poolIndex].IDOToken.transfer(msg.sender, userBalance);\n\n whitelist[pid][msg.sender].IsClaimed = true;\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "withdrawToken": "function withdrawToken(address poolAddress, uint256 amount) public {\n require(\n msg.sender == owner,\n \"RewardPool: only owner can withdraw token\"\n );\n\n require(amount > 0, \"RewardPool: not enough balance\");\n\n require(amount <= tokenBalance(), \"RewardPool: not enough balance\");\n\n require(\n poolAddress != address(0),\n \"RewardPool: transfer to the zero address\"\n );\n\n polkaBridge.transfer(poolAddress, amount);\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "mintNFT": "function mintNFT(\n address recipient_,\n uint256 id_,\n uint256 amount_\n ) public onlyOwner {\n _mint(recipient_, id_, amount_, \"\");\n }"
+            }
+        ]
+    }
+}

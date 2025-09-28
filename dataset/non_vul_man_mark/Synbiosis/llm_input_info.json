@@ -1,0 +1,36 @@
+{
+    "src_chain": {
+        "SynthesizeRequest1": [
+            {
+                "synthesize": "function synthesize(\n uint256 _stableBridgingFee,\n address _token,\n uint256 _amount,\n address _chain2address,\n address _receiveSide,\n address _oppositeBridge,\n address _revertableAddress,\n uint256 _chainID,\n bytes32 _clientID\n ) external whenNotPaused returns (bytes32) {\n require(tokenWhitelist[_token], \"Symb: unauthorized token\");\n require(_amount >= tokenThreshold[_token], \"Symb: amount under threshold\");\n TransferHelper.safeTransferFrom(\n _token,\n _msgSender(),\n address(this),\n _amount\n );\n return\n sendSynthesizeRequest(\n _stableBridgingFee,\n _token,\n _amount,\n _chain2address,\n _receiveSide,\n _oppositeBridge,\n _revertableAddress,\n _chainID,\n _clientID\n );\n }"
+            },
+            {
+                "sendSynthesizeRequest": "function sendSynthesizeRequest(\n uint256 _stableBridgingFee,\n address _token,\n uint256 _amount,\n address _chain2address,\n address _receiveSide,\n address _oppositeBridge,\n address _revertableAddress,\n uint256 _chainID,\n bytes32 _clientID\n ) internal returns (bytes32 internalID) {\n balanceOf[_token] = balanceOf[_token] + _amount;\n if (_revertableAddress == address(0)) {\n _revertableAddress = _chain2address;\n }\n internalID = keccak256(abi.encodePacked(this, requestCount, block.chainid));\n {\n bytes32 externalID = keccak256(abi.encodePacked(internalID, _receiveSide, _revertableAddress, _chainID));\n {\n bytes memory out = abi.encodeWithSelector(\n bytes4(\n keccak256(\n bytes(\n \"mintSyntheticToken(uint256,bytes32,address,uint256,uint256,address)\"\n )\n )\n ),\n _stableBridgingFee,\n externalID,\n _token,\n block.chainid,\n _amount,\n _chain2address\n );\n requests[externalID] = TxState({\n recipient : _msgSender(),\n chain2address : _chain2address,\n rtoken : _token,\n amount : _amount,\n state : RequestState.Sent\n });\n requestCount++;\n IBridge(bridge).transmitRequestV2(\n out,\n _receiveSide,\n _oppositeBridge,\n _chainID\n );\n }\n }\n emit SynthesizeRequest(\n internalID,\n _msgSender(),\n _chainID,\n _revertableAddress,\n _chain2address,\n _amount,\n _token\n );\n emit ClientIdLog(internalID, _clientID);\n }"
+            }
+        ],
+        "BurnRequest2": [
+            {
+                "burnSyntheticToken": "function burnSyntheticToken(\n uint256 _stableBridgingFee,\n address _stoken,\n uint256 _amount,\n address _chain2address,\n address _receiveSide,\n address _oppositeBridge,\n address _revertableAddress,\n uint256 _chainID,\n bytes32 _clientID\n ) external whenNotPaused returns (bytes32 internalID) {\n require(_amount >= tokenThreshold[_stoken], \"Symb: amount under threshold\");\n ISyntFabric(fabric).unsynthesize(_msgSender(), _amount, _stoken);\n if (_revertableAddress == address(0)) {\n _revertableAddress = _chain2address;\n }\n {\n address rtoken = ISyntFabric(fabric).getRealRepresentation(_stoken);\n require(rtoken != address(0), \"Symb: incorrect synt\");\n internalID = keccak256(\n abi.encodePacked(this, requestCount, block.chainid)\n );\n bytes32 externalID = keccak256(abi.encodePacked(internalID, _receiveSide, _revertableAddress, _chainID));\n bytes memory out = abi.encodeWithSelector(\n bytes4(\n keccak256(\n bytes(\"unsynthesize(uint256,bytes32,address,uint256,address)\")\n )\n ),\n _stableBridgingFee,\n externalID,\n rtoken,\n _amount,\n _chain2address\n );\n requests[externalID] = TxState({\n recipient: _msgSender(),\n chain2address: _chain2address,\n token: rtoken,\n stoken: _stoken,\n amount: _amount,\n state: RequestState.Sent\n });\n requestCount++;\n IBridge(bridge).transmitRequestV2(\n out,\n _receiveSide,\n _oppositeBridge,\n _chainID\n );\n }\n emit BurnRequest(internalID, _msgSender(), _chainID, _revertableAddress, _chain2address, _amount, _stoken);\n emit ClientIdLog(internalID, _clientID);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "transmitRequestV2": [
+            {
+                "transmitRequestV2": "function transmitRequestV2(\n bytes memory _callData,\n address _receiveSide,\n address _oppositeBridge,\n uint256 _chainId\n ) public onlyTransmitter {\n emit OracleRequest(\n address(this),\n _callData,\n _receiveSide,\n _oppositeBridge,\n _chainId\n );\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "MintSyntheticToken1": [
+            {
+                "mintSyntheticToken": "function mintSyntheticToken(\n uint256 _stableBridgingFee,\n bytes32 _externalID,\n address _tokenReal,\n uint256 _chainID,\n uint256 _amount,\n address _to\n ) external onlyBridge whenNotPaused {\n require(\n synthesizeStates[_externalID] == SynthesizeState.Default,\n \"Symb: revertSynthesizedRequest called or tokens have been already synthesized\"\n );\n synthesizeStates[_externalID] = SynthesizeState.Synthesized;\n address syntReprAddr = ISyntFabric(fabric).getSyntRepresentation(_tokenReal, _chainID);\n require(syntReprAddr != address(0), \"Symb: There is no synt representation for this token\");\n ISyntFabric(fabric).synthesize(\n _to,\n _amount - _stableBridgingFee,\n syntReprAddr\n );\n ISyntFabric(fabric).synthesize(\n bridge,\n _stableBridgingFee,\n syntReprAddr\n );\n emit SynthesizeCompleted(_externalID, _to, _amount - _stableBridgingFee, _stableBridgingFee, _tokenReal);\n }"
+            }
+        ],
+        "Unsynthesize2": [
+            {
+                "unsynthesize": "function unsynthesize(\n uint256 _stableBridgingFee,\n bytes32 _externalID,\n address _token,\n uint256 _amount,\n address _to\n ) external onlyBridge whenNotPaused {\n require(\n unsynthesizeStates[_externalID] == UnsynthesizeState.Default,\n \"Symb: synthetic tokens emergencyUnburn\"\n );\n balanceOf[_token] = balanceOf[_token] - _amount;\n unsynthesizeStates[_externalID] = UnsynthesizeState.Unsynthesized;\n TransferHelper.safeTransfer(_token, _to, _amount - _stableBridgingFee);\n TransferHelper.safeTransfer(_token, bridge, _stableBridgingFee);\n emit BurnCompleted(_externalID, _to, _amount - _stableBridgingFee, _stableBridgingFee, _token);\n }"
+            }
+        ]
+    }
+}

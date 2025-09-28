@@ -1,0 +1,86 @@
+{
+  "contract": "ICICB Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "ICICB Bridge": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1"
+        ],
+        "rel_chain": [
+          "transfer"
+        ],
+        "det_chain": [
+          "Withdraw1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "require(size==0, \"bridge: only personal\");",
+                "require(_account!=address(0), \"bridge: zero sender\");",
+                "require(msg.value==_amount, \"bridge: amount\");",
+                "IRC20(_token).burnFrom(_account, _amount);",
+                "IRC20(_token).transferFrom(_account, address(this), _amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "transfer": {
+            "0": {
+              "func_name": "transfer",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "payable(_to).transfer(_amount);",
+                "IRC20(_token).mintTo(_to, _amount);",
+                "IRC20(_token).transfer(_to, _amount);",
+                "exists[_extra] = true;"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Withdraw1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "WICICB.sol",
+              "key_ops": [
+                "require(balanceOf[msg.sender] >= wad);",
+                "balanceOf[msg.sender] -= wad;",
+                "payable(msg.sender).transfer(wad);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

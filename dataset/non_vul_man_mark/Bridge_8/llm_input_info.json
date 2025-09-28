@@ -1,0 +1,20 @@
+{
+    "src_chain": {
+        "RetryableTicketCreated1": [
+            {
+                "_sendCrossChainMessage": "function _sendCrossChainMessage(\n address destination,\n bytes memory data,\n bytes memory crossChainTxParams\n ) internal virtual override {\n uint256 ticketId = LibArbitrumL1.sendCrossChainMessage(\n _bridge,\n destination,\n data,\n crossChainTxParams\n );\n emit RetryableTicketCreated(ticketId);\n }"
+            },
+            {
+                "sendCrossChainMessage": "function sendCrossChainMessage(\n address bridge,\n address destination,\n bytes memory data,\n bytes memory crossChainTxParams\n ) internal returns (uint256 ticketId) {\n \n address delayedInbox = ArbitrumL1_Bridge(bridge).allowedInboxList(0);\n CrossChainTxParams memory params = abi.decode(\n crossChainTxParams,\n (CrossChainTxParams)\n );\n if (BRIDGE_ID != params.bridgeId)\n revert InvalidTargetBridge(params.bridgeId, BRIDGE_ID);\n ticketId = ArbitrumL1_Inbox(delayedInbox).createRetryableTicket{\n value: params.depositValue\n }(\n destination,\n params.l2CallValue,\n params.maxSubmissionCost,\n params.excessFeeRefundAddress,\n params.callValueRefundAddress,\n params.maxGas,\n params.gasPriceBid,\n data\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "InboxMessageDelivered": [],
+        "OutBoxTransactionExecuted": []
+    },
+    "det_chain": {
+        "SentMessage1": [],
+        "RelayedMessage1": []
+    }
+}

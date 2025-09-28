@@ -1,0 +1,81 @@
+{
+  "contract": "iCrossChain",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "iCrossChain": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "src_event_name1"
+        ],
+        "rel_chain": [
+          "rel_event_name"
+        ],
+        "det_chain": [
+          "dst_event_name1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "src_event_name1": {
+            "0": {
+              "func_name": "sendValue",
+              "file_name": "Address.sol",
+              "key_ops": [
+                "require(address(this).balance >= amount, \"Address: insufficient balance\")",
+                "(bool success, ) = recipient.call{value: amount}(\"\");",
+                "require(success, \"Address: unable to send value, recipient may have reverted\")"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "rel_event_name": {
+            "0": {
+              "func_name": "functionCall",
+              "file_name": "Address.sol",
+              "key_ops": [
+                "return functionCallWithValue(target, data, 0, errorMessage);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "dst_event_name1": {
+            "0": {
+              "func_name": "sendValue",
+              "file_name": "Address.sol",
+              "key_ops": [
+                "require(address(this).balance >= amount, \"Address: insufficient balance\")",
+                "(bool success, ) = recipient.call{value: amount}(\"\");",
+                "require(success, \"Address: unable to send value, recipient may have reverted\")"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

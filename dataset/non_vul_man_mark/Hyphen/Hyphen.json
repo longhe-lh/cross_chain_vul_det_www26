@@ -1,0 +1,182 @@
+{
+  "contract": "Hyphen",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Hyphen": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1",
+          "DepositAndSwap2"
+        ],
+        "rel_chain": [
+          "depositErc20",
+          "depositNative",
+          "sendFundsToUser",
+          "swapAndSendFundsToUser"
+        ],
+        "det_chain": [
+          "AssetSent1",
+          "DepositAndSwap2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "depositErc20",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_depositErc20",
+                  "file_name": "LiquidityPool.sol",
+                  "key_ops": [
+                    "require(toChainId != block.chainid, \"To chain must be different than current chain\");",
+                    "require(tokenAddress != NATIVE, \"wrong function\");",
+                    "require(receiver != address(0), \"Receiver address cannot be 0\")",
+                    "require(amount != 0, \"Amount cannot be 0\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "DepositAndSwap2": {
+            "0": {
+              "func_name": "depositAndSwapErc20",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [
+                "require(totalPercentage <= 100 * BASE_DIVISOR,\"Total percentage cannot be > 100\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_depositErc20",
+                  "file_name": "LiquidityPool.sol",
+                  "key_ops": [
+                    "require(receiver != address(0), \"Receiver address cannot be 0\")",
+                    "require(amount != 0, \"Amount cannot be 0\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "depositErc20": {
+            "0": {
+              "func_name": "depositErc20",
+              "file_name": "LiquidityPoolManager.sol",
+              "key_ops": [
+                "require(tokensInfo[tokenAddress].minCap <= amount && tokensInfo[tokenAddress].maxCap >= amount, \"Deposit amount should be within allowed Cap limits\")",
+                "require(receiver != address(0), \"Receiver address cannot be 0\");",
+                "require(amount != 0, \"Amount cannot be 0\");",
+                "emit Deposit(sender, tokenAddress, receiver, toChainId, amount)"
+              ],
+              "child": {}
+            }
+          },
+          "depositNative": {
+            "0": {
+              "func_name": "depositNative",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [
+                "emit Deposit(_msgSender(), NATIVE, receiver, toChainId, msg.value + rewardAmount, rewardAmount, tag)"
+              ],
+              "child": {}
+            }
+          },
+          "sendFundsToUser": {
+            "0": {
+              "func_name": "sendFundsToUser",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [
+                "require(receiver != address(0), \"Bad receiver address\")",
+                "processedHash[hashSendTransaction] = true"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "getAmountToTransfer",
+                  "file_name": "LiquidityPool.sol",
+                  "key_ops": [
+                    "liquidityProviders.addLPFee(tokenAddress, lpFee)",
+                    "gasFeeAccumulatedByToken[tokenAddress] += gasFee"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "swapAndSendFundsToUser": {
+            "0": {
+              "func_name": "swapAndSendFundsToUser",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [
+                "require(swapRequests.length > 0, \"Wrong method call\")",
+                "require(swapAdaptorMap[swapAdaptor] != address(0), \"Swap adaptor not found\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_calculateAmountAndDecreaseAvailableLiquidity",
+                  "file_name": "LiquidityPool.sol",
+                  "key_ops": [
+                    "require(config.min <= amount && config.max >= amount, \"Withdraw amount not in Cap limit\")",
+                    "processedHash[hashSendTransaction] = true"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "getAmountToTransferV2",
+                      "file_name": "LiquidityPool.sol",
+                      "key_ops": [
+                        "liquidityProviders.addLPFee(tokenAddress, lpFee)"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "AssetSent1": {
+            "0": {
+              "func_name": "sendFundsToUser",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "DepositAndSwap2": {
+            "0": {
+              "func_name": "depositAndSwapErc20",
+              "file_name": "LiquidityPool.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

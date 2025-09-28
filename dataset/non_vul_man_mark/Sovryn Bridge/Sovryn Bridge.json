@@ -1,0 +1,185 @@
+{
+  "contract": "Sovryn Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Sovryn Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Sent1",
+          "Burned2"
+        ],
+        "rel_chain": [
+          "Voted",
+          "Signed",
+          "Executed"
+        ],
+        "det_chain": [
+          "Minted1",
+          "Transfer2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Sent1": {
+            "0": {
+              "func_name": "send",
+              "file_name": "ERC777.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_send",
+                  "file_name": "ERC777.sol",
+                  "key_ops": [
+                    "require(from != address(0), \"ERC777: send from zero address\");",
+                    "require(to != address(0), \"ERC777: send to zero address\");"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "_move",
+                      "file_name": "ERC777.sol",
+                      "key_ops": [
+                        "_balances[from] = _balances[from].sub(amount, \"ERC777: transfer amount exceeds balance\");",
+                        "_balances[to] = _balances[to].add(amount);"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "Burned2": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "Dai.sol",
+              "key_ops": [
+                "require(balanceOf[usr] >= wad, \"Dai/insufficient-balance\");",
+                "if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) { require(allowance[usr][msg.sender] >= wad, \"Dai/insufficient-allowance\"); allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad); }",
+                "balanceOf[usr] = sub(balanceOf[usr], wad);",
+                "totalSupply    = sub(totalSupply, wad);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "FederationChain",
+        "events": {
+          "Voted": {
+            "0": {
+              "func_name": "voteTransaction",
+              "file_name": "Federation.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_voteTransaction",
+                  "file_name": "Federation.sol",
+                  "key_ops": [
+                    "require(initStageDone == true, \"Federation: Cannot process TX while initStageDone == false\");"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "processTransaction",
+                      "file_name": "Federation.sol",
+                      "key_ops": [
+                        "votes[transactionIdU][_msgSender()] = true;"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "Signed": {
+            "0": {
+              "func_name": "executeTransaction",
+              "file_name": "Federation.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_executeTransaction",
+                  "file_name": "Federation.sol",
+                  "key_ops": [
+                    "require(initStageDone == true, \"Federation: Cannot process TX while initStageDone == false\");"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "processSignedTransaction",
+                      "file_name": "Federation.sol",
+                      "key_ops": [
+                        "votes[transactionIdU][_msgSender()] = true;",
+                        "memberValidations += 1;",
+                        "emit Signed(transactionIdU, signer);"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "Executed": {
+            "0": {
+              "func_name": "releaseTokensOnBridge",
+              "file_name": "Federation.sol",
+              "key_ops": [
+                "require(acceptTransfer, \"Federation: Bridge acceptTransfer error\");"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "SideTokenChain",
+        "events": {
+          "Minted1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "SideToken.sol",
+              "key_ops": [],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "ERC777.sol",
+                  "key_ops": [
+                    "_totalSupply = _totalSupply.add(amount);",
+                    "_balances[account] = _balances[account].add(amount);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Transfer2": {
+            "0": {
+              "func_name": "transfer",
+              "file_name": "TetherToken.sol",
+              "key_ops": [
+                "balances[msg.sender] = balances[msg.sender].sub(_value);",
+                "balances[_to] = balances[_to].add(sendAmount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

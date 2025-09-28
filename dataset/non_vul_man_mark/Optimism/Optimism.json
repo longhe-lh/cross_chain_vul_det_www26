@@ -1,0 +1,168 @@
+{
+  "contract": "Optimism",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Optimism": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "ETHBridgeInitiated1",
+          "ERC20BridgeInitiated2"
+        ],
+        "rel_chain": [
+          "relayMessage"
+        ],
+        "det_chain": [
+          "ETHBridgeFinalized1",
+          "ERC20BridgeFinalized2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "L1",
+        "events": {
+          "ETHBridgeInitiated1": {
+            "0": {
+              "func_name": "_initiateBridgeETH",
+              "file_name": "StandardBridge.sol",
+              "key_ops": [
+                "require(msg.value == _amount, \"StandardBridge: bridging ETH must include sufficient ETH value\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendMessage",
+                  "file_name": "CrossDomainMessenger.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "relayMessage",
+                      "file_name": "CrossDomainMessenger.sol",
+                      "key_ops": [
+                        "require(version < 2,\"CrossDomainMessenger: only version 0 or 1 messages are supported at this time\");",
+                        "require(successfulMessages[oldHash] == false,\"CrossDomainMessenger: legacy withdrawal already relayed\");",
+                        "assert(msg.value == _value);",
+                        "assert(!failedMessages[versionedHash]);",
+                        "require(msg.value == 0,\"CrossDomainMessenger: value must be zero unless message is from a system address\");",
+                        "require(failedMessages[versionedHash],\"CrossDomainMessenger: message cannot be replayed\");",
+                        "require(_isUnsafeTarget(_target) == false,\"CrossDomainMessenger: cannot send message to blocked system address\");",
+                        "require(successfulMessages[versionedHash] == false,\"CrossDomainMessenger: message has already been relayed\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ERC20BridgeInitiated2": {
+            "0": {
+              "func_name": "_initiateBridgeERC20",
+              "file_name": "StandardBridge.sol",
+              "key_ops": [
+                "require(_isCorrectTokenPair(_localToken, _remoteToken),\"StandardBridge: wrong remote token for Optimism Mintable ERC20 local token\");",
+                "IERC20(_localToken).safeTransferFrom(_from, address(this), _amount);",
+                "deposits[_l1Token][_l2Token] = deposits[_l1Token][_l2Token] + _amount;"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "sendMessage",
+                  "file_name": "CrossDomainMessenger.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "relayMessage",
+                      "file_name": "CrossDomainMessenger.sol",
+                      "key_ops": [
+                        "require(version < 2,\"CrossDomainMessenger: only version 0 or 1 messages are supported at this time\");",
+                        "require(successfulMessages[oldHash] == false,\"CrossDomainMessenger: legacy withdrawal already relayed\");",
+                        "assert(msg.value == _value);",
+                        "assert(!failedMessages[versionedHash]);",
+                        "require(msg.value == 0,\"CrossDomainMessenger: value must be zero unless message is from a system address\");",
+                        "require(failedMessages[versionedHash],\"CrossDomainMessenger: message cannot be replayed\");",
+                        "require(_isUnsafeTarget(_target) == false,\"CrossDomainMessenger: cannot send message to blocked system address\");",
+                        "require(successfulMessages[versionedHash] == false,\"CrossDomainMessenger: message has already been relayed\");"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "relayMessage": {
+            "0": {
+              "func_name": "relayMessage",
+              "file_name": "CrossDomainMessenger.sol",
+              "key_ops": [
+                "require(version < 2,\"CrossDomainMessenger: only version 0 or 1 messages are supported at this time\");",
+                "require(successfulMessages[oldHash] == false,\"CrossDomainMessenger: legacy withdrawal already relayed\");",
+                "assert(msg.value == _value);",
+                "assert(!failedMessages[versionedHash]);",
+                "require(msg.value == 0,\"CrossDomainMessenger: value must be zero unless message is from a system address\");",
+                "require(failedMessages[versionedHash],\"CrossDomainMessenger: message cannot be replayed\");",
+                "require(_isUnsafeTarget(_target) == false,\"CrossDomainMessenger: cannot send message to blocked system address\");",
+                "require(successfulMessages[versionedHash] == false,\"CrossDomainMessenger: message has already been relayed\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "finalizeBridgeETH",
+                  "file_name": "StandardBridge.sol",
+                  "key_ops": [
+                    "require(msg.value == _amount,\"StandardBridge: amount sent does not match amount required\");",
+                    "require(_to != address(this), \"StandardBridge: cannot send to self\");",
+                    "require(_to != address(MESSENGER),\"StandardBridge: cannot send to messenger\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "L2",
+        "events": {
+          "ETHBridgeFinalized1": {
+            "0": {
+              "func_name": "finalizeBridgeETH",
+              "file_name": "StandardBridge.sol",
+              "key_ops": [
+                "require(msg.value == _amount,\"StandardBridge: amount sent does not match amount required\");",
+                "require(_to != address(this), \"StandardBridge: cannot send to self\");",
+                "require(_to != address(MESSENGER),\"StandardBridge: cannot send to messenger\");"
+              ],
+              "child": {}
+            }
+          },
+          "ERC20BridgeFinalized2": {
+            "0": {
+              "func_name": "finalizeBridgeERC20",
+              "file_name": "StandardBridge.sol",
+              "key_ops": [
+                "require(_isCorrectTokenPair(_localToken, _remoteToken),\"StandardBridge: wrong remote token for Optimism Mintable ERC20 local token\");",
+                "IERC20(_localToken).safeTransfer(_to, _amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

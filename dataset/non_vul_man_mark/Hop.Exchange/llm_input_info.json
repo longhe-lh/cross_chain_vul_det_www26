@@ -1,0 +1,56 @@
+{
+    "src_chain": {
+        "TransferSentToL21": [
+            {
+                "sendToL2": "function sendToL2(\n uint256 chainId,\n address recipient,\n uint256 amount,\n uint256 amountOutMin,\n uint256 deadline,\n address relayer,\n uint256 relayerFee\n )\n external\n payable\n {\n IMessengerWrapper messengerWrapper = crossDomainMessengerWrappers[chainId];\n require(messengerWrapper != IMessengerWrapper(0), \"L1_BRG: chainId not supported\");\n require(isChainIdPaused[chainId] == false, \"L1_BRG: Sends to this chainId are paused\");\n require(amount > 0, \"L1_BRG: Must transfer a non-zero amount\");\n require(amount >= relayerFee, \"L1_BRG: Relayer fee cannot exceed amount\");\n _transferToBridge(msg.sender, amount);\n bytes memory message = abi.encodeWithSignature(\n \"distribute(address,uint256,uint256,uint256,address,uint256)\",\n recipient,\n amount,\n amountOutMin,\n deadline,\n relayer,\n relayerFee\n );\n chainBalance[chainId] = chainBalance[chainId].add(amount);\n messengerWrapper.sendCrossDomainMessage(message);\n emit TransferSentToL2(\n chainId,\n recipient,\n amount,\n amountOutMin,\n deadline,\n relayer,\n relayerFee\n );\n }"
+            }
+        ],
+        "TransferRootBonded2": [
+            {
+                "bondTransferRoot": "function bondTransferRoot(\n bytes32 rootHash,\n uint256 destinationChainId,\n uint256 totalAmount\n )\n external\n onlyBonder\n requirePositiveBalance\n {\n bytes32 transferRootId = getTransferRootId(rootHash, totalAmount);\n require(transferRootCommittedAt[destinationChainId][transferRootId] == 0, \"L1_BRG: TransferRoot has already been confirmed\");\n require(transferBonds[transferRootId].createdAt == 0, \"L1_BRG: TransferRoot has already been bonded\");\n uint256 currentTimeSlot = getTimeSlot(block.timestamp);\n uint256 bondAmount = getBondForTransferAmount(totalAmount);\n timeSlotToAmountBonded[currentTimeSlot][msg.sender] = timeSlotToAmountBonded[currentTimeSlot][msg.sender].add(bondAmount);\n transferBonds[transferRootId] = TransferBond(\n msg.sender,\n block.timestamp,\n totalAmount,\n uint256(0),\n address(0),\n false\n );\n function _distributeTransferRoot(...) {...}\n_distributeTransferRoot(rootHash, destinationChainId, totalAmount);\n emit TransferRootBonded(rootHash, totalAmount);\n }"
+            },
+            {
+                "_setTransferRoot": "function _setTransferRoot(bytes32 rootHash, uint256 totalAmount) internal {\n bytes32 transferRootId = getTransferRootId(rootHash, totalAmount);\n require(_transferRoots[transferRootId].total == 0, \"BRG: Transfer root already set\");\n require(totalAmount > 0, \"BRG: Cannot set TransferRoot totalAmount of 0\");\n _transferRoots[transferRootId] = TransferRoot(totalAmount, 0, block.timestamp);\n emit TransferRootSet(rootHash, totalAmount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "setTransferRoot": [
+            {
+                "_setTransferRoot": "function _setTransferRoot(bytes32 rootHash, uint256 totalAmount) internal {\n bytes32 transferRootId = getTransferRootId(rootHash, totalAmount);\n require(_transferRoots[transferRootId].total == 0, \"BRG: Transfer root already set\");\n require(totalAmount > 0, \"BRG: Cannot set TransferRoot totalAmount of 0\");\n _transferRoots[transferRootId] = TransferRoot(totalAmount, 0, block.timestamp);\n emit TransferRootSet(rootHash, totalAmount);\n }"
+            }
+        ],
+        "distribute": [
+            {
+                "_distributeTransferRoot": "function _distributeTransferRoot(\n bytes32 rootHash,\n uint256 chainId,\n uint256 totalAmount\n )\n internal\n {\n \n if (chainId == getChainId()) {\n \n _setTransferRoot(rootHash, totalAmount);\n } else {\n chainBalance[chainId] = chainBalance[chainId].add(totalAmount);\n IMessengerWrapper messengerWrapper = crossDomainMessengerWrappers[chainId];\n require(messengerWrapper != IMessengerWrapper(0), \"L1_BRG: chainId not supported\");\n \n bytes memory setTransferRootMessage = abi.encodeWithSignature(\n \"setTransferRoot(bytes32,uint256)\",\n rootHash,\n totalAmount\n );\n messengerWrapper.sendCrossDomainMessage(setTransferRootMessage);\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Withdrew1": [
+            {
+                "withdraw": "function withdraw(\n address recipient,\n uint256 amount,\n bytes32 transferNonce,\n uint256 bonderFee,\n uint256 amountOutMin,\n uint256 deadline,\n bytes32 rootHash,\n uint256 transferRootTotalAmount,\n uint256 transferIdTreeIndex,\n bytes32[] calldata siblings,\n uint256 totalLeaves\n )\n external\n nonReentrant\n {\n bytes32 transferId = getTransferId(\n getChainId(),\n recipient,\n amount,\n transferNonce,\n bonderFee,\n amountOutMin,\n deadline\n );\n require(\n rootHash.verify(\n transferId,\n transferIdTreeIndex,\n siblings,\n totalLeaves\n )\n , \"BRG: Invalid transfer proof\");\n bytes32 transferRootId = getTransferRootId(rootHash, transferRootTotalAmount);\n function _addToAmountWithdrawn(...) {...}\nfunction _fulfillWithdraw(...) {...}\n_addToAmountWithdrawn(transferRootId, amount);\n _fulfillWithdraw(transferId, recipient, amount, uint256(0));\n emit Withdrew(transferId, recipient, amount, transferNonce);\n }"
+            },
+            {
+                "_markTransferSpent": "function _markTransferSpent(bytes32 transferId) internal {\n require(!_spentTransferIds[transferId], \"BRG: The transfer has already been withdrawn\");\n _spentTransferIds[transferId] = true;\n }"
+            }
+        ],
+        "WithdrawalBonded2": [
+            {
+                "bondWithdrawal": "function bondWithdrawal(\n address recipient,\n uint256 amount,\n bytes32 transferNonce,\n uint256 bonderFee\n )\n external\n onlyBonder\n requirePositiveBalance\n nonReentrant\n {\n bytes32 transferId = getTransferId(\n getChainId(),\n recipient,\n amount,\n transferNonce,\n bonderFee,\n 0,\n 0\n );\n function _bondWithdrawal(...) {...}\nfunction _fulfillWithdraw(...) {...}\n_bondWithdrawal(transferId, amount);\n _fulfillWithdraw(transferId, recipient, amount, bonderFee);\n }"
+            },
+            {
+                "_bondWithdrawal": "function _bondWithdrawal(bytes32 transferId, uint256 amount) internal {\n require(_bondedWithdrawalAmounts[msg.sender][transferId] == 0, \"BRG: Withdrawal has already been bonded\");\n _addDebit(msg.sender, amount);\n _bondedWithdrawalAmounts[msg.sender][transferId] = amount;\n emit WithdrawalBonded(transferId, amount);\n }"
+            },
+            {
+                "_addDebit": "function _addDebit(address bonder, uint256 amount) internal {\n _debit[bonder] = _debit[bonder].add(amount);\n }"
+            },
+            {
+                "_fulfillWithdraw": "function _fulfillWithdraw(\n bytes32 transferId,\n address recipient,\n uint256 amount,\n uint256 bonderFee\n ) private {\n function _markTransferSpent(...) {...}\n_markTransferSpent(transferId);\n _transferFromBridge(recipient, amount.sub(bonderFee));\n if (bonderFee > 0) {\n _transferFromBridge(msg.sender, bonderFee);\n }\n }"
+            },
+            {
+                "_markTransferSpent": "function _markTransferSpent(bytes32 transferId) internal {\n require(!_spentTransferIds[transferId], \"BRG: The transfer has already been withdrawn\");\n _spentTransferIds[transferId] = true;\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,110 @@
+{
+  "contract": "Bridge_7",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_7": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "Transfer1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "Transfer1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "BSC",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "configToken.burnToken(msg.sender, _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "burnToken",
+                  "file_name": "TokenConfig.sol",
+                  "key_ops": [
+                    "_burn(msg.sender, _amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "ETH",
+        "events": {
+          "Transfer1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "bytes32 message = prefixed(keccak256(abi.encodePacked(_from, _to, _amount, _nonce)))",
+                "require(recoverSigner(message, _signature) == _from, \"wrong signature\")",
+                "require(processedTxNonce[_from][_nonce] == false, \"transfer has already been processed\")",
+                "processedTxNonce[_from][_nonce] = true",
+                "configToken.mintToken(_to, _amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prefixed",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", _hash))"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "recoverSigner",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [],
+                  "child": {
+                    "0": {
+                      "func_name": "splitSignature",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "require(_signature.length == 65, \"invalid signature\")"
+                      ],
+                      "child": {}
+                    }
+                  }
+                },
+                "2": {
+                  "func_name": "mintToken",
+                  "file_name": "TokenConfig.sol",
+                  "key_ops": [
+                    "require(msg.sender == admin, \"not admin\")",
+                    "_mint(_to, _amount)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

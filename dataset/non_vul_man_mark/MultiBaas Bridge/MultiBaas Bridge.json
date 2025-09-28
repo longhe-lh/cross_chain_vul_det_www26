@@ -1,0 +1,135 @@
+
+
+
+{
+  "contract": "MultiBaas Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+  "MultiBaas Bridge": {
+    "interoperability": "heterogeneous",
+    "roles": {
+      "src_chain": [
+        "Deposit1"
+      ],
+      "rel_chain": [
+        "ProposalEvent",
+        "ProposalVote"
+      ],
+      "det_chain": [
+        "TokenWithdraw1",
+        "NFTMint2"
+      ]
+    },
+    "src_chain": {
+      "chain_name": "SourceChain",
+      "events": {
+        "Deposit1": {
+          "0": {
+            "func_name": "deposit",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "require(msg.value == _fee, \"Incorrect fee supplied\")",
+              "address handler = _resourceIDToHandlerAddress[resourceID]",
+              "uint64 depositNonce = ++_depositCounts[destinationChainID]",
+              "require(handler != address(0), \"resourceID not mapped to handler\");"
+            ],
+            "child": {
+              "0": {
+                "func_name": "deposit",
+                "file_name": "ERC20Handler.sol",
+                "key_ops": [
+                  "(amount, lenRecipientAddress) = abi.decode(data, (uint, uint))",
+                  "address tokenAddress = _resourceIDToTokenContractAddress[resourceID]"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "rel_chain": {
+      "chain_name": "RelayChain",
+      "events": {
+        "ProposalEvent": {
+          "0": {
+            "func_name": "voteProposal",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "Proposal memory proposal = _proposals[nonceAndID][dataHash]",
+              "require(_resourceIDToHandlerAddress[resourceID] != address(0), \"no handler for resourceID\");",
+              "require(uint(proposal._status) <= 1, \"proposal already passed/executed/cancelled\");",
+              "require(!_hasVoted(proposal, msg.sender), \"relayer already voted\");"
+            ],
+            "child": {}
+          }
+        },
+        "ProposalVote": {
+          "0": {
+            "func_name": "executeProposal",
+            "file_name": "Bridge.sol",
+            "key_ops": [
+              "Proposal storage proposal = _proposals[nonceAndID][dataHash]",
+              "require(proposal._status == ProposalStatus.Passed, \"Proposal must have Passed status\")",
+              "proposal._status = ProposalStatus.Executed"
+            ],
+            "child": {
+              "0": {
+                "func_name": "executeProposal",
+                "file_name": "ERC20Handler.sol",
+                "key_ops": [
+                  "(amount, lenDestinationRecipientAddress) = abi.decode(data, (uint, uint))",
+                  "address tokenAddress = _resourceIDToTokenContractAddress[resourceID]",
+                  "require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");"
+                ],
+                "child": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "det_chain": {
+      "chain_name": "DestinationChain",
+      "events": {
+        "TokenWithdraw1": {
+          "0": {
+            "func_name": "executeProposal",
+            "file_name": "ERC20Handler.sol",
+            "key_ops": [
+              "(amount, lenDestinationRecipientAddress) = abi.decode(data, (uint, uint))",
+              "address tokenAddress = _resourceIDToTokenContractAddress[resourceID]",
+              "require(_contractWhitelist[tokenAddress], \"provided tokenAddress is not whitelisted\");"
+            ],
+            "child": {}
+          }
+        },
+        "NFTMint2": {
+          "0": {
+            "func_name": "executeProposal",
+            "file_name": "ERC721Handler.sol",
+            "key_ops": [
+              "(tokenID, lenDestinationRecipientAddress) = abi.decode(data, (uint, uint))",
+              "address tokenAddress = _resourceIDToTokenContractAddress[resourceID]",
+              "require(_contractWhitelist[address(tokenAddress)], \"provided tokenAddress is not whitelisted\");"
+            ],
+            "child": {}
+          }
+        }
+      }
+    }
+  }
+},
+  "cag": []
+}

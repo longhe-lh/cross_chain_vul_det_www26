@@ -1,0 +1,70 @@
+{
+    "src_chain": {
+        "SetCallableAddress1": [
+            {
+                "initializeCallableAddress": "function initializeCallableAddress(address _callableAddress) external {\n require(\n _CALLABLE_ADDRESS_ == address(0),\n \"ArkenApprove: callable address initialized\"\n );\n _CALLABLE_ADDRESS_ = _callableAddress;\n emit SetCallableAddress(address(0), _callableAddress);\n }"
+            }
+        ],
+        "TransferToken2": [
+            {
+                "transferToken": "function transferToken(\n IERC20 token,\n address from,\n address to,\n uint256 amount\n ) external onlyCallable {\n if (amount > 0) {\n function safeTransferFrom(...) {...}\ntoken.safeTransferFrom(from, to, amount);\n }\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n IERC20 token,\n address from,\n address to,\n uint256 value\n ) internal {\n _callOptionalReturn(\n token,\n abi.encodeWithSelector(token.transferFrom.selector, from, to, value)\n );\n }"
+            },
+            {
+                "_callOptionalReturn": "function _callOptionalReturn(IERC20 token, bytes memory data) private {\n \n \n \n bytes memory returndata = address(token).functionCall(\n data,\n \"SafeERC20: low-level call failed\"\n );\n if (returndata.length > 0) {\n \n require(\n abi.decode(returndata, (bool)),\n \"SafeERC20: ERC20 operation did not succeed\"\n );\n }\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "Swapped1": [
+            {
+                "trade": "function trade(TradeDescription memory desc) external payable {\n require(desc.amountIn > 0, \"Amount-in needs to be more than zero\");\n require(\n desc.amountOutMin > 0,\n \"Amount-out minimum needs to be more than zero\"\n );\n if (_ETH_ == desc.srcToken) {\n require(\n desc.amountIn == msg.value,\n \"Ether value not match amount-in\"\n );\n require(\n desc.isRouterSource,\n \"Source token Ether requires isRouterSource=true\"\n );\n }\n uint256 beforeDstAmt = _getBalance(desc.dstToken, desc.to);\n uint256 returnAmount = _trade(desc);\n if (returnAmount > 0) {\n if (_ETH_ == desc.dstToken) {\n (bool sent, ) = desc.to.call{value: returnAmount}(\"\");\n require(sent, \"Failed to send Ether\");\n } else {\n IERC20(desc.dstToken).safeTransfer(desc.to, returnAmount);\n }\n }\n uint256 receivedAmt = _getBalance(desc.dstToken, desc.to) -\n beforeDstAmt;\n require(\n receivedAmt >= desc.amountOutMin,\n \"Received token is not enough\"\n );\n emit Swapped(desc.srcToken, desc.dstToken, desc.amountIn, receivedAmt);\n }"
+            },
+            {
+                "_trade": "function _trade(\n TradeDescription memory desc\n ) internal returns (uint256 returnAmount) {\n TradeData memory data = TradeData({amountIn: desc.amountIn});\n if (desc.isSourceFee) {\n if (_ETH_ == desc.srcToken) {\n data.amountIn = _collectFee(desc.amountIn, desc.srcToken);\n } else {\n uint256 fee = _calculateFee(desc.amountIn);\n require(fee < desc.amountIn, \"Fee exceeds amount\");\n _transferFromSender(\n desc.srcToken,\n _FEE_WALLET_ADDR_,\n fee,\n desc.srcToken,\n data\n );\n }\n }\n if (desc.isRouterSource && _ETH_ != desc.srcToken) {\n _transferFromSender(\n desc.srcToken,\n address(this),\n data.amountIn,\n desc.srcToken,\n data\n );\n }\n if (_ETH_ == desc.srcToken) {\n _wrapEther(_WETH_, address(this).balance);\n }\n for (uint256 i = 0; i < desc.routes.length; i++) {\n _tradeRoute(desc.routes[i], desc, data);\n }\n if (_ETH_ == desc.dstToken) {\n returnAmount = IERC20(_WETH_).balanceOf(address(this));\n _unwrapEther(_WETH_, returnAmount);\n } else {\n returnAmount = IERC20(desc.dstToken).balanceOf(address(this));\n }\n if (!desc.isSourceFee) {\n require(\n returnAmount >= desc.amountOutMin && returnAmount > 0,\n \"Return amount is not enough\"\n );\n function _collectFee(...) {...}\nreturnAmount = _collectFee(returnAmount, desc.dstToken);\n }\n }"
+            },
+            {
+                "_collectFee": "function _collectFee(\n uint256 amount,\n address token\n ) internal returns (uint256 remainingAmount) {\n function _calculateFee(...) {...}\nfunction safeTransfer(...) {...}\nuint256 fee = _calculateFee(amount);\n require(fee < amount, \"Fee exceeds amount\");\n remainingAmount = amount - fee;\n if (_ETH_ == token) {\n (bool sent, ) = _FEE_WALLET_ADDR_.call{value: fee}(\"\");\n require(sent, \"Failed to send Ether too fee\");\n } else {\n IERC20(token).safeTransfer(_FEE_WALLET_ADDR_, fee);\n }\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(IERC20 token, address to, uint256 value) internal {\n _callOptionalReturn(\n token,\n abi.encodeWithSelector(token.transfer.selector, to, value)\n );\n }"
+            },
+            {
+                "_callOptionalReturn": "function _callOptionalReturn(IERC20 token, bytes memory data) private {\n \n \n \n bytes memory returndata = address(token).functionCall(\n data,\n \"SafeERC20: low-level call failed\"\n );\n if (returndata.length > 0) {\n \n require(\n abi.decode(returndata, (bool)),\n \"SafeERC20: ERC20 operation did not succeed\"\n );\n }\n }"
+            }
+        ],
+        "FeeWalletUpdated2": [
+            {
+                "updateFeeWallet": "function updateFeeWallet(address payable _feeWallet) external onlyOwner {\n require(_feeWallet != address(0), \"fee wallet zero address\");\n _FEE_WALLET_ADDR_ = _feeWallet;\n emit FeeWalletUpdated(_FEE_WALLET_ADDR_);\n }"
+            }
+        ],
+        "WETHUpdated3": [
+            {
+                "updateWETH": "function updateWETH(address _weth) external onlyOwner {\n require(_weth != address(0), \"WETH zero address\");\n _WETH_ = _weth;\n emit WETHUpdated(_WETH_);\n }"
+            }
+        ],
+        "WETHDfynUpdated4": [
+            {
+                "updateWETHDfyn": "function updateWETHDfyn(address _weth_dfyn) external onlyOwner {\n require(_weth_dfyn != address(0), \"WETH dfyn zero address\");\n _WETH_DFYN_ = _weth_dfyn;\n emit WETHDfynUpdated(_WETH_DFYN_);\n }"
+            }
+        ],
+        "DODOApproveUpdated5": [
+            {
+                "updateDODOApproveAddress": "function updateDODOApproveAddress(\n address _dodoApproveAddress\n ) external onlyOwner {\n require(_dodoApproveAddress != address(0), \"dodo approve zero address\");\n _DODO_APPROVE_ADDR_ = _dodoApproveAddress;\n emit DODOApproveUpdated(_DODO_APPROVE_ADDR_);\n }"
+            }
+        ],
+        "ArkenApproveUpdated6": [
+            {
+                "updateArkenApprove": "function updateArkenApprove(address _arkenApprove) external onlyOwner {\n require(_arkenApprove != address(0), \"arken approve zero address\");\n _ARKEN_APPROVE_ = _arkenApprove;\n emit ArkenApproveUpdated(_ARKEN_APPROVE_);\n }"
+            }
+        ],
+        "UniswapV3FactoryUpdated7": [
+            {
+                "updateUniswapV3Factory": "function updateUniswapV3Factory(address _uv3Factory) external onlyOwner {\n require(_uv3Factory != address(0), \"UniswapV3 Factory zero address\");\n _UNISWAP_V3_FACTORY_ = _uv3Factory;\n emit UniswapV3FactoryUpdated(_UNISWAP_V3_FACTORY_);\n }"
+            }
+        ]
+    }
+}

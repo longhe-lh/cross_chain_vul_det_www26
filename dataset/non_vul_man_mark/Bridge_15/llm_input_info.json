@@ -1,0 +1,52 @@
+{
+    "src_chain": {
+        "Proposed1": [
+            {
+                "proposeTransaction": "function proposeTransaction(\n address sender,\n address receiver,\n uint amount,\n address[] memory potentialSigners,\n address proposer,\n bytes calldata signature\n ) public {\n \n bytes32 message = prefixed(\n keccak256(abi.encodePacked(sender, receiver, amount))\n );\n require(\n recoverSigner(message, signature) == proposer,\n \"Signature Error: Not Signed by the Proposer\"\n );\n \n require(\n potentialSigners.length == 3,\n \"Three potential signers are required\"\n );\n \n transactions[message] = Transaction(\n potentialSigners,\n new address[](0),\n sender,\n receiver,\n amount\n );\n \n transactions[message].signers.push(msg.sender);\n \n emit Proposed(sender, receiver, amount, proposer, signature);\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 hash) internal pure returns (bytes32) {\n return\n keccak256(\n abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash)\n );\n }"
+            },
+            {
+                "recoverSigner": "function recoverSigner(\n bytes32 message,\n bytes memory sig\n ) internal pure returns (address) {\n uint8 v;\n bytes32 r;\n bytes32 s;\n function splitSignature(...) {...}\n(v, r, s) = splitSignature(sig);\n return ecrecover(message, v, r, s);\n }"
+            },
+            {
+                "splitSignature": "function splitSignature(\n bytes memory sig\n ) internal pure returns (uint8, bytes32, bytes32) {\n require(sig.length == 65);\n bytes32 r;\n bytes32 s;\n uint8 v;\n assembly {\n \n r := mload(add(sig, 32))\n \n s := mload(add(sig, 64))\n \n v := byte(0, mload(add(sig, 96)))\n }\n return (v, r, s);\n }"
+            }
+        ],
+        "Confirmed1": [
+            {
+                "confirmTransaction": "function confirmTransaction(\n address sender,\n address receiver,\n uint amount,\n address signer,\n bytes memory signature\n ) public {\n \n \n bytes32 message = prefixed(\n keccak256(abi.encodePacked(sender, receiver, amount))\n );\n require(\n recoverSigner(message, signature) == signer,\n \"Signature Error: Not Signed by the Sender\"\n );\n \n \n require(\n addressExists(transactions[message].potentialSigners, signer),\n \"Provided Address is not a potential signer for this transaction\"\n );\n \n require(\n !addressExists(transactions[message].signers, signer),\n \"Sender has already signed this transaction\"\n );\n \n transactions[message].signers.push(signer);\n \n emit Confirmed(sender, receiver, amount, signer, signature);\n if (transactions[message].signers.length >= 2) {\n Transaction memory trx = transactions[message];\n burn(trx.sender, trx.receiver, trx.amount);\n }\n }"
+            },
+            {
+                "addressExists": "function addressExists(\n address[] memory _arr,\n address _address\n ) internal view returns (bool) {\n for (uint256 i = 0; i < _arr.length; i++) {\n if (_arr[i] == _address) {\n return true;\n }\n }\n return false;\n }"
+            },
+            {
+                "prefixed": "function prefixed(bytes32 hash) internal pure returns (bytes32) {\n return\n keccak256(\n abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash)\n );\n }"
+            },
+            {
+                "recoverSigner": "function recoverSigner(\n bytes32 message,\n bytes memory sig\n ) internal pure returns (address) {\n uint8 v;\n bytes32 r;\n bytes32 s;\n function splitSignature(...) {...}\n(v, r, s) = splitSignature(sig);\n return ecrecover(message, v, r, s);\n }"
+            },
+            {
+                "splitSignature": "function splitSignature(\n bytes memory sig\n ) internal pure returns (uint8, bytes32, bytes32) {\n require(sig.length == 65);\n bytes32 r;\n bytes32 s;\n uint8 v;\n assembly {\n \n r := mload(add(sig, 32))\n \n s := mload(add(sig, 64))\n \n v := byte(0, mload(add(sig, 96)))\n }\n return (v, r, s);\n }"
+            },
+            {
+                "burn": "function burn(address from, address to, uint256 amount) internal {\n function burn(...) {...}\ntoken.burn(from, amount);\n emit Transfer(from, to, amount, Step.Burn);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Transfer": [
+            {
+                "burn": "function burn(address from, address to, uint256 amount) internal {\n function burn(...) {...}\ntoken.burn(from, amount);\n emit Transfer(from, to, amount, Step.Burn);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address from, address to, uint256 amount) external {\n function mint(...) {...}\ntoken.mint(to, amount);\n \n emit Transfer(from, to, amount, Step.Mint);\n }"
+            }
+        ]
+    }
+}

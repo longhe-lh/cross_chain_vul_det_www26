@@ -1,0 +1,176 @@
+{
+  "contract": "Wrap Protocol",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Wrap Protocol": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "ERC20WrapAsked1",
+          "ERC721WrapAsked2"
+        ],
+        "rel_chain": [
+          "ExecutionSuccess",
+          "ExecutionFailure"
+        ],
+        "det_chain": [
+          "onERC721Received1",
+          "onERC20TransferReceived2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "ERC20WrapAsked1": {
+            "0": {
+              "func_name": "wrapERC20",
+              "file_name": "WrapMultisig.sol",
+              "key_ops": [
+                "require(amount > 0, \"WRAP: INVALID_AMOUNT\")",
+                "_erc20SafeTransferFrom(token, msg.sender, address(this), amount)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_erc20SafeTransferFrom",
+                  "file_name": "WrapMultisig.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(ERC20_TRANSFER_SELECTOR, from, to, value))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'WRAP: ERC20_TRANSFER_FAILED')"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ERC721WrapAsked2": {
+            "0": {
+              "func_name": "wrapERC721",
+              "file_name": "WrapMultisig.sol",
+              "key_ops": [
+                "_erc721SafeTransferFrom(token, msg.sender, address(this), tokenId)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_erc721SafeTransferFrom",
+                  "file_name": "WrapMultisig.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(ERC721_SAFE_TRANSFER_SELECTOR, from, to, tokenId))",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'WRAP: ERC721_TRANSFER_FAILED')"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "ExecutionSuccess": {
+            "0": {
+              "func_name": "execTransaction",
+              "file_name": "WrapMultisig.sol",
+              "key_ops": [
+                "require(tezosOperations[tezosOperation] == false, 'WRAP: TRANSACTION_ALREADY_PROCESSED')",
+                "tezosOperations[tezosOperation] = true",
+                "_checkSignatures(txHash, signatures)",
+                "success = _execute(to, value, data, gasleft())"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_checkSignatures",
+                  "file_name": "WrapMultisig.sol",
+                  "key_ops": [
+                    "require(_threshold > 0, \"WRAP: THRESHOLD_NOT_DEFINED\")",
+                    "require(signatures.length >= _threshold.mul(65), \"WRAP: SIGNATURES_DATA_TOO_SHORT\")",
+                    "currentOwner = ecrecover(keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", dataHash)), v, r, s)",
+                    "require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, \"WRAP: INVALID_OWNER_PROVIDED\")"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_execute",
+                  "file_name": "WrapMultisig.sol",
+                  "key_ops": [
+                    "assembly { success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0) }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "ExecutionFailure": {
+            "0": {
+              "func_name": "execTransaction",
+              "file_name": "WrapMultisig.sol",
+              "key_ops": [
+                "require(tezosOperations[tezosOperation] == false, 'WRAP: TRANSACTION_ALREADY_PROCESSED')",
+                "tezosOperations[tezosOperation] = true",
+                "_checkSignatures(txHash, signatures)",
+                "success = _execute(to, value, data, gasleft())"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_checkSignatures",
+                  "file_name": "WrapMultisig.sol",
+                  "key_ops": [
+                    "require(_threshold > 0, \"WRAP: THRESHOLD_NOT_DEFINED\")",
+                    "require(signatures.length >= _threshold.mul(65), \"WRAP: SIGNATURES_DATA_TOO_SHORT\")",
+                    "currentOwner = ecrecover(keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", dataHash)), v, r, s)",
+                    "require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, \"WRAP: INVALID_OWNER_PROVIDED\")"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_execute",
+                  "file_name": "WrapMultisig.sol",
+                  "key_ops": [
+                    "assembly { success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0) }"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "Tezos",
+        "events": {
+          "onERC721Received1": {
+            "0": {
+              "func_name": "onERC721Received",
+              "file_name": "WrapMultisig.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          },
+          "onERC20TransferReceived2": {
+            "0": {
+              "func_name": "_erc20SafeTransferFrom",
+              "file_name": "WrapMultisig.sol",
+              "key_ops": [
+                "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(ERC20_TRANSFER_SELECTOR, from, to, value))",
+                "require(success && (data.length == 0 || abi.decode(data, (bool))), 'WRAP: ERC20_TRANSFER_FAILED')"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

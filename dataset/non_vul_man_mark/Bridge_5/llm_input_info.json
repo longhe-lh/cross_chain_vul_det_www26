@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "burn": "function burn(address to, uint amount, uint nonce, bytes calldata signature) external {\n require(processedNonces[msg.sender][nonce] == false, \"transfer already processed\");\n token._burn(msg.sender, amount);\n emit Transfer(msg.sender, to, amount, block.timestamp, nonce, signature, Step.Burn);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "mint": "function mint(address from, address to, uint amount, uint nonce, bytes calldata signature) external {\n function prefixed(...) {...}\nfunction recoverSigner(...) {...}\nbytes32 message = prefixed(keccak256(abi.encodePacked(from, to, amount, nonce)));\n require(recoverSigner(message, signature) == from, \"wrong signature\");\n require(processedNonces[from][nonce] == false, 'transfer already processed');\n processedNonces[from][nonce] = true;\n token._mint(to, amount);\n emit Transfer(msg.sender, to, amount, block.timestamp, nonce, signature, Step.Mint);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address from, address to, uint amount, uint nonce, bytes calldata signature) external {\n function prefixed(...) {...}\nfunction recoverSigner(...) {...}\nbytes32 message = prefixed(keccak256(abi.encodePacked(from, to, amount, nonce)));\n require(recoverSigner(message, signature) == from, \"wrong signature\");\n require(processedNonces[from][nonce] == false, 'transfer already processed');\n processedNonces[from][nonce] = true;\n token._mint(to, amount);\n emit Transfer(msg.sender, to, amount, block.timestamp, nonce, signature, Step.Mint);\n }"
+            }
+        ]
+    }
+}

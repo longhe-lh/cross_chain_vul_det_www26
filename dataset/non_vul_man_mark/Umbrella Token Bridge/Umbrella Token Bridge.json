@@ -1,0 +1,164 @@
+{
+  "contract": "Umbrella Token Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Umbrella Token Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMint2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "HomeGate",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "HomeGate.sol",
+              "key_ops": [
+                "require(tokenContract != address(0x0), \"should provide a token contract\")",
+                "require(recipient == msg.sender, \"should be the recipient\")",
+                "hashStore.addHash(hash)",
+                "require(v.length > 0, \"should provide signatures at least one signature\")",
+                "require(checkSignatures(hash, v.length, v, r, s) >= requiredOperators, \"not enough signatures to proceed\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "checkSignatures",
+                  "file_name": "OperatorHub.sol",
+                  "key_ops": [
+                    "address operator = ecrecover(hash, v[i], r[i], s[i])",
+                    "require(isOperator(operator), \"should be an operator\")",
+                    "require(prevOperator < operator, \"signatures are out of order\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "OperatorHub",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "ForeignGate.sol",
+              "key_ops": [
+                "require(tokenContract != address(0x0), \"should provide a token contract\")",
+                "require(value > 0, \"should provide value\")",
+                "require(transactionHash > 0, \"TX hash should be provided\")",
+                "require(recipient == msg.sender, \"should be the recipient\")",
+                "ERC721Mintable(tokenContract).mint(recipient, value)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prefixed",
+                  "file_name": "OperatorHub.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "HomeGate.sol",
+              "key_ops": [
+                "require(tokenContract != address(0x0), \"should provide a token contract\")",
+                "require(value > 0, \"should provide value\")",
+                "require(transactionHash > 0, \"TX hash should be provided\")",
+                "require(recipient == msg.sender, \"should be the recipient\")",
+                "ERC721Mintable(tokenContract).transfer(recipient, value)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prefixed",
+                  "file_name": "OperatorHub.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "ForeignGate",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "canWithdraw",
+              "file_name": "HomeGate.sol",
+              "key_ops": [
+                "require(tokenContract != address(0x0), \"should provide a token contract\")",
+                "require(recipient != address(0x0), \"should provide a recipient\")",
+                "require(value > 0, \"should provide value\")",
+                "require(transactionHash > 0, \"TX hash should be provided\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prefixed",
+                  "file_name": "OperatorHub.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenMint2": {
+            "0": {
+              "func_name": "canMint",
+              "file_name": "ForeignGate.sol",
+              "key_ops": [
+                "require(tokenContract != address(0x0), \"should provide a token contract\")",
+                "require(recipient != address(0x0), \"should provide a recipient\")",
+                "require(value > 0, \"should provide value\")",
+                "require(transactionHash > 0, \"TX hash should be provided\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "prefixed",
+                  "file_name": "OperatorHub.sol",
+                  "key_ops": [
+                    "return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash))"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

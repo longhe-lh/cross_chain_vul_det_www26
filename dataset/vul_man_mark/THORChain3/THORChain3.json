@@ -1,0 +1,219 @@
+{
+    "contract": "THORChain Router",
+    "source_code_path": "../vul_src_code/THORChain/fake_deposit3/",
+    "type": "BusinessLogicFlaw",
+    "vulnerable_entry_function": {
+        "file": "THORChain_Router.sol",
+        "name": "returnVaultAssets",
+        "signature": "function returnVaultAssets(address router, address payable asgard, Coin[] memory coins, string memory memo)",
+        "lines": "102-115",
+        "attack_type": "RefundLogicFlaw",
+        "vul_reason": "The contract's refund logic is triggered incorrectly when the 'memo' field passed by the attacker is invalid. This allows the attacker to craft arbitrary 'asset' and 'amount' values and exploit the refund mechanism to gain assets without a legitimate deposit.",
+        "code_snippet": "(bool success, bytes memory data) = asgard.call{value:msg.value}(\"\");"
+    },
+    "detail": "The attacker deployed a malicious contract and used the THORChain Router's `returnVaultAssets` function to send ETH to the malicious contract, falsely setting the contract as an Asgard vault. The malicious contract triggered the `deposit` event and allowed the attacker to arbitrarily craft the `asset` and `amount` parameters, along with an invalid `memo`. This invalid `memo` disrupted the THORChain node's processing logic, forcing it into the refund logic path. Because the refund logic didn’t properly validate the entire transaction, the attacker was able to gain profits without transferring any legitimate value.",
+    "blg": {
+        "THORChain": {
+            "interoperability": "heterogeneous",
+            "roles": {
+                "src_chain": [
+                    "Deposit1"
+                ],
+                "rel_chain": [
+                    "Verify"
+                ],
+                "det_chain": [
+                    "returnVaultAssets1"
+                ]
+            },
+            "src_chain": {
+                "chain_name": "Ethereum",
+                "events": {
+                    "Deposit1": {
+                        "0": {
+                            "func_name": "deposit",
+                            "file_name": "THORChain_Router.sol",
+                            "key_ops": [
+                                "require(success && (data.length == 0 || abi.decode(data, (bool))));",
+                                "iRUNE(RUNE).transferTo(address(this), amount);",
+                                "iERC20(RUNE).burn(amount);"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "safeTransferFrom",
+                                    "file_name": "THORChain_Router.sol",
+                                    "key_ops": [
+                                        "require(success && (data.length == 0 || abi.decode(data, (bool))));"
+                                    ],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "event_name": "Deposit",
+                                    "file_name": "THORChain_Router.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "rel_chain": {
+                "chain_name": "THORChain",
+                "events": {
+                    "Verify": {
+                        "0": {
+                            "func_name": "FetchTxs",
+                            "file_name": "ethereum_block_scanner.go",
+                            "key_ops": [
+                                "txIn, err := e.processBlock(block)"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "processBlock",
+                                    "file_name": "ethereum_block_scanner.go",
+                                    "key_ops": [
+                                        "reorgedTxIns, err := e.processReorg(block.Header())",
+                                        "txInBlock, err := e.extractTxs(block)"
+                                    ],
+                                    "child": {
+                                        "0": {
+                                            "func_name": "extractTxs",
+                                            "file_name": "ethereum_block_scanner.go",
+                                            "key_ops": [
+                                                "txInItem, err := e.fromTxToTxIn(tx)"
+                                            ],
+                                            "child": {
+                                                "0": {
+                                                    "func_name": "fromTxToTxIn",
+                                                    "file_name": "ethereum_block_scanner.go",
+                                                    "key_ops": [
+                                                        "smartContract := e.isToSmartContract(receipt)",
+                                                        "return e.getTxInFromSmartContract(tx, receipt)",
+                                                        "return e.getTxInFromTransaction(tx)"
+                                                    ],
+                                                    "child": {
+                                                        "0": {
+                                                            "func_name": "isToSmartContract",
+                                                            "file_name": "ethereum_block_scanner.go",
+                                                            "key_ops": [],
+                                                            "child": {}
+                                                        },
+                                                        "1": {
+                                                            "func_name": "getTxInFromSmartContract",
+                                                            "file_name": "ethereum_block_scanner.go",
+                                                            "key_ops": [
+                                                                "asset, err := e.getAssetFromTokenAddress(depositEvt.Asset.String())"
+                                                            ],
+                                                            "child": {
+                                                                "0": {
+                                                                    "func_name": "getAssetFromTokenAddress",
+                                                                    "file_name": "ethereum_block_scanner.go",
+                                                                    "key_ops": [
+                                                                        "IsETH(token)",
+                                                                        "tokenMeta, err := e.getTokenMeta(token)",
+                                                                        "asset, err = common.NewAsset(fmt.Sprintf(\"ETH.%s-%s\", tokenMeta.Symbol, strings.ToUpper(tokenMeta.Address)))"
+                                                                    ],
+                                                                    "child": {
+                                                                        "0": {
+                                                                            "func_name": "getTokenMeta",
+                                                                            "file_name": "ethereum_block_scanner.go",
+                                                                            "key_ops": [
+                                                                                "tokenMeta, err := e.tokens.GetTokenMeta(token)",
+                                                                                "tokenMeta.IsEmpty()",
+                                                                                "symbol, err := e.getSymbol(token)"
+                                                                            ],
+                                                                            "child": {
+                                                                                "0": {
+                                                                                    "func_name": "GetTokenMeta",
+                                                                                    "file_name": "tokens_db.go",
+                                                                                    "key_ops": [
+                                                                                        "key := t.getTokenMetaKey(address)"
+                                                                                    ],
+                                                                                    "child": {}
+                                                                                },
+                                                                                "1": {
+                                                                                    "func_name": "getSymbol",
+                                                                                    "file_name": "ethereum_block_scanner.go",
+                                                                                    "key_ops": [
+                                                                                        "if IsETH(token) {return \"ETH\", nil}",
+                                                                                        "res, err := e.client.CallContract(ctx, ethereum.CallMsg{To: &to,Data: input,}, nil)"
+                                                                                    ],
+                                                                                    "child": {}
+                                                                                },
+                                                                                "2": {
+                                                                                    "func_name": "SaveTokenMeta",
+                                                                                    "file_name": "tokens_db.go",
+                                                                                    "key_ops": [
+                                                                                        "key := t.getTokenMetaKey(address)"
+                                                                                    ],
+                                                                                    "child": {}
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        "2": {
+                                                            "func_name": "getTxInFromTransaction",
+                                                            "file_name": "ethereum_block_scanner.go",
+                                                            "key_ops": [
+                                                                "txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, ethValue))"
+                                                            ],
+                                                            "child": {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "det_chain": {
+                "chain_name": "Ethereum",
+                "events": {
+                    "returnVaultAssets1": {
+                        "0": {
+                            "func_name": "returnVaultAssets",
+                            "file_name": "THORChain_Router.sol",
+                            "key_ops": [
+                                "if (router == address(this))",
+                                "(bool success, bytes memory data) = asgard.call{value:msg.value}(\"\");",
+                                "require(success && (data.length == 0 || abi.decode(data, (bool))));"
+                            ],
+                            "child": {
+                                "0": {
+                                    "func_name": "_adjustAllowances",
+                                    "file_name": "THORChain_Router.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "1": {
+                                    "event_name": "VaultTransfer",
+                                    "file_name": "THORChain_Router.sol",
+                                    "key_ops": [],
+                                    "child": {}
+                                },
+                                "2": {
+                                    "func_name": "_routerDeposit",
+                                    "file_name": "THORChain_Router.sol",
+                                    "key_ops": [
+                                        "require(iERC20(_asset).approve(_router, _amount));",
+                                        "iROUTER(_router).deposit(_vault, _asset, _amount, _memo);"
+                                    ],
+                                    "child": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "cag": []
+}

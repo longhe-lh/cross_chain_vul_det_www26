@@ -1,0 +1,28 @@
+{
+    "src_chain": {
+        "Transfer1": [
+            {
+                "burn": "function burn(address to, uint amount) external {\n function burn(...) {...}\ntoken.burn(msg.sender, amount);\n emit Transfer(\n msg.sender,\n to,\n amount,\n block.timestamp,\n nonce,\n Step.Burn\n );\n nonce++;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "mint": "function mint(address to, uint amount, uint otherChainNonce) external {\n require(msg.sender == admin, \"only admin\");\n require(\n processedNonces[otherChainNonce] == false,\n \"transfer already processed\"\n );\n processedNonces[otherChainNonce] = true;\n function mint(...) {...}\ntoken.mint(to, amount);\n emit Transfer(\n msg.sender,\n to,\n amount,\n block.timestamp,\n otherChainNonce,\n Step.Mint\n );\n }"
+            }
+        ],
+        "burn": [
+            {
+                "burn": "function burn(address to, uint amount) external {\n function burn(...) {...}\ntoken.burn(msg.sender, amount);\n emit Transfer(\n msg.sender,\n to,\n amount,\n block.timestamp,\n nonce,\n Step.Burn\n );\n nonce++;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Transfer1": [
+            {
+                "mint": "function mint(address to, uint amount, uint otherChainNonce) external {\n require(msg.sender == admin, \"only admin\");\n require(\n processedNonces[otherChainNonce] == false,\n \"transfer already processed\"\n );\n processedNonces[otherChainNonce] = true;\n function mint(...) {...}\ntoken.mint(to, amount);\n emit Transfer(\n msg.sender,\n to,\n amount,\n block.timestamp,\n otherChainNonce,\n Step.Mint\n );\n }"
+            }
+        ]
+    }
+}

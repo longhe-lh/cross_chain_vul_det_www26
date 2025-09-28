@@ -1,0 +1,118 @@
+{
+  "contract": "EYWA Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "EYWA Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenRedeem2"
+        ],
+        "rel_chain": [
+          "RelayMessage"
+        ],
+        "det_chain": [
+          "TokenWithdraw1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "SourceChain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "sendV2",
+              "file_name": "BridgeV2.sol",
+              "key_ops": [
+                "require(state == State.Active, \"Bridge: state inactive\")",
+                "require(previousEpoch.isSet() || currentEpoch.isSet(), \"Bridge: epoch not set\")",
+                "verifyAndUpdateNonce(from, nonce)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "verifyAndUpdateNonce",
+                  "file_name": "BridgeV2.sol",
+                  "key_ops": [
+                    "require(nonces[from]++ == nonce, \"Bridge: nonce mismatch\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "TokenRedeem2": {
+            "0": {
+              "func_name": "receiveV2",
+              "file_name": "BridgeV2.sol",
+              "key_ops": [
+                "require(state != State.Inactive, \"Bridge: state inactive\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "verifyEpoch",
+                  "file_name": "BridgeV2.sol",
+                  "key_ops": [
+                    "Block.verify(epoch, params.blockHeader, params.votersPubKey, params.votersSignature, params.votersMask)"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "decodeRequest",
+                  "file_name": "Block.sol",
+                  "key_ops": [],
+                  "child": {}
+                },
+                "2": {
+                  "func_name": "check",
+                  "file_name": "RequestIdChecker.sol",
+                  "key_ops": [
+                    "require(isRequestIdUniq, \"Bridge: request id already seen\")"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "RelayMessage": {
+            "0": {
+              "func_name": "verifyMultisig",
+              "file_name": "Bls.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "receiveValidatedData",
+              "file_name": "IValidatedDataReciever.sol",
+              "key_ops": [],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

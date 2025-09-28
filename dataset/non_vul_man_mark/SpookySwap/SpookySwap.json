@@ -1,0 +1,108 @@
+{
+  "contract": "SpookySwap",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "SpookySwap": {
+      "interoperability": "homogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1"
+        ],
+        "rel_chain": [],
+        "det_chain": [
+          "TokenWithdraw1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Fantom",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "1.sol",
+              "key_ops": [
+                "require(liquidity > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED');",
+                "_mint(to, liquidity);",
+                "_update(balance0, balance1, _reserve0, _reserve1);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_mint",
+                  "file_name": "1.sol",
+                  "key_ops": [
+                    "totalSupply = totalSupply.add(value);",
+                    "balanceOf[to] = balanceOf[to].add(value);"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_update",
+                  "file_name": "1.sol",
+                  "key_ops": [
+                    "require(balance0 <= uint112(-1) && balance1 <= uint112(-1), 'UniswapV2: OVERFLOW');",
+                    "reserve0 = uint112(balance0);",
+                    "reserve1 = uint112(balance1);"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "none",
+        "events": {}
+      },
+      "det_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "burn",
+              "file_name": "1.sol",
+              "key_ops": [
+                "require(amount0 > 0 && amount1 > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED');",
+                "_burn(address(this), liquidity);",
+                "_safeTransfer(_token0, to, amount0);",
+                "_safeTransfer(_token1, to, amount1);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_burn",
+                  "file_name": "1.sol",
+                  "key_ops": [
+                    "balanceOf[from] = balanceOf[from].sub(value);",
+                    "totalSupply = totalSupply.sub(value);"
+                  ],
+                  "child": {}
+                },
+                "1": {
+                  "func_name": "_safeTransfer",
+                  "file_name": "1.sol",
+                  "key_ops": [
+                    "(bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));",
+                    "require(success && (data.length == 0 || abi.decode(data, (bool))), 'UniswapV2: TRANSFER_FAILED');"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

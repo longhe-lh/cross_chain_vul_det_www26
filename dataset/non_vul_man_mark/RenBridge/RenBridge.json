@@ -1,0 +1,162 @@
+{
+  "contract": "RenBridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "RenBridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "register1",
+          "deregister2"
+        ],
+        "rel_chain": [
+          "slashDuplicatePropose",
+          "slashDuplicatePrevote",
+          "slashDuplicatePrecommit",
+          "slashSecretReveal"
+        ],
+        "det_chain": [
+          "claim1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "SourceChain",
+        "events": {
+          "register1": {
+            "0": {
+              "func_name": "register",
+              "file_name": "DarknodeRegistryLogicV1.sol",
+              "key_ops": [
+                "require(_darknodeID != address(0),\"DarknodeRegistry: darknode address cannot be zero\");",
+                "require(ren.transferFrom(msg.sender, address(store), minimumBond), \"DarknodeRegistry: bond transfer failed\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "appendDarknode",
+                  "file_name": "DarknodeRegistryStore.sol",
+                  "key_ops": [
+                    "darknodeRegistry[_darknodeID] = darknode",
+                    "LinkedList.append(darknodes, _darknodeID)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "deregister2": {
+            "0": {
+              "func_name": "deregister",
+              "file_name": "DarknodeRegistryLogicV1.sol",
+              "key_ops": [
+                "deregisterDarknode(_darknodeID)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "deregisterDarknode",
+                  "file_name": "DarknodeRegistryLogicV1.sol",
+                  "key_ops": [
+                    "address darknodeOperator = store.darknodeOperator(_darknodeID)",
+                    "store.updateDarknodeDeregisteredAt(_darknodeID, currentEpoch.blocktime.add(minimumEpochInterval))",
+                    "numDarknodesNextEpoch = numDarknodesNextEpoch.sub(1)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "slashDuplicatePropose": {
+            "0": {
+              "func_name": "slashDuplicatePropose",
+              "file_name": "ProtocolProxy.sol",
+              "key_ops": [
+                "require(!slashed[_height][_round][signer],\"DarknodeSlasher: already slashed\");",
+                "slashed[_height][_round][signer] = true",
+                "darknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent)"
+              ],
+              "child": {}
+            }
+          },
+          "slashDuplicatePrevote": {
+            "0": {
+              "func_name": "slashDuplicatePrevote",
+              "file_name": "ProtocolProxy.sol",
+              "key_ops": [
+                "require(!slashed[_height][_round][signer],\"DarknodeSlasher: already slashed\");",
+                "slashed[_height][_round][signer] = true",
+                "darknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent)"
+              ],
+              "child": {}
+            }
+          },
+          "slashDuplicatePrecommit": {
+            "0": {
+              "func_name": "slashDuplicatePrecommit",
+              "file_name": "ProtocolProxy.sol",
+              "key_ops": [
+                "require(!slashed[_height][_round][signer],\"DarknodeSlasher: already slashed\");",
+                "slashed[_height][_round][signer] = true",
+                "darknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent)"
+              ],
+              "child": {}
+            }
+          },
+          "slashSecretReveal": {
+            "0": {
+              "func_name": "slashSecretReveal",
+              "file_name": "ProtocolProxy.sol",
+              "key_ops": [
+                "require(!secretRevealed[signer], \"DarknodeSlasher: already slashed\");",
+                "secretRevealed[signer] = true",
+                "darknodeRegistry.slash(signer, msg.sender, secretRevealSlashPercent)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "DestinationChain",
+        "events": {
+          "claim1": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "DarknodePayment.sol",
+              "key_ops": [
+                "_claimDarknodeReward(_darknode)",
+                "require(darknodeRegistry.isRegisteredInPreviousEpoch(_darknode),\"DarknodePayment: cannot claim for this epoch\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_claimDarknodeReward",
+                  "file_name": "DarknodePayment.sol",
+                  "key_ops": [
+                    "require(!rewardClaimed[_darknode][previousCycle],\"DarknodePayment: reward already claimed\");",
+                    "store.incrementDarknodeBalance(_darknode, token, previousCycleRewardShare[token])"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

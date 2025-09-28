@@ -1,0 +1,35 @@
+# Palkeoramix decompiler. 
+
+def storage:
+  stor0 is addr at storage 0
+
+def _fallback() payable: # default function
+  revert
+
+def withdraw(): # not payable
+  if stor0 != caller:
+      revert with 0, 'x'
+  call caller with:
+     value eth.balance(this.address) wei
+       gas 2300 * is_zero(value) wei
+  if not ext_call.success:
+      revert with ext_call.return_data[0 len return_data.size]
+
+def unknown25999832(addr _param1, addr _param2, array _param3) payable: 
+  require calldata.size - 4 >= 128
+  require _param3 <= 4294967296
+  require _param3 + 36 <= calldata.size
+  require _param3.length <= 4294967296 and _param3 + _param3.length + 36 <= calldata.size
+  call caller with:
+     value call.value wei
+       gas 2300 * is_zero(value) wei
+  if not ext_call.success:
+      revert with ext_call.return_data[0 len return_data.size]
+  mem[260 len _param3.length] = _param3[all]
+  mem[_param3.length + 260] = 0
+  require ext_code.size(_param1)
+  call _param1.0x1fece7b4 with:
+       gas gas_remaining wei
+      args 0, 0, addr(_param2), call.value, 128, _param3.length, _param3[all], mem[_param3.length + 260 len ceil32(_param3.length) - _param3.length]
+  if not ext_call.success:
+      revert with ext_call.return_data[0 len return_data.size]

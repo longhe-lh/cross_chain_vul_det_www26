@@ -1,0 +1,41 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "relayTokens": "function relayTokens(address _receiver, uint256 _amount) external {\n require(_receiver != address(0));\n\n require(_receiver != address(this));\n\n require(_amount > 0);\n\n function withinLimit(...) {...}\nfunction addTotalSpentPerDay(...) {...}\nfunction getCurrentDay(...) {...}\nfunction erc20token(...) {...}\nrequire(withinLimit(_amount));\n\n addTotalSpentPerDay(getCurrentDay(), _amount);\n\n erc20token().transferFrom(msg.sender, address(this), _amount);\n\n emit UserRequestForAffirmation(_receiver, _amount);\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "claimTokens": "function claimTokens(\n address _token,\n address _to\n ) external onlyIfUpgradeabilityOwner {\n \n\n require(_token != address(erc20token()));\n\n function claimValues(...) {...}\nclaimValues(_token, _to);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "executeSignatures": "function executeSignatures(bytes message, bytes signatures) external {\n Message.hasEnoughValidSignatures(\n message,\n signatures,\n validatorContract(),\n false\n );\n\n address recipient;\n\n uint256 amount;\n\n bytes32 txHash;\n\n address contractAddress;\n\n (recipient, amount, txHash, contractAddress) = Message.parseMessage(\n message\n );\n\n if (withinExecutionLimit(amount)) {\n require(contractAddress == address(this));\n\n require(!relayedMessages(txHash));\n\n setRelayedMessages(txHash, true);\n\n require(onExecuteMessage(recipient, amount, txHash));\n\n emit RelayedMessage(recipient, amount, txHash);\n } else {\n onFailedMessage(recipient, amount, txHash);\n }\n }"
+            },
+            {
+                "onExecuteMessageGSN": "function onExecuteMessageGSN(\n address recipient,\n uint256 amount,\n uint256 fee\n ) internal returns (bool) {\n addTotalExecutedPerDay(getCurrentDay(), amount);\n\n \n\n ERC20 token = erc20token();\n\n bool first = token.transfer(addressStorage[PAYMASTER], fee);\n\n bool second = token.transfer(recipient, amount - fee);\n\n return first && second;\n }"
+            }
+        ],
+        "withdraw": [
+            {
+                "onFailedMessage": "function onFailedMessage(address, uint256, bytes32) internal {\n revert();\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "claimTokens": "function claimTokens(\n address _token,\n address _to\n ) external onlyIfUpgradeabilityOwner {\n \n\n require(_token != address(erc20token()));\n\n function claimValues(...) {...}\nclaimValues(_token, _to);\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "onExecuteMessageGSN": "function onExecuteMessageGSN(\n address recipient,\n uint256 amount,\n uint256 fee\n ) internal returns (bool) {\n addTotalExecutedPerDay(getCurrentDay(), amount);\n\n \n\n function erc20token(...) {...}\nERC20 token = erc20token();\n\n bool first = token.transfer(addressStorage[PAYMASTER], fee);\n\n bool second = token.transfer(recipient, amount - fee);\n\n return first && second;\n }"
+            }
+        ]
+    }
+}

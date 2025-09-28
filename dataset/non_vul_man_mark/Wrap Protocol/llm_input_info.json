@@ -1,0 +1,52 @@
+{
+    "src_chain": {
+        "ERC20WrapAsked1": [
+            {
+                "wrapERC20": "function wrapERC20(\n address token,\n uint256 amount,\n string calldata tezosAddress\n )\n external\n returns (bool success)\n {\n require(amount > 0, \"WRAP: INVALID_AMOUNT\");\n function _erc20SafeTransferFrom(...) {...}\n_erc20SafeTransferFrom(token, msg.sender, address(this), amount);\n emit ERC20WrapAsked(msg.sender, token, amount, tezosAddress);\n return true;\n }"
+            },
+            {
+                "_erc20SafeTransferFrom": "function _erc20SafeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) private {\n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(ERC20_TRANSFER_SELECTOR, from, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'WRAP: ERC20_TRANSFER_FAILED');\n }"
+            }
+        ],
+        "ERC721WrapAsked2": [
+            {
+                "wrapERC721": "function wrapERC721(\n address token,\n uint256 tokenId,\n string calldata tezosAddress\n )\n external\n returns (bool success)\n {\n function _erc721SafeTransferFrom(...) {...}\n_erc721SafeTransferFrom(token, msg.sender, address(this), tokenId);\n emit ERC721WrapAsked(msg.sender, token, tokenId, tezosAddress);\n return true;\n }"
+            },
+            {
+                "_erc721SafeTransferFrom": "function _erc721SafeTransferFrom(\n address token,\n address from,\n address to,\n uint256 tokenId\n ) private {\n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(ERC721_SAFE_TRANSFER_SELECTOR, from, to, tokenId));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'WRAP: ERC721_TRANSFER_FAILED');\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ExecutionSuccess": [
+            {
+                "execTransaction": "function execTransaction(\n address to,\n uint256 value,\n bytes calldata data,\n string calldata tezosOperation,\n bytes calldata signatures\n )\n external\n returns (bool success)\n {\n require(tezosOperations[tezosOperation] == false, 'WRAP: TRANSACTION_ALREADY_PROCESSED');\n tezosOperations[tezosOperation] = true;\n bytes memory txHashData = encodeTransactionData(\n to, value, data,\n tezosOperation\n );\n bytes32 txHash = keccak256(txHashData);\n function _checkSignatures(...) {...}\nfunction _execute(...) {...}\n_checkSignatures(txHash, signatures);\n success = _execute(to, value, data, gasleft());\n if (success) emit ExecutionSuccess(txHash);\n else emit ExecutionFailure(txHash);\n }"
+            },
+            {
+                "_checkSignatures": "function _checkSignatures(\n bytes32 dataHash,\n bytes memory signatures\n )\n internal\n view\n {\n uint256 _threshold = threshold;\n require(_threshold > 0, \"WRAP: THRESHOLD_NOT_DEFINED\");\n require(signatures.length >= _threshold.mul(65), \"WRAP: SIGNATURES_DATA_TOO_SHORT\");\n address lastOwner = address(0);\n address currentOwner;\n uint8 v;\n bytes32 r;\n bytes32 s;\n uint256 i;\n for (i = 0; i < _threshold; i++) {\n (v, r, s) = _signatureSplit(signatures, i);\n currentOwner = ecrecover(keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", dataHash)), v, r, s);\n require (\n currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS,\n \"WRAP: INVALID_OWNER_PROVIDED\"\n );\n lastOwner = currentOwner;\n }\n }"
+            },
+            {
+                "_execute": "function _execute(\n address to,\n uint256 value,\n bytes memory data,\n uint256 txGas\n )\n internal\n returns (bool success)\n {\n assembly {\n success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0)\n }\n }"
+            }
+        ],
+        "ExecutionFailure": [
+            {
+                "execTransaction": "function execTransaction(\n address to,\n uint256 value,\n bytes calldata data,\n string calldata tezosOperation,\n bytes calldata signatures\n )\n external\n returns (bool success)\n {\n require(tezosOperations[tezosOperation] == false, 'WRAP: TRANSACTION_ALREADY_PROCESSED');\n tezosOperations[tezosOperation] = true;\n bytes memory txHashData = encodeTransactionData(\n to, value, data,\n tezosOperation\n );\n bytes32 txHash = keccak256(txHashData);\n function _checkSignatures(...) {...}\nfunction _execute(...) {...}\n_checkSignatures(txHash, signatures);\n success = _execute(to, value, data, gasleft());\n if (success) emit ExecutionSuccess(txHash);\n else emit ExecutionFailure(txHash);\n }"
+            },
+            {
+                "_checkSignatures": "function _checkSignatures(\n bytes32 dataHash,\n bytes memory signatures\n )\n internal\n view\n {\n uint256 _threshold = threshold;\n require(_threshold > 0, \"WRAP: THRESHOLD_NOT_DEFINED\");\n require(signatures.length >= _threshold.mul(65), \"WRAP: SIGNATURES_DATA_TOO_SHORT\");\n address lastOwner = address(0);\n address currentOwner;\n uint8 v;\n bytes32 r;\n bytes32 s;\n uint256 i;\n for (i = 0; i < _threshold; i++) {\n (v, r, s) = _signatureSplit(signatures, i);\n currentOwner = ecrecover(keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", dataHash)), v, r, s);\n require (\n currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS,\n \"WRAP: INVALID_OWNER_PROVIDED\"\n );\n lastOwner = currentOwner;\n }\n }"
+            },
+            {
+                "_execute": "function _execute(\n address to,\n uint256 value,\n bytes memory data,\n uint256 txGas\n )\n internal\n returns (bool success)\n {\n assembly {\n success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0)\n }\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "onERC721Received1": [],
+        "onERC20TransferReceived2": [
+            {
+                "_erc20SafeTransferFrom": "function _erc20SafeTransferFrom(\n address token,\n address from,\n address to,\n uint256 value\n ) private {\n (bool success, bytes memory data) = token.call(abi.encodeWithSelector(ERC20_TRANSFER_SELECTOR, from, to, value));\n require(success && (data.length == 0 || abi.decode(data, (bool))), 'WRAP: ERC20_TRANSFER_FAILED');\n }"
+            }
+        ]
+    }
+}

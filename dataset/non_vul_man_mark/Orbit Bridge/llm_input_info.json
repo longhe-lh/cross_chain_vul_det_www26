@@ -1,0 +1,53 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "depositToken": "function depositToken(address token, string memory toChain, bytes memory toAddr, uint amount) public onlyActivated{\n function getChainId(...) {...}\nrequire(isValidChain[getChainId(toChain)]);\n require(token != address(0));\n require(amount > 0);\n\n uint8 decimal = 0;\n if(token == tetherAddress){\n TIERC20(token).transferFrom(msg.sender, address(this), amount);\n decimal = TIERC20(token).decimals();\n }else{\n if(!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert();\n decimal = IERC20(token).decimals();\n }\n \n require(decimal > 0);\n\n depositCount = depositCount + 1;\n emit Deposit(chain, toChain, msg.sender, toAddr, token, decimal, amount, depositCount, block.number);\n }"
+            }
+        ],
+        "DepositNFT2": [
+            {
+                "_depositNFT": "function _depositNFT(address token, string memory toChain, bytes memory toAddr, uint tokenId, bytes memory data) private onlyActivated {\n function getChainId(...) {...}\nrequire(isValidChain[getChainId(toChain)]);\n require(token != address(0));\n require(IERC721(token).ownerOf(tokenId) == msg.sender);\n require(!silentTokenList[token]);\n\n IERC721(token).transferFrom(msg.sender, address(this), tokenId);\n require(IERC721(token).ownerOf(tokenId) == address(this));\n\n depositCount = depositCount + 1;\n emit DepositNFT(toChain, msg.sender, toAddr, token, tokenId, 1, depositCount, data);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "Withdraw": [
+            {
+                "withdraw": "function withdraw(\n address hubContract,\n string memory fromChain,\n bytes memory fromAddr,\n address payable toAddr,\n address token,\n bytes32[] memory bytes32s,\n uint[] memory uints,\n bytes memory data,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) public onlyActivated {\n require(bytes32s.length == 2);\n function getChainId(...) {...}\nrequire(uints.length == chainUintsLength[getChainId(fromChain)]);\n require(uints[1] <= 100);\n require(fromAddr.length == chainAddressLength[getChainId(fromChain)]);\n\n require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));\n require(isValidChain[getChainId(fromChain)]);\n\n {\n bytes32 whash = sha256(abi.encodePacked(hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints, data));\n\n require(!isUsedWithdrawal[whash]);\n isUsedWithdrawal[whash] = true;\n\n uint validatorCount = _validate(whash, v, r, s);\n require(validatorCount >= required);\n }\n\n emit Withdraw(fromChain, fromAddr, abi.encodePacked(toAddr), abi.encodePacked(token), bytes32s, uints, data);\n\n if(token == edai){\n token = dai;\n }\n else if(unwrappedWithdraw[token] != address(0)){\n token = unwrappedWithdraw[token];\n }\n\n _transferToken(token, toAddr, uints[0]);\n\n if(isContract(toAddr) && data.length != 0){\n (bool result, bytes memory returndata) = LibCallBridgeReceiver.callReceiver(true, gasLimitForBridgeReceiver, token, uints[0], data, toAddr);\n emit BridgeReceiverResult(result, fromAddr, token, data);\n emit OnBridgeReceived(result, returndata, fromAddr, token, data);\n }\n }"
+            },
+            {
+                "_validate": "function _validate(bytes32 whash, uint8[] memory v, bytes32[] memory r, bytes32[] memory s) private view returns(uint){\n uint validatorCount = 0;\n address[] memory vaList = new address[](owners.length);\n\n uint i=0;\n uint j=0;\n\n for(i; i<v.length; i++){\n address va = ecrecover(whash,v[i],r[i],s[i]);\n if(isOwner[va]){\n for(j=0; j<validatorCount; j++){\n require(vaList[j] != va);\n }\n\n vaList[validatorCount] = va;\n validatorCount += 1;\n }\n }\n\n return validatorCount;\n }"
+            },
+            {
+                "_transferToken": "function _transferToken(address token, address payable destination, uint amount) private {\n if(token == address(0)){\n require((address(this)).balance >= amount);\n (bool transfered,) = destination.call.value(amount)(\"\");\n require(transfered);\n }\n else{\n require(IERC20(token).balanceOf(address(this)) >= amount);\n IERC20(token).safeTransfer(destination, amount);\n }\n }"
+            }
+        ],
+        "WithdrawNFT": [
+            {
+                "withdrawNFT": "function withdrawNFT(\n address hubContract,\n string memory fromChain,\n bytes memory fromAddr,\n address payable toAddr,\n address token,\n bytes32[] memory bytes32s,\n uint[] memory uints,\n bytes memory data,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) public onlyActivated {\n require(bytes32s.length == 2);\n function getChainId(...) {...}\nrequire(uints.length == chainUintsLength[getChainId(fromChain)]);\n require(fromAddr.length == chainAddressLength[getChainId(fromChain)]);\n\n require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));\n require(isValidChain[getChainId(fromChain)]);\n\n {\n bytes32 whash = sha256(abi.encodePacked(\"NFT\", hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints, data));\n\n require(!isUsedWithdrawal[whash]);\n isUsedWithdrawal[whash] = true;\n\n uint validatorCount = _validate(whash, v, r, s);\n require(validatorCount >= required);\n }\n\n require(IERC721(token).ownerOf(uints[1]) == address(this));\n IERC721(token).transferFrom(address(this), toAddr, uints[1]);\n require(IERC721(token).ownerOf(uints[1]) == toAddr);\n\n if(isContract(toAddr) && data.length != 0){\n (bool result, bytes memory returndata) = LibCallBridgeReceiver.callReceiver(false, gasLimitForBridgeReceiver, token, uints[1], data, toAddr);\n emit BridgeReceiverResult(result, fromAddr, token, data);\n emit OnBridgeReceived(result, returndata, fromAddr, token, data);\n }\n\n emit WithdrawNFT(fromChain, fromAddr, abi.encodePacked(toAddr), abi.encodePacked(token), bytes32s, uints, data);\n }"
+            },
+            {
+                "_validate": "function _validate(bytes32 whash, uint8[] memory v, bytes32[] memory r, bytes32[] memory s) private view returns(uint){\n uint validatorCount = 0;\n address[] memory vaList = new address[](owners.length);\n\n uint i=0;\n uint j=0;\n\n for(i; i<v.length; i++){\n address va = ecrecover(whash,v[i],r[i],s[i]);\n if(isOwner[va]){\n for(j=0; j<validatorCount; j++){\n require(vaList[j] != va);\n }\n\n vaList[validatorCount] = va;\n validatorCount += 1;\n }\n }\n\n return validatorCount;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Withdraw1": [
+            {
+                "withdraw": "function withdraw(\n address hubContract,\n string memory fromChain,\n bytes memory fromAddr,\n bytes memory toAddr,\n bytes memory token,\n bytes32[] memory bytes32s,\n uint[] memory uints,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) public onlyActivated {\n require(bytes32s.length >= 1);\n require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));\n require(uints.length >= 2);\n function getChainId(...) {...}\nfunction _validate(...) {...}\nrequire(isValidChain[getChainId(fromChain)]);\n\n bytes32 whash = sha256(abi.encodePacked(hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints));\n\n require(!isUsedWithdrawal[whash]);\n isUsedWithdrawal[whash] = true;\n\n uint validatorCount = _validate(whash, v, r, s);\n require(validatorCount >= required);\n\n address payable _toAddr = bytesToAddress(toAddr);\n address tokenAddress = bytesToAddress(token);\n if(tokenAddress == address(0)){\n if(!_toAddr.send(uints[0])) revert();\n }else{\n if(tokenAddress == tetherAddress){\n TIERC20(tokenAddress).transfer(_toAddr, uints[0]);\n }\n else{\n if(!IERC20(tokenAddress).transfer(_toAddr, uints[0])) revert();\n }\n }\n\n emit Withdraw(hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints);\n }"
+            },
+            {
+                "_validate": "function _validate(bytes32 whash, uint8[] memory v, bytes32[] memory r, bytes32[] memory s) private view returns(uint){\n uint validatorCount = 0;\n address[] memory vaList = new address[](owners.length);\n\n uint i=0;\n uint j=0;\n\n for(i; i<v.length; i++){\n address va = ecrecover(whash,v[i],r[i],s[i]);\n if(isOwner[va]){\n for(j=0; j<validatorCount; j++){\n require(vaList[j] != va);\n }\n\n vaList[validatorCount] = va;\n validatorCount += 1;\n }\n }\n\n return validatorCount;\n }"
+            }
+        ],
+        "WithdrawNFT2": [
+            {
+                "withdrawNFT": "function withdrawNFT(\n address hubContract,\n string memory fromChain,\n bytes memory fromAddr,\n address payable toAddr,\n address token,\n bytes32[] memory bytes32s,\n uint[] memory uints,\n bytes memory data,\n uint8[] memory v,\n bytes32[] memory r,\n bytes32[] memory s\n ) public onlyActivated {\n require(bytes32s.length == 2);\n function getChainId(...) {...}\nrequire(uints.length == chainUintsLength[getChainId(fromChain)]);\n require(fromAddr.length == chainAddressLength[getChainId(fromChain)]);\n\n require(bytes32s[0] == sha256(abi.encodePacked(hubContract, chain, address(this))));\n require(isValidChain[getChainId(fromChain)]);\n\n {\n bytes32 whash = sha256(abi.encodePacked(\"NFT\", hubContract, fromChain, chain, fromAddr, toAddr, token, bytes32s, uints, data));\n\n require(!isUsedWithdrawal[whash]);\n isUsedWithdrawal[whash] = true;\n\n uint validatorCount = _validate(whash, v, r, s);\n require(validatorCount >= required);\n }\n\n require(IERC721(token).ownerOf(uints[1]) == address(this));\n IERC721(token).transferFrom(address(this), toAddr, uints[1]);\n require(IERC721(token).ownerOf(uints[1]) == toAddr);\n\n if(isContract(toAddr) && data.length != 0){\n (bool result, bytes memory returndata) = LibCallBridgeReceiver.callReceiver(false, gasLimitForBridgeReceiver, token, uints[1], data, toAddr);\n emit BridgeReceiverResult(result, fromAddr, token, data);\n emit OnBridgeReceived(result, returndata, fromAddr, token, data);\n }\n\n emit WithdrawNFT(fromChain, fromAddr, abi.encodePacked(toAddr), abi.encodePacked(token), bytes32s, uints, data);\n }"
+            },
+            {
+                "_validate": "function _validate(bytes32 whash, uint8[] memory v, bytes32[] memory r, bytes32[] memory s) private view returns(uint){\n uint validatorCount = 0;\n address[] memory vaList = new address[](owners.length);\n\n uint i=0;\n uint j=0;\n\n for(i; i<v.length; i++){\n address va = ecrecover(whash,v[i],r[i],s[i]);\n if(isOwner[va]){\n for(j=0; j<validatorCount; j++){\n require(vaList[j] != va);\n }\n\n vaList[validatorCount] = va;\n validatorCount += 1;\n }\n }\n\n return validatorCount;\n }"
+            }
+        ]
+    }
+}

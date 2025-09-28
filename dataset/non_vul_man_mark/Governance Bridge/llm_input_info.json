@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "TokenRedeem1": [
+            {
+                "processMessageFromRoot": "function processMessageFromRoot(\n uint256 stateId,\n address rootMessageSender,\n bytes calldata data\n ) external override onlyFxChild {\n if (rootMessageSender != _fxRootSender) revert UnauthorizedRootOrigin();\n\n address[] memory targets;\n\n uint256[] memory values;\n\n string[] memory signatures;\n\n bytes[] memory calldatas;\n\n bool[] memory withDelegatecalls;\n\n (targets, values, signatures, calldatas, withDelegatecalls) = abi\n .decode(data, (address[], uint256[], string[], bytes[], bool[]));\n\n _queue(targets, values, signatures, calldatas, withDelegatecalls);\n }"
+            },
+            {
+                "_queue": "function _queue(\n address[] memory targets,\n uint256[] memory values,\n string[] memory signatures,\n bytes[] memory calldatas,\n bool[] memory withDelegatecalls\n ) internal {\n if (targets.length == 0) revert EmptyTargets();\n\n uint256 targetsLength = targets.length;\n\n if (\n targetsLength != values.length ||\n targetsLength != signatures.length ||\n targetsLength != calldatas.length ||\n targetsLength != withDelegatecalls.length\n ) revert InconsistentParamsLength();\n\n uint256 actionsSetId = _actionsSetCounter;\n\n uint256 executionTime = block.timestamp + _delay;\n\n unchecked {\n ++_actionsSetCounter;\n }\n\n for (uint256 i = 0; i < targetsLength; ) {\n bytes32 actionHash = keccak256(\n abi.encode(\n targets[i],\n values[i],\n signatures[i],\n calldatas[i],\n executionTime,\n withDelegatecalls[i]\n )\n );\n\n if (isActionQueued(actionHash)) revert DuplicateAction();\n\n _queuedActions[actionHash] = true;\n\n unchecked {\n ++i;\n }\n }\n\n ActionsSet storage actionsSet = _actionsSets[actionsSetId];\n\n actionsSet.targets = targets;\n\n actionsSet.values = values;\n\n actionsSet.signatures = signatures;\n\n actionsSet.calldatas = calldatas;\n\n actionsSet.withDelegatecalls = withDelegatecalls;\n\n actionsSet.executionTime = executionTime;\n\n emit ActionsSetQueued(\n actionsSetId,\n targets,\n values,\n signatures,\n calldatas,\n withDelegatecalls,\n executionTime\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {},
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "processMessageFromRoot": "function processMessageFromRoot(\n uint256 stateId,\n address rootMessageSender,\n bytes calldata data\n ) external override onlyFxChild {\n if (rootMessageSender != _fxRootSender) revert UnauthorizedRootOrigin();\n\n address[] memory targets;\n\n uint256[] memory values;\n\n string[] memory signatures;\n\n bytes[] memory calldatas;\n\n bool[] memory withDelegatecalls;\n\n (targets, values, signatures, calldatas, withDelegatecalls) = abi\n .decode(data, (address[], uint256[], string[], bytes[], bool[]));\n\n _queue(targets, values, signatures, calldatas, withDelegatecalls);\n }"
+            },
+            {
+                "_queue": "function _queue(\n address[] memory targets,\n uint256[] memory values,\n string[] memory signatures,\n bytes[] memory calldatas,\n bool[] memory withDelegatecalls\n ) internal {\n if (targets.length == 0) revert EmptyTargets();\n\n uint256 targetsLength = targets.length;\n\n if (\n targetsLength != values.length ||\n targetsLength != signatures.length ||\n targetsLength != calldatas.length ||\n targetsLength != withDelegatecalls.length\n ) revert InconsistentParamsLength();\n\n uint256 actionsSetId = _actionsSetCounter;\n\n uint256 executionTime = block.timestamp + _delay;\n\n unchecked {\n ++_actionsSetCounter;\n }\n\n for (uint256 i = 0; i < targetsLength; ) {\n bytes32 actionHash = keccak256(\n abi.encode(\n targets[i],\n values[i],\n signatures[i],\n calldatas[i],\n executionTime,\n withDelegatecalls[i]\n )\n );\n\n if (isActionQueued(actionHash)) revert DuplicateAction();\n\n _queuedActions[actionHash] = true;\n\n unchecked {\n ++i;\n }\n }\n\n ActionsSet storage actionsSet = _actionsSets[actionsSetId];\n\n actionsSet.targets = targets;\n\n actionsSet.values = values;\n\n actionsSet.signatures = signatures;\n\n actionsSet.calldatas = calldatas;\n\n actionsSet.withDelegatecalls = withDelegatecalls;\n\n actionsSet.executionTime = executionTime;\n\n emit ActionsSetQueued(\n actionsSetId,\n targets,\n values,\n signatures,\n calldatas,\n withDelegatecalls,\n executionTime\n );\n }"
+            }
+        ]
+    }
+}

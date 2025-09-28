@@ -1,0 +1,56 @@
+{
+    "src_chain": {
+        "ERC20DepositInitiated1": [
+            {
+                "_initiateERC20DepositByChainId": "function _initiateERC20DepositByChainId(\n uint256 _chainId,\n address _l1Token,\n address _l2Token,\n address _from,\n address _to,\n uint256 _amount,\n uint32 _l2Gas,\n bytes calldata _data\n ) internal {\n iMVM_DiscountOracle oracle = iMVM_DiscountOracle(\n Lib_AddressManager(addressmgr).getAddress(\"MVM_DiscountOracle\")\n );\n\n \n\n if (_l2Gas < uint32(oracle.getMinL2Gas())) {\n _l2Gas = uint32(oracle.getMinL2Gas());\n }\n\n require(\n _l2Gas * oracle.getDiscount() <= msg.value,\n string(\n abi.encodePacked(\n \"insufficient fee supplied. send at least \",\n uint2str(_l2Gas * oracle.getDiscount())\n )\n )\n );\n\n \n\n \n\n \n\n IERC20(_l1Token).safeTransferFrom(_from, address(this), _amount);\n\n bytes memory message;\n\n if (_l1Token == metis) {\n \n\n _l2Token = Lib_PredeployAddresses.MVM_COINBASE;\n\n message = abi.encodeWithSelector(\n IL2ERC20Bridge.finalizeDeposit.selector,\n address(0),\n Lib_PredeployAddresses.MVM_COINBASE,\n _from,\n _to,\n _amount,\n _data\n );\n } else {\n \n\n message = abi.encodeWithSelector(\n IL2ERC20Bridge.finalizeDeposit.selector,\n _l1Token,\n _l2Token,\n _from,\n _to,\n _amount,\n _data\n );\n }\n\n \n\n sendCrossDomainMessageViaChainId(\n _chainId,\n l2TokenBridge,\n _l2Gas,\n message,\n msg.value \n );\n\n deposits[_l1Token][_chainId][_l2Token] =\n deposits[_l1Token][_chainId][_l2Token] +\n (_amount);\n\n emit ERC20ChainID(_chainId);\n\n emit ERC20DepositInitiated(\n _l1Token,\n _l2Token,\n _from,\n _to,\n _amount,\n _data\n );\n }"
+            },
+            {
+                "sendMessageViaChainId": "function sendMessageViaChainId(\n uint256 _chainId,\n address _target,\n bytes memory _message,\n uint32 _gasLimit\n ) public payable override {\n iMVM_DiscountOracle oracle = iMVM_DiscountOracle(\n resolve(\"MVM_DiscountOracle\")\n );\n\n \n\n oracle.processL2SeqGas{value: msg.value}(msg.sender, _chainId);\n\n address ovmCanonicalTransactionChain = resolve(\n \"CanonicalTransactionChain\"\n );\n\n \n\n uint40 nonce = ICanonicalTransactionChain(ovmCanonicalTransactionChain)\n .getQueueLengthByChainId(_chainId);\n\n bytes memory xDomainCalldataRaw = Lib_CrossDomainUtils\n .encodeXDomainCalldata(_target, msg.sender, _message, nonce);\n\n _sendXDomainMessageViaChainId(\n _chainId,\n ovmCanonicalTransactionChain,\n xDomainCalldataRaw,\n _gasLimit\n );\n\n emit SentMessage(\n _target,\n msg.sender,\n _message,\n nonce,\n _gasLimit,\n _chainId\n );\n }"
+            },
+            {
+                "_sendXDomainMessageViaChainId": "function _sendXDomainMessageViaChainId(\n uint256 _chainId,\n address _canonicalTransactionChain,\n bytes memory _message,\n uint256 _gasLimit\n ) internal {\n ICanonicalTransactionChain(_canonicalTransactionChain).enqueueByChainId(\n _chainId,\n Lib_PredeployAddresses.L2_CROSS_DOMAIN_MESSENGER,\n _gasLimit,\n _message\n );\n }"
+            }
+        ],
+        "ETHDepositInitiated2": [
+            {
+                "_initiateETHDepositByChainId": "function _initiateETHDepositByChainId(\n uint256 _chainId,\n address _from,\n address _to,\n uint32 _l2Gas,\n bytes memory _data\n ) internal {\n iMVM_DiscountOracle oracle = iMVM_DiscountOracle(\n Lib_AddressManager(addressmgr).getAddress(\"MVM_DiscountOracle\")\n );\n\n uint32 mingas = uint32(oracle.getMinL2Gas());\n\n if (_l2Gas < mingas) {\n _l2Gas = mingas;\n }\n\n uint256 fee = _l2Gas * oracle.getDiscount();\n\n require(\n fee <= msg.value,\n string(\n abi.encodePacked(\n \"insufficient fee supplied. send at least \",\n uint2str(fee)\n )\n )\n );\n\n \n\n bytes memory message = abi.encodeWithSelector(\n IL2ERC20Bridge.finalizeDeposit.selector,\n address(0),\n Lib_PredeployAddresses.OVM_ETH,\n _from,\n _to,\n msg.value - fee,\n _data\n );\n\n \n\n sendCrossDomainMessageViaChainId(\n _chainId,\n l2TokenBridge,\n _l2Gas,\n message,\n fee \n );\n\n emit ETHDepositInitiated(_from, _to, msg.value, _data, _chainId);\n }"
+            },
+            {
+                "sendMessageViaChainId": "function sendMessageViaChainId(\n uint256 _chainId,\n address _target,\n bytes memory _message,\n uint32 _gasLimit\n ) public payable override {\n iMVM_DiscountOracle oracle = iMVM_DiscountOracle(\n resolve(\"MVM_DiscountOracle\")\n );\n\n \n\n oracle.processL2SeqGas{value: msg.value}(msg.sender, _chainId);\n\n address ovmCanonicalTransactionChain = resolve(\n \"CanonicalTransactionChain\"\n );\n\n \n\n uint40 nonce = ICanonicalTransactionChain(ovmCanonicalTransactionChain)\n .getQueueLengthByChainId(_chainId);\n\n bytes memory xDomainCalldataRaw = Lib_CrossDomainUtils\n .encodeXDomainCalldata(_target, msg.sender, _message, nonce);\n\n _sendXDomainMessageViaChainId(\n _chainId,\n ovmCanonicalTransactionChain,\n xDomainCalldataRaw,\n _gasLimit\n );\n\n emit SentMessage(\n _target,\n msg.sender,\n _message,\n nonce,\n _gasLimit,\n _chainId\n );\n }"
+            },
+            {
+                "_sendXDomainMessageViaChainId": "function _sendXDomainMessageViaChainId(\n uint256 _chainId,\n address _canonicalTransactionChain,\n bytes memory _message,\n uint256 _gasLimit\n ) internal {\n ICanonicalTransactionChain(_canonicalTransactionChain).enqueueByChainId(\n _chainId,\n Lib_PredeployAddresses.L2_CROSS_DOMAIN_MESSENGER,\n _gasLimit,\n _message\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "SentMessage": [
+            {
+                "sendMessageViaChainId": "function sendMessageViaChainId(\n uint256 _chainId,\n address _target,\n bytes memory _message,\n uint32 _gasLimit\n ) public payable override {\n iMVM_DiscountOracle oracle = iMVM_DiscountOracle(\n resolve(\"MVM_DiscountOracle\")\n );\n\n \n\n oracle.processL2SeqGas{value: msg.value}(msg.sender, _chainId);\n\n address ovmCanonicalTransactionChain = resolve(\n \"CanonicalTransactionChain\"\n );\n\n \n\n uint40 nonce = ICanonicalTransactionChain(ovmCanonicalTransactionChain)\n .getQueueLengthByChainId(_chainId);\n\n bytes memory xDomainCalldataRaw = Lib_CrossDomainUtils\n .encodeXDomainCalldata(_target, msg.sender, _message, nonce);\n\n _sendXDomainMessageViaChainId(\n _chainId,\n ovmCanonicalTransactionChain,\n xDomainCalldataRaw,\n _gasLimit\n );\n\n emit SentMessage(\n _target,\n msg.sender,\n _message,\n nonce,\n _gasLimit,\n _chainId\n );\n }"
+            },
+            {
+                "_sendXDomainMessageViaChainId": "function _sendXDomainMessageViaChainId(\n uint256 _chainId,\n address _canonicalTransactionChain,\n bytes memory _message,\n uint256 _gasLimit\n ) internal {\n ICanonicalTransactionChain(_canonicalTransactionChain).enqueueByChainId(\n _chainId,\n Lib_PredeployAddresses.L2_CROSS_DOMAIN_MESSENGER,\n _gasLimit,\n _message\n );\n }"
+            },
+            {
+                "enqueueByChainId": "function enqueueByChainId(\n uint256 _chainId,\n address _target,\n uint256 _gasLimit,\n bytes memory _data\n ) public override {\n require(\n msg.sender == resolve(\"Proxy__OVM_L1CrossDomainMessenger\"),\n \"only the cross domain messenger can enqueue\"\n );\n\n require(\n _data.length <= MAX_ROLLUP_TX_SIZE,\n \"Transaction data size exceeds maximum for rollup transaction.\"\n );\n\n require(\n _gasLimit <= maxTransactionGasLimit,\n \"Transaction gas limit exceeds maximum for rollup transaction.\"\n );\n\n require(\n _gasLimit >= MIN_ROLLUP_TX_GAS,\n \"Transaction gas limit too low to enqueue.\"\n );\n\n \n\n \n\n \n\n \n\n \n\n address sender;\n\n if (msg.sender == tx.origin) {\n sender = msg.sender;\n } else {\n sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);\n }\n\n bytes32 transactionHash = keccak256(\n abi.encode(sender, _target, _gasLimit, _data)\n );\n\n queueElements[_chainId].push(\n Lib_OVMCodec.QueueElement({\n transactionHash: transactionHash,\n timestamp: uint40(block.timestamp),\n blockNumber: uint40(block.number)\n })\n );\n\n \n\n \n\n \n\n uint256 queueIndex = queueElements[_chainId].length - 1;\n\n emit TransactionEnqueued(\n _chainId,\n sender,\n _target,\n _gasLimit,\n _data,\n queueIndex,\n block.timestamp\n );\n }"
+            }
+        ],
+        "RelayedMessage": [
+            {
+                "relayMessageViaChainId": "function relayMessageViaChainId(\n uint256 _chainId,\n address _target,\n address _sender,\n bytes memory _message,\n uint256 _messageNonce,\n L2MessageInclusionProof memory _proof\n ) public override nonReentrant whenNotPaused {\n bytes memory xDomainCalldata = Lib_CrossDomainUtils\n .encodeXDomainCalldata(_target, _sender, _message, _messageNonce);\n\n require(\n _verifyXDomainMessageByChainId(_chainId, xDomainCalldata, _proof) ==\n true,\n \"Provided message could not be verified.\"\n );\n\n bytes32 xDomainCalldataHash = keccak256(xDomainCalldata);\n\n require(\n successfulMessages[xDomainCalldataHash] == false,\n \"Provided message has already been received.\"\n );\n\n require(\n blockedMessages[xDomainCalldataHash] == false,\n \"Provided message has been blocked.\"\n );\n\n require(\n _target != resolve(\"CanonicalTransactionChain\"),\n \"Cannot send L2->L1 messages to L1 system contracts.\"\n );\n\n xDomainMsgSender = _sender;\n\n (bool success, ) = _target.call(_message);\n\n xDomainMsgSender = Lib_DefaultValues.DEFAULT_XDOMAIN_SENDER;\n\n \n\n \n\n if (success == true) {\n successfulMessages[xDomainCalldataHash] = true;\n\n emit RelayedMessage(xDomainCalldataHash);\n } else {\n emit FailedRelayedMessage(xDomainCalldataHash);\n }\n\n \n\n \n\n bytes32 relayId = keccak256(\n abi.encodePacked(xDomainCalldata, msg.sender, block.number)\n );\n\n relayedMessages[relayId] = true;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "ERC20WithdrawalFinalized1": [
+            {
+                "_finalizeERC20WithdrawalByChainId": "function _finalizeERC20WithdrawalByChainId(\n uint256 _chainid,\n address _l1Token,\n address _l2Token,\n address _from,\n address _to,\n uint256 _amount,\n bytes calldata _data\n ) internal {\n deposits[_l1Token][_chainid][_l2Token] =\n deposits[_l1Token][_chainid][_l2Token] -\n _amount;\n\n \n\n IERC20(_l1Token).safeTransfer(_to, _amount);\n\n emit ERC20ChainID(_chainid);\n\n emit ERC20WithdrawalFinalized(\n _l1Token,\n _l2Token,\n _from,\n _to,\n _amount,\n _data\n );\n }"
+            }
+        ],
+        "ETHWithdrawalFinalized2": [
+            {
+                "finalizeETHWithdrawalByChainId": "function finalizeETHWithdrawalByChainId(\n uint256 _chainid,\n address _from,\n address _to,\n uint256 _amount,\n bytes calldata _data\n ) external override onlyFromCrossDomainAccount(l2TokenBridge) {\n (bool success, ) = _to.call{value: _amount}(new bytes(0));\n\n require(\n success,\n \"TransferHelper::safeTransferETH: ETH transfer failed\"\n );\n\n emit ETHWithdrawalFinalized(_from, _to, _amount, _data, _chainid);\n }"
+            }
+        ]
+    }
+}

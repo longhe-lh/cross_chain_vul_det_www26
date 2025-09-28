@@ -1,0 +1,53 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "handleIncomingAsset": "function handleIncomingAsset(address _asset, uint256 _amount) internal {\n \n if (_amount == 0) {\n return;\n }\n \n if (_asset == address(0)) {\n revert AssetLogic__handleIncomingAsset_nativeAssetNotSupported();\n }\n IERC20Metadata asset = IERC20Metadata(_asset);\n \n uint256 starting = asset.balanceOf(address(this));\n \n asset.safeTransferFrom(msg.sender, address(this), _amount);\n \n if (asset.balanceOf(address(this)) - starting != _amount) {\n revert AssetLogic__handleIncomingAsset_feeOnTransferNotSupported();\n }\n }"
+            },
+            {
+                "safeTransferFrom": "function safeTransferFrom(\n IERC20 token,\n address from,\n address to,\n uint256 value\n ) internal {\n _callOptionalReturn(\n token,\n abi.encodeWithSelector(token.transferFrom.selector, from, to, value)\n );\n }"
+            },
+            {
+                "_callOptionalReturn": "function _callOptionalReturn(IERC20 token, bytes memory data) private {\n \n \n \n bytes memory returndata = address(token).functionCall(\n data,\n \"SafeERC20: low-level call failed\"\n );\n if (returndata.length > 0) {\n \n require(\n abi.decode(returndata, (bool)),\n \"SafeERC20: ERC20 operation did not succeed\"\n );\n }\n }"
+            }
+        ],
+        "TokenDepositAndSwap2": [
+            {
+                "swapToLocalAssetIfNeeded": "function swapToLocalAssetIfNeeded(\n bytes32 _key,\n address _asset,\n address _local,\n uint256 _amount,\n uint256 _slippage\n ) internal returns (uint256) {\n \n if (_amount == 0) {\n return 0;\n }\n \n if (_local == _asset) {\n return _amount;\n }\n \n TokenConfig storage config = getConfig(_key);\n \n (uint256 out, ) = _swapAsset(\n _key,\n _asset,\n _local,\n _amount,\n calculateSlippageBoundary(\n config.adoptedDecimals,\n config.representationDecimals,\n _amount,\n _slippage\n )\n );\n return out;\n }"
+            },
+            {
+                "calculateSlippageBoundary": "function calculateSlippageBoundary(\n uint8 _in,\n uint8 _out,\n uint256 _amountIn,\n uint256 _slippage\n ) internal pure returns (uint256) {\n if (_amountIn == 0) {\n return 0;\n }\n \n uint256 min = (_amountIn *\n (Constants.BPS_FEE_DENOMINATOR - _slippage)) /\n Constants.BPS_FEE_DENOMINATOR;\n return normalizeDecimals(_in, _out, min);\n }"
+            },
+            {
+                "normalizeDecimals": "function normalizeDecimals(\n uint8 _in,\n uint8 _out,\n uint256 _amount\n ) internal pure returns (uint256) {\n if (_in == _out) {\n return _amount;\n }\n \n uint256 normalized;\n if (_in < _out) {\n normalized = _amount * (10 ** (_out - _in));\n } else {\n normalized = _amount / (10 ** (_in - _out));\n }\n return normalized;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "MessageRelay": []
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "handleOutgoingAsset": "function handleOutgoingAsset(\n address _asset,\n address _to,\n uint256 _amount\n ) internal {\n \n if (_amount == 0) {\n return;\n }\n \n if (_asset == address(0))\n revert AssetLogic__handleOutgoingAsset_notNative();\n \n SafeERC20.safeTransfer(IERC20Metadata(_asset), _to, _amount);\n }"
+            },
+            {
+                "safeTransfer": "function safeTransfer(IERC20 token, address to, uint256 value) internal {\n _callOptionalReturn(\n token,\n abi.encodeWithSelector(token.transfer.selector, to, value)\n );\n }"
+            },
+            {
+                "_callOptionalReturn": "function _callOptionalReturn(IERC20 token, bytes memory data) private {\n \n \n \n bytes memory returndata = address(token).functionCall(\n data,\n \"SafeERC20: low-level call failed\"\n );\n if (returndata.length > 0) {\n \n require(\n abi.decode(returndata, (bool)),\n \"SafeERC20: ERC20 operation did not succeed\"\n );\n }\n }"
+            }
+        ],
+        "TokenMintAndSwap2": [
+            {
+                "swapFromLocalAssetIfNeeded": "function swapFromLocalAssetIfNeeded(\n bytes32 _key,\n address _asset,\n uint256 _amount,\n uint256 _slippage,\n uint256 _normalizedIn\n ) internal returns (uint256, address) {\n \n TokenConfig storage config = getConfig(_key);\n address adopted = config.adopted;\n \n if (adopted == _asset) {\n return (_amount, adopted);\n }\n \n if (_amount == 0) {\n return (_amount, adopted);\n }\n \n return\n _swapAsset(\n _key,\n _asset,\n adopted,\n _amount,\n \n \n \n calculateSlippageBoundary(\n Constants.DEFAULT_NORMALIZED_DECIMALS,\n config.adoptedDecimals,\n _normalizedIn,\n _slippage\n )\n );\n }"
+            },
+            {
+                "calculateSlippageBoundary": "function calculateSlippageBoundary(\n uint8 _in,\n uint8 _out,\n uint256 _amountIn,\n uint256 _slippage\n ) internal pure returns (uint256) {\n if (_amountIn == 0) {\n return 0;\n }\n \n uint256 min = (_amountIn *\n (Constants.BPS_FEE_DENOMINATOR - _slippage)) /\n Constants.BPS_FEE_DENOMINATOR;\n return normalizeDecimals(_in, _out, min);\n }"
+            },
+            {
+                "normalizeDecimals": "function normalizeDecimals(\n uint8 _in,\n uint8 _out,\n uint256 _amount\n ) internal pure returns (uint256) {\n if (_in == _out) {\n return _amount;\n }\n \n uint256 normalized;\n if (_in < _out) {\n normalized = _amount * (10 ** (_out - _in));\n } else {\n normalized = _amount / (10 ** (_in - _out));\n }\n return normalized;\n }"
+            }
+        ]
+    }
+}

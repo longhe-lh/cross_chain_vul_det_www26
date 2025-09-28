@@ -1,0 +1,24 @@
+{
+    "src_chain": {
+        "bridgeIn1": [
+            {
+                "bridgeIn": "function bridgeIn(\n uint32 fromChain,\n bytes calldata payload\n ) external onlyBridge returns (bytes4) {\n (address from, address to, uint256 tokenId, bytes memory data) = abi\n .decode(payload, (address, address, uint256, bytes));\n\n require(!_exists(tokenId), \"ERC721: token already exists\");\n\n delete _burnedTokens[tokenId];\n\n _mint(to, tokenId);\n\n if (_isEventRegistered(HolographERC721Event.bridgeIn)) {\n require(\n _sourceCall(\n abi.encodeWithSelector(\n HolographedERC721.bridgeIn.selector,\n fromChain,\n from,\n to,\n tokenId,\n data\n )\n ),\n \"HOLOGRAPH: bridge in failed\"\n );\n }\n\n return Holographable.bridgeIn.selector;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "lzReceive": []
+    },
+    "det_chain": {
+        "bridgeIn1": [
+            {
+                "bridgeIn": "function bridgeIn(\n uint32 fromChain,\n bytes calldata payload\n ) external onlyBridge returns (bytes4) {\n (address from, address to, uint256 tokenId, bytes memory data) = abi\n .decode(payload, (address, address, uint256, bytes));\n\n require(!_exists(tokenId), \"ERC721: token already exists\");\n\n delete _burnedTokens[tokenId];\n\n _mint(to, tokenId);\n\n if (_isEventRegistered(HolographERC721Event.bridgeIn)) {\n require(\n _sourceCall(\n abi.encodeWithSelector(\n HolographedERC721.bridgeIn.selector,\n fromChain,\n from,\n to,\n tokenId,\n data\n )\n ),\n \"HOLOGRAPH: bridge in failed\"\n );\n }\n\n return Holographable.bridgeIn.selector;\n }"
+            }
+        ],
+        "bridgeOut2": [
+            {
+                "bridgeOut": "function bridgeOut(\n uint32 toChain,\n address sender,\n bytes calldata payload\n ) external onlyBridge returns (bytes4 selector, bytes memory data) {\n (address from, address to, uint256 tokenId) = abi.decode(\n payload,\n (address, address, uint256)\n );\n\n require(to != address(0), \"ERC721: zero address\");\n\n require(_isApproved(sender, tokenId), \"ERC721: sender not approved\");\n\n require(from == _tokenOwner[tokenId], \"ERC721: from is not owner\");\n\n if (_isEventRegistered(HolographERC721Event.bridgeOut)) {\n \n\n bytes memory sourcePayload = abi.encodeWithSelector(\n HolographedERC721.bridgeOut.selector,\n toChain,\n from,\n to,\n tokenId\n );\n\n assembly {\n \n\n mstore(\n add(sourcePayload, add(mload(sourcePayload), 0x20)),\n caller()\n )\n\n let result := call(\n gas(),\n sload(_sourceContractSlot),\n callvalue(),\n \n\n add(sourcePayload, 0x20),\n \n\n add(mload(sourcePayload), 0x20),\n 0,\n 0\n )\n\n \n\n \n\n returndatacopy(data, 0x20, sub(returndatasize(), 0x20))\n\n switch result\n case 0 {\n revert(0, returndatasize())\n }\n }\n }\n\n _burn(from, tokenId);\n\n return (\n Holographable.bridgeOut.selector,\n abi.encode(from, to, tokenId, data)\n );\n }"
+            }
+        ]
+    }
+}

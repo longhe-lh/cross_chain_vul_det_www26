@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "src_event_name1": [
+            {
+                "sendValue": "function sendValue(address payable recipient, uint256 amount) internal {\n require(\n address(this).balance >= amount,\n \"Address: insufficient balance\"\n );\n\n \n\n (bool success, ) = recipient.call{value: amount}(\"\");\n\n require(\n success,\n \"Address: unable to send value, recipient may have reverted\"\n );\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "rel_event_name": [
+            {
+                "functionCall": "function functionCall(\n address target,\n bytes memory data\n ) internal returns (bytes memory) {\n return functionCall(target, data, \"Address: low-level call failed\");\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "dst_event_name1": [
+            {
+                "sendValue": "function sendValue(address payable recipient, uint256 amount) internal {\n require(\n address(this).balance >= amount,\n \"Address: insufficient balance\"\n );\n\n \n\n (bool success, ) = recipient.call{value: amount}(\"\");\n\n require(\n success,\n \"Address: unable to send value, recipient may have reverted\"\n );\n }"
+            }
+        ]
+    }
+}

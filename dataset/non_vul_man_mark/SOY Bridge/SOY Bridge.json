@@ -1,0 +1,165 @@
+{
+  "contract": "SOY Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "SOY Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1",
+          "BridgeToContract2"
+        ],
+        "rel_chain": [
+          "Claim",
+          "claimToContract"
+        ],
+        "det_chain": [
+          "Claim1",
+          "ClaimToContract2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "depositTokens",
+              "file_name": "CallistoBridge.sol",
+              "key_ops": [
+                "require(receiver != address(0), \"Incorrect receiver address\")",
+                "require(functionMapping & 1 == 0, \"locked\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "CallistoBridge.sol",
+                  "key_ops": [
+                    "require(pair.token != address(0), \"There is no pair\")",
+                    "tokenDeposits[token] += value"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BridgeToContract2": {
+            "0": {
+              "func_name": "bridgeToContract",
+              "file_name": "CallistoBridge.sol",
+              "key_ops": [
+                "require(functionMapping & 2 == 0, \"locked\")",
+                "require(receiver != address(0), \"Incorrect receiver address\")"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "CallistoBridge.sol",
+                  "key_ops": [
+                    "require(pair.token != address(0), \"There is no pair\")",
+                    "tokenDeposits[token] += value"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "Claim": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "CallistoBridge.sol",
+              "key_ops": [
+                "require(!isTxProcessed[fromChainId][txId], \"Transaction already processed\")",
+                "tokenDeposits[token] -= value",
+                "token.safeTransfer(to, value)"
+              ],
+              "child": {}
+            }
+          },
+          "claimToContract": {
+            "0": {
+              "func_name": "claimToContract",
+              "file_name": "CallistoBridge.sol",
+              "key_ops": [
+                "require(!isTxProcessed[fromChainId][txId], \"Transaction already processed\")",
+                "tokenDeposits[token] -= value"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "callContract",
+                  "file_name": "ContractCaller.sol",
+                  "key_ops": [
+                    "token.safeApprove(toContract, value)",
+                    "token.safeTransfer(user, value)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "Claim1": {
+            "0": {
+              "func_name": "claim",
+              "file_name": "CallistoBridge.sol",
+              "key_ops": [
+                "require(!isTxProcessed[fromChainId][txId], \"Transaction already processed\")",
+                "tokenDeposits[token] -= value",
+                "token.safeTransfer(to, value)",
+                "require(pair.token != address(0), \"There is no pair\");",
+                "require(threshold <= uniqSig, \"Require more signatures\");",
+                "require(must == address(0), \"The required authority does not sign\");"
+              ],
+              "child": {}
+            }
+          },
+          "ClaimToContract2": {
+            "0": {
+              "func_name": "claimToContract",
+              "file_name": "CallistoBridge.sol",
+              "key_ops": [
+                "require(functionMapping & 4 == 0, \"locked\");",
+                "require(!isTxProcessed[fromChainId][txId], \"Transaction already processed\")",
+                "require(pair.token != address(0), \"There is no pair\");",
+                "tokenDeposits[token] -= value",
+                "require(threshold <= uniqSig, \"Require more signatures\");",
+                "require(must == address(0), \"The required authority does not sign\");"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "callContract",
+                  "file_name": "ContractCaller.sol",
+                  "key_ops": [
+                    "token.safeApprove(toContract, value)",
+                    "token.safeTransfer(user, value)"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

@@ -1,0 +1,225 @@
+{
+  "contract": "Synapse Protocol",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Synapse Protocol": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenDepositAndSwap2",
+          "TokenRedeem3",
+          "TokenRedeemAndSwap4",
+          "TokenRedeemAndRemove5"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw",
+          "mintAndSwap",
+          "withdrawAndRemove"
+        ],
+        "det_chain": [
+          "TokenWithdraw1",
+          "TokenMintAndSwap2",
+          "TokenMint3",
+          "TokenMintAndSwap4",
+          "TokenWithdrawAndRemove5"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "token.safeTransferFrom(msg.sender, address(this), amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenDepositAndSwap2": {
+            "0": {
+              "func_name": "depositAndSwap",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "token.safeTransferFrom(msg.sender, address(this), amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeem3": {
+            "0": {
+              "func_name": "redeem",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "token.burnFrom(msg.sender, amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeemAndSwap4": {
+            "0": {
+              "func_name": "redeemAndSwap",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "token.burnFrom(msg.sender, amount)"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeemAndRemove5": {
+            "0": {
+              "func_name": "redeemAndRemove",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "token.burnFrom(msg.sender, amount)"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "fees[address(token)] = fees[address(token)].add(fee)",
+                "token.mint(address(this), amount)",
+                "IERC20(token).safeTransfer(to, amount.sub(fee))",
+                "require(hasRole(NODEGROUP_ROLE, msg.sender),\"Caller is not a node group\");",
+                "require(amount > fee, \"Amount must be greater than fee\");",
+                "require(!kappaMap[kappa], \"Kappa is already present\");"
+              ],
+              "child": {}
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "kappaMap[kappa] = true",
+                "fees[address(token)] = fees[address(token)].add(fee)",
+                "token.safeTransfer(to, amount.sub(fee))"
+              ],
+              "child": {}
+            }
+          },
+          "mintAndSwap": {
+            "0": {
+              "func_name": "mintAndSwap",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "fees[address(token)] = fees[address(token)].add(fee)",
+                "token.mint(address(this), amount)",
+                "token.safeIncreaseAllowance(address(pool), amount)",
+                "ISwap(pool).swap(tokenIndexFrom, tokenIndexTo, amount.sub(fee), minDy, deadline)",
+                "swappedTokenTo.safeTransfer(to, finalSwappedAmount)",
+                "IERC20(token).safeTransfer(to, amount.sub(fee))"
+              ],
+              "child": {}
+            }
+          },
+          "withdrawAndRemove": {
+            "0": {
+              "func_name": "withdrawAndRemove",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "kappaMap[kappa] = true",
+                "fees[address(token)] = fees[address(token)].add(fee)",
+                "token.safeIncreaseAllowance(address(pool), amount.sub(fee))",
+                "ISwap(pool).removeLiquidityOneToken(amount.sub(fee), swapTokenIndex, swapMinAmount, swapDeadline)",
+                "swappedTokenTo.safeTransfer(to, finalSwappedAmount)",
+                "token.safeTransfer(to, amount.sub(fee))"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "TokenWithdraw1": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "require(hasRole(NODEGROUP_ROLE, msg.sender), 'Caller is not a node group')",
+                "require(amount > fee, 'Amount must be greater than fee')",
+                "require(!kappaMap[kappa], 'Kappa is already present')"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMintAndSwap2": {
+            "0": {
+              "func_name": "mintAndSwap",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "require(hasRole(NODEGROUP_ROLE, msg.sender), 'Caller is not a node group')",
+                "require(amount > fee, 'Amount must be greater than fee')",
+                "require(!kappaMap[kappa], 'Kappa is already present')"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMint3": {
+            "0": {
+              "func_name": "mint",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "require(hasRole(NODEGROUP_ROLE, msg.sender), 'Caller is not a node group')",
+                "require(amount > fee, 'Amount must be greater than fee')",
+                "require(!kappaMap[kappa], 'Kappa is already present')"
+              ],
+              "child": {}
+            }
+          },
+          "TokenMintAndSwap4": {
+            "0": {
+              "func_name": "mintAndSwap",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "require(hasRole(NODEGROUP_ROLE, msg.sender), 'Caller is not a node group')",
+                "require(amount > fee, 'Amount must be greater than fee')",
+                "require(!kappaMap[kappa], 'Kappa is already present')"
+              ],
+              "child": {}
+            }
+          },
+          "TokenWithdrawAndRemove5": {
+            "0": {
+              "func_name": "withdrawAndRemove",
+              "file_name": "SynapseBridge.sol",
+              "key_ops": [
+                "require(hasRole(NODEGROUP_ROLE, msg.sender), 'Caller is not a node group')",
+                "require(amount > fee, 'Amount must be greater than fee')",
+                "require(!kappaMap[kappa], 'Kappa is already present')"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

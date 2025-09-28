@@ -1,0 +1,121 @@
+{
+  "contract": "Bridge_4",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Bridge_4": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "SwapInitilaized1",
+          "SwapInitilaized2"
+        ],
+        "rel_chain": [
+          "RedeemInitilaized"
+        ],
+        "det_chain": [
+          "RedeemInitilaized1",
+          "RedeemInitilaized2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "source_chain",
+        "events": {
+          "SwapInitilaized1": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "BridgeWithTime.sol",
+              "key_ops": [
+                "require(supportedChains[thisChainId] == true && supportedChains[chainTo] == true, \"Bridge: One of the blockchains isn't supported\")",
+                "IERC20(supportedTokens[symbol]).burnFrom(msg.sender, amount)",
+                "usersNonces[msg.sender][nonce] = true"
+              ],
+              "child": {}
+            }
+          },
+          "SwapInitilaized2": {
+            "0": {
+              "func_name": "swap",
+              "file_name": "OldBridge.sol",
+              "key_ops": [
+                "require(supportedChains[thisChainId] == true && supportedChains[chainTo] == true, \"Bridge: One of the blockchains isn't supported\")",
+                "IERC20(supportedTokens[symbol]).burnFrom(msg.sender, amount)",
+                "usersNonces[msg.sender][nonce] = true"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "relay_chain",
+        "events": {
+          "RedeemInitilaized": {
+            "0": {
+              "func_name": "redeem",
+              "file_name": "BridgeWithTime.sol",
+              "key_ops": [
+                "require(receiver == msg.sender, \"Only receiver can call this function\")",
+                "require(chainTo == thisChainId, \"This transaction is for another chain\")",
+                "bytes32 signedDataHash = keccak256(abi.encodePacked(receiver, supportedTokens[symbol], amount, nonce, time, chainTo))",
+                "address signer = message.recover(v, r, s)",
+                "require(hasRole(VALIDATOR_ROLE, signer), \"Bridge: invalid sig\")",
+                "IERC20(supportedTokens[symbol]).mint(receiver, amount)",
+                "usersNonces[msg.sender][nonce] == true"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "destination_chain",
+        "events": {
+          "RedeemInitilaized1": {
+            "0": {
+              "func_name": "redeem",
+              "file_name": "OldBridge.sol",
+              "key_ops": [
+                "require(receiver == msg.sender, \"Only the receiver can collect the tokens\")",
+                "require(chainTo == thisChainId, \"This transaction is for another chain\")",
+                "bytes32 signedDataHash = keccak256(abi.encode(receiver, supportedTokens[symbol], amount, nonce, chainTo))",
+                "address signer = message.recover(v, r, s)",
+                "require(hasRole(VALIDATOR_ROLE, signer), \"Bridge: invalid sig\")",
+                "IERC20(supportedTokens[symbol]).mint(receiver, amount)",
+                "usersNonces[msg.sender][nonce] = true"
+              ],
+              "child": {}
+            }
+          },
+          "RedeemInitilaized2": {
+            "0": {
+              "func_name": "redeem",
+              "file_name": "NewBridge.sol",
+              "key_ops": [
+                "require(receiver == msg.sender, \"Only the receiver can collect the tokens\")",
+                "require(chainTo == thisChainId, \"This transaction is for another chain\")",
+                "bytes32 signedDataHash = keccak256(abi.encode(receiver, token, chainTo, amount, nonce))",
+                "address signer = signedDataHash.toEthSignedMessageHash().recover(v, r, s)",
+                "require(hasRole(VALIDATOR_ROLE, signer), \"Bridge: invalid sig\")",
+                "IERC20(token).mint(receiver, amount)",
+                "usersNonces[receiver][nonce] = true"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

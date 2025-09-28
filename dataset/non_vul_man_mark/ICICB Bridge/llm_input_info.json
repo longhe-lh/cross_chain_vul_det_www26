@@ -1,0 +1,23 @@
+{
+    "src_chain": {
+        "Deposit1": [
+            {
+                "deposit": "function deposit(address _token, uint _amount, uint _targetChain) external override payable {\n\t\taddress _account = msg.sender;\n\t\tuint256 size;\n assembly {size := extcodesize(_account)}\n\t\trequire(size==0, \"bridge: only personal\");\n\t\trequire(_account!=address(0), \"bridge: zero sender\");\n\t\tif (_token==address(0)) {\n\t\t\trequire(msg.value==_amount, \"bridge: amount\");\n\t\t} else {\n\t\t\tbool isPegged = tokenIndexes[_token]!=0;\n\t\t\tif (isPegged) {\n\t\t\t\tIRC20(_token).burnFrom(_account, _amount);\n\t\t\t} else {\n\t\t\t\tIRC20(_token).transferFrom(_account, address(this), _amount);\n\t\t\t}\n\t\t}\n\t\temit Deposit(_token, _account, _amount, _targetChain);\n\t}"
+            }
+        ]
+    },
+    "rel_chain": {
+        "transfer": [
+            {
+                "transfer": "function transfer(uint[][] memory _args) external override payable onlyAdmin {\n\t\tfor(uint i=0; i<_args.length; i++) {\n\t\t\taddress _token \t\t= address(uint160(_args[i][0]));\n\t\t\taddress _to\t\t\t= address(uint160(_args[i][1]));\n\t\t\tuint _amount \t\t= _args[i][2];\n\t\t\tbytes32 _extra \t\t= bytes32(_args[i][3]);\n\t\t\tbool isPegged = false;\n\t\t\tif (!exists[_extra]) {\n\t\t\t\tif (_token==address(0)) {\n\t\t\t\t\tfunction transfer(...) {...}\npayable(_to).transfer(_amount);\n\t\t\t\t} else {\n\t\t\t\t\tisPegged = tokenIndexes[_token]!=0;\n\t\t\t\t\tif (isPegged) {\n\t\t\t\t\t\tIRC20(_token).mintTo(_to, _amount);\n\t\t\t\t\t} else {\n\t\t\t\t\t\tIRC20(_token).transfer(_to, _amount);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\texists[_extra] = true;\n\t\t\t}\n\t\t}\n\t}"
+            }
+        ]
+    },
+    "det_chain": {
+        "Withdraw1": [
+            {
+                "withdraw": "function withdraw(uint wad) public payable {\n require(balanceOf[msg.sender] >= wad);\n balanceOf[msg.sender] -= wad;\n function transfer(...) {...}\npayable(msg.sender).transfer(wad);\n emit Withdrawal(msg.sender, wad);\n }"
+            }
+        ]
+    }
+}

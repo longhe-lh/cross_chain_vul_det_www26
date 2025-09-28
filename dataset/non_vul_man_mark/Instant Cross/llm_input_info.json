@@ -1,0 +1,62 @@
+{
+    "src_chain": {
+        "ExchangeBuy1": [
+            {
+                "exchangeBuy": "function exchangeBuy(bytes32 pmId,bytes32 channel,bytes32 xHash, bytes memory goodsInfo, address goodsReceiptor,address payToken)public {\n bytes32 cctTxHash = keccak256(abi.encodePacked(nonce,address(this)));\n ProofRecord storage proofRecord = proofHistory[cctTxHash];\n require((proofRecord.cctTxHash == 0x0),\"proofRecord is exists\");\n proofRecord.toChain = cctChannel.getChannelCrossChain(channel);\n proofRecord.pmId = pmId;\n proofRecord.channel = channel;\n proofRecord.cctTxHash = cctTxHash;\n proofRecord.status = ProofStatus.LOCK;\n \n exchangBuyLockHandle(cctTxHash, channel,xHash, goodsInfo, goodsReceiptor,payToken);\n nonce +=1;\n currentTxHash = cctTxHash;\n emit ExchangeBuy(chainId,proofRecord.toChain,proofRecord.pmId,proofRecord.channel,cctTxHash,SRVID,ENTRYMOD_EXCHANGEBUYLOCK,xHash,goodsInfo,goodsReceiptor,payToken);\n }"
+            },
+            {
+                "exchangBuyLockHandle": "function exchangBuyLockHandle(bytes32 cctTxHash, bytes32 channel,bytes32 xHash, bytes memory goodsInfo, address goodsReceiptor,address payToken) private returns(bool){\n \n address goodsOwner;\n address receiptToken;\n uint amount;\n address subSrvGoods;\n subSrvGoods = cctChannel.getChannelSubSrv(channel,SRVID_GOODS);\n require(contractExists(subSrvGoods),\"GoodsProxy not exists\");\n (goodsOwner,receiptToken,amount) = GoodsProxy(subSrvGoods).buyLock(cctTxHash,xHash, goodsInfo, goodsReceiptor);\n setSubSrvStatus(cctTxHash,SRVID_GOODS,ProofStatus.LOCK);\n address subSrvExchange;\n address exchangeReceiptor;\n subSrvExchange = cctChannel.getChannelSubSrv(channel,SRVID_EXCHANGE);\n require(contractExists(subSrvExchange),\"ExchangeProxy not exists\");\n (exchangeReceiptor,amount) = ExchangeProxy(subSrvExchange).exchangeLock(cctTxHash,xHash, payToken, receiptToken,amount,goodsOwner);\n setSubSrvStatus(cctTxHash,SRVID_EXCHANGE,ProofStatus.LOCK);\n wrch_.lock(cctTxHash,xHash, payToken, amount, msg.sender,exchangeReceiptor);\n setSubSrvStatus(cctTxHash,SRVID_WRCH,ProofStatus.CONFIRM);\n return true;\n }"
+            }
+        ],
+        "ExchangePay2": [
+            {
+                "exchangePay": "function exchangePay(bytes32 pmId,bytes32 channel,bytes32 xHash, address payToken, address receiptToken,address receiptAddress,uint receiptAmount)public {\n bytes32 cctTxHash = keccak256(abi.encodePacked(nonce,address(this)));\n ProofRecord storage proofRecord = proofHistory[cctTxHash];\n require((proofRecord.cctTxHash == 0x0),\"proofRecord is exists\");\n proofRecord.toChain = cctChannel.getChannelCrossChain(channel);\n proofRecord.pmId = pmId;\n proofRecord.channel = channel;\n proofRecord.cctTxHash = cctTxHash;\n proofRecord.status = ProofStatus.LOCK;\n \n exchangePayHandle(cctTxHash, channel,xHash, payToken, msg.sender, receiptToken, receiptAddress, receiptAmount);\n nonce +=1;\n currentTxHash = cctTxHash;\n emit ExchangePay(chainId,proofRecord.toChain,proofRecord.pmId,proofRecord.channel,cctTxHash,SRVID,ENTRYMOD_EXCHANGEPAYLOCK,xHash,payToken,msg.sender,receiptToken,receiptAddress,receiptAmount);\n }"
+            },
+            {
+                "exchangePayHandle": "function exchangePayHandle(bytes32 cctTxHash, bytes32 channel, bytes32 xHash, address payToken, address payAddress,address receiptToken,address receiptAddress,uint receiptAmount)private returns(bool){\n address subSrvExchange;\n address exchangeReceiptor;\n uint payAmount;\n subSrvExchange = cctChannel.getChannelSubSrv(channel,SRVID_EXCHANGE);\n require(contractExists(subSrvExchange),\"ExchangeProxy not exists\");\n (exchangeReceiptor,payAmount) = ExchangeProxy(subSrvExchange).exchangeLock(cctTxHash,xHash, payToken, receiptToken,receiptAmount,receiptAddress);\n setSubSrvStatus(cctTxHash,SRVID_EXCHANGE,ProofStatus.LOCK);\n wrch_.lock(cctTxHash,xHash, payToken, payAmount, payAddress,exchangeReceiptor);\n setSubSrvStatus(cctTxHash,SRVID_WRCH,ProofStatus.CONFIRM);\n return true;\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "ProofEvent": [
+            {
+                "addCrossData": "function addCrossData(bytes32 fromChain, bytes32 toChain, bytes32 pmId, bytes memory proofData, bytes memory crossData) public {\n require(fromChain != toChain,\"fromChain is the same as the toChain\");\n require(cctRoot.getChainId() == toChain, \"bad chainId\");\n require(cctRoot.verify(pmId,proofData,crossData),\"no authorized pmId\");\n \n RLP.RLPItem[] memory ls = crossData.toRLPItem().toList(); \n uint i;\n for(i = 0; i < ls.length; i++){\n RLP.RLPItem[] memory pd = ls[i].toList();\n if(pd.length !=5 && pd.length != 4) {\n emit BadProofData(crossData,1);\n continue;\n }\n bytes32 channel = pd[0].toBytes32();\n bytes32 cctTxHash = pd[1].toBytes32();\n bytes32 fromSrv = pd[2].toBytes32();\n uint entryMod = pd[3].toUint();\n bytes memory businessProof = pd[4].toBytes();\n if(!cctChannel.authorized(pmId,channel)) {\n emit BadProofData(crossData,2);\n continue;\n }\n address entry = cctChannel.getChannelEntry(channel);\n if(entry == address(0x0) || !contractExists(entry)){\n emit ProofEvent(fromChain,toChain, pmId,channel,fromSrv,entryMod,cctTxHash,businessProof,false);\n continue;\n }\n if(BIZ(entry).handleProof(fromChain,toChain, pmId,channel,fromSrv,entryMod,cctTxHash,businessProof)){\n emit ProofEvent(fromChain,toChain, pmId,channel,fromSrv,entryMod,cctTxHash,businessProof,true);\n }else{\n emit ProofEvent(fromChain,toChain, pmId,channel,fromSrv,entryMod,cctTxHash,businessProof,false);\n }\n }\n }"
+            },
+            {
+                "exchangeBuyLock": "function exchangeBuyLock(bytes32 toChain, bytes32 pmId, bytes32 channel,bytes32 cctTxHash, bytes memory businessProof) private returns(bool){\n ProofRecord storage proofRecord = proofHistory[cctTxHash];\n if(proofRecord.cctTxHash != 0x0) return false;\n bytes32 xHash;\n bytes memory goodsInfo; \n address goodsReceiptor;\n address payToken;\n \n (xHash,goodsInfo,goodsReceiptor,payToken) = decodeBuyLock(businessProof);\n if(xHash == 0x0 && goodsReceiptor == address(0x0) && payToken == address(0x0)) return false;\n proofRecord.toChain = toChain;\n proofRecord.pmId = pmId;\n proofRecord.channel = channel;\n proofRecord.cctTxHash = cctTxHash;\n proofRecord.status = ProofStatus.LOCK;\n exchangBuyLockHandle(cctTxHash,channel,xHash, goodsInfo, goodsReceiptor,payToken);\n calAndUpdateProofStatus(cctTxHash);\n if (proofRecord.status == ProofStatus.CONFIRM){\n emit ExchangeBuyConfirm(chainId, cctChannel.getChannelCrossChain(channel), proofRecord.pmId, proofRecord.channel,cctTxHash, SRVID, ENTRYMOD_EXCHANGEBUYCOMFIRM);\n return true;\n }else{\n return false;\n }\n }"
+            },
+            {
+                "exchangBuyLockHandle": "function exchangBuyLockHandle(bytes32 cctTxHash,bytes32 channel,bytes32 xHash, bytes memory goodsInfo, address goodsReceiptor,address payToken) private returns(bool){\n address goodsOwner;\n address receiptToken;\n uint amount;\n address subSrvGoods;\n address subSrvExchange;\n bool goodsFlag = false;\n subSrvGoods = cctChannel.getChannelSubSrv(channel,SRVID_GOODS);\n \n (goodsOwner,receiptToken,amount) = Goods(subSrvGoods).buyLock(cctTxHash,xHash, goodsInfo, goodsReceiptor);\n if(goodsOwner == address(0x0) && receiptToken == address(0x0) && amount == 0) {\n setSubSrvStatus(cctTxHash,SRVID_GOODS,ProofStatus.LOCK);\n goodsFlag = false;\n }else{\n setSubSrvStatus(cctTxHash,SRVID_GOODS,ProofStatus.CONFIRM);\n goodsFlag = true;\n }\n bool exchangeFlag = false;\n subSrvExchange = cctChannel.getChannelSubSrv(channel,SRVID_EXCHANGE);\n \n if(!Exchange(subSrvExchange).exchangeLock(cctTxHash,xHash, payToken, receiptToken, amount, goodsOwner)) {\n setSubSrvStatus(cctTxHash,SRVID_EXCHANGE,ProofStatus.LOCK);\n exchangeFlag = false;\n }else{\n setSubSrvStatus(cctTxHash,SRVID_EXCHANGE,ProofStatus.CONFIRM);\n exchangeFlag = true;\n }\n return exchangeFlag && goodsFlag;\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "Commit1": [
+            {
+                "commit": "function commit( bytes32 cctTxHash, bytes32 x) public{\n ProofRecord storage proofRecord = proofHistory[cctTxHash];\n\t require(proofRecord.cctTxHash != 0x0, \"proofRecord not exists\");\n require(proofRecord.status == ProofStatus.CONFIRM,\"proofRecord valid\");\n uint i;\n for (i = 0; i < proofRecord.subSrvStatuList.length; i++) {\n address subSrv;\n if(proofRecord.subSrvStatuList[i].srvId == SRVID_EXCHANGE){\n subSrv = cctChannel.getChannelSubSrv(proofRecord.channel,SRVID_EXCHANGE);\n \n Exchange(subSrv).exchangeCommit(cctTxHash,x);\n }else if(proofRecord.subSrvStatuList[i].srvId == SRVID_GOODS){\n subSrv = cctChannel.getChannelSubSrv(proofRecord.channel,SRVID_GOODS);\n \n Goods(subSrv).buyCommit(cctTxHash, x);\n }else{\n require(false,\"\");\n }\n }\n proofRecord.status = ProofStatus.COMMIT;\n emit Commit(chainId,cctChannel.getChannelCrossChain(proofRecord.channel),proofRecord.pmId,proofRecord.channel,proofRecord.cctTxHash,SRVID,ENTRYMOD_EXCHANGEBUYCOMMIT,x);\n }"
+            },
+            {
+                "exchangeCommit": "function exchangeCommit(bytes32 cctTxHash, bytes32 x) public authorized returns(bool){\n bytes32 xHash = keccak256(abi.encodePacked(x));\n HTLCInfo storage htlc = htlcHistory[cctTxHash];\n if(htlc.xHash == 0x0 || htlc.xHash != xHash || htlc.expireTime < now || htlc.status != HTLCStatus.LOCKED){\n return false;\n }\n htlc.status = HTLCStatus.COMMIT;\n incomeMap[htlc.currencyToken] = SafeMath.add(incomeMap[htlc.currencyToken],htlc.originAmount);\n emit ExchangeCommit(cctTxHash);\n return true;\n }"
+            },
+            {
+                "buyCommit": "function buyCommit(bytes32 cctTxHash, bytes32 x) public authorized returns(bool){\n bytes32 xHash = keccak256(abi.encodePacked(x));\n HTLCInfo storage htlc = htlcHistory[cctTxHash];\n if(htlc.xHash == 0x0 || htlc.xHash != xHash || htlc.expireTime < now || htlc.status != HTLCStatus.LOCKED){\n return false;\n }\n htlc.status = HTLCStatus.COMMIT;\n emit GoodsCommit(cctTxHash);\n return true;\n }"
+            }
+        ],
+        "Commit2": [
+            {
+                "exchangeCommit": "function exchangeCommit(bytes32 cctTxHash, bytes32 x) public authorized returns(bool){\n bytes32 xHash = keccak256(abi.encodePacked(x));\n HTLCInfo storage htlc = htlcHistory[cctTxHash];\n if(htlc.xHash == 0x0 || htlc.xHash != xHash || htlc.expireTime < now || htlc.status != HTLCStatus.LOCKED){\n return false;\n }\n htlc.status = HTLCStatus.COMMIT;\n incomeMap[htlc.currencyToken] = SafeMath.add(incomeMap[htlc.currencyToken],htlc.originAmount);\n emit ExchangeCommit(cctTxHash);\n return true;\n }"
+            },
+            {
+                "buyCommit": "function buyCommit(bytes32 cctTxHash, bytes32 x) public authorized returns(bool){\n bytes32 xHash = keccak256(abi.encodePacked(x));\n HTLCInfo storage htlc = htlcHistory[cctTxHash];\n if(htlc.xHash == 0x0 || htlc.xHash != xHash || htlc.expireTime < now || htlc.status != HTLCStatus.LOCKED){\n return false;\n }\n htlc.status = HTLCStatus.COMMIT;\n emit GoodsCommit(cctTxHash);\n return true;\n }"
+            }
+        ],
+        "Revoke3": [
+            {
+                "exchangeRevoke": "function exchangeRevoke(bytes32 cctTxHash) public authorized returns(bool){\n \n HTLCInfo storage htlc = htlcHistory[cctTxHash];\n if(htlc.xHash == 0x0) return false;\n if(htlc.sender != msg.sender) return false;\n if(htlc.expireTime >= now) return false;\n if(htlc.status != HTLCStatus.LOCKED) return false;\n reserveFund[htlc.targetToken] = SafeMath.add(reserveFund[htlc.targetToken],htlc.targetAmount);\n htlc.status = HTLCStatus.REVOKE;\n emit ExchangeRevoke(cctTxHash);\n return true;\n }"
+            },
+            {
+                "buyRevoke": "function buyRevoke(bytes32 cctTxHash)public authorized returns(bool){\n \n HTLCInfo storage htlc = goodsLockMap[cctTxHash];\n if(htlc.xHash == 0x0) return false;\n if(htlc.sender != msg.sender) return false;\n if(htlc.expireTime >= now) return false;\n if(htlc.status != HTLCStatus.LOCKED) return false;\n goodsMap[htlc.goodsId] = SafeMath.add(goodsMap[htlc.goodsId], htlc.goodsAmount);\n htlc.status = HTLCStatus.REVOKE;\n emit GoodsRevoke(cctTxHash, htlc.goodsId, htlc.goodsReceiptor);\n return true;\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,1587 @@
+Sample 12 Error:
+Unterminated string starting at: line 92 column 5 (char 4056)
+Prompt:
+You are a smart contract security expert.
+
+Below is a group of smart contract functions and an analysis of their behavior.
+
+=== Smart Contract Functions ===
+def lock(toChainId, fromAddress, toAddress, amount):
+
+ """
+ decrease the btcx balance of 'fromAddress' in this contract, decrease the total supply.
+ request cross chain transaction from Ontology network to the 'toChainId' blockchain by sending serialized parameter to
+ Ontology Native contract method of 'createCrossChainTx'.
+ :param toChainId: indicates which blockchain 'fromAddress' wants to do cross chain transaction, in integer format.
+ :param fromAddress: indicates the requester of this crosschain transaction invocation, in Ontology address format
+ :param toAddress: indicates the address that will receive btcx asset in the 'toChainId' blockchain, in hex format,
+ if 'toAddress' belongs to Ethereum, we take the ethereum address and remove the '0x' then pass it as bytearray to contract
+ if 'toAddress' belongs to BitCoin, we take the btc address and force formating it to bytes and take the hex of bytes then pass it as bytearray to contract
+ :param amount: indicates how many btcx 'fromAddress' want to do cross chain transaction from Ontology to another chain, in integer format, should be >= minimum limit
+ :return:
+ """
+ btcRedeemScriptBytes = getBtcRedeemScript()
+ def getBtcRedeemScript(...) ...
+def getMinBackBTCLimit(...) ...
+def Sub(...) ...
+def balanceOf(...) ...
+def totalSupply(...) ...
+def getContractAddrWithChainId(...) ...
+def _serialzieArgs(...) ...
+assert(len(btcRedeemScriptBytes) != 0)
+ 
+ if toChainId == BTC_ChainId:
+ assert (amount >= getMinBackBTCLimit())
+ argsList = [toAddress, amount, btcRedeemScriptBytes]
+ else:
+ assert (amount >=0 and toChainId != ONT_ChainId)
+ argsList = [toAddress, amount]
+ 
+ assert (CheckWitness(fromAddress))
+ 
+ 
+ assert (len(toAddress) != 0)
+ 
+ Put(ctx, concat(BALANCE_KEY, fromAddress), Sub(balanceOf(fromAddress), amount))
+ 
+ Put(ctx, TOTAL_SUPPLY_KEY, Sub(totalSupply(), amount))
+
+ 
+
+
+ inputArgs = _serialzieArgs(argsList)
+
+ 
+ toAssetHash = getContractAddrWithChainId(toChainId)
+ assert(len(toAssetHash) != 0)
+ param = state(toChainId, toAssetHash, "unlock", inputArgs)
+ assert (Invoke(0, CROSS_CHAIN_CONTRACT_ADDRESS, "createCrossChainTx", param))
+ 
+ LockEvent(CONTRACT_ADDRESS, fromAddress, toChainId, toAssetHash, toAddress, amount)
+ return True
+
+
+
+function verifyHeaderAndExecuteTx(bytes memory proof, bytes memory rawHeader, bytes memory headerProof, bytes memory curRawHeader,bytes memory headerSig) whenNotPaused public returns (bool){
+ ECCUtils.Header memory header = ECCUtils.deserializeHeader(rawHeader);
+ 
+ IEthCrossChainData eccd = IEthCrossChainData(EthCrossChainDataAddress);
+ 
+ 
+ address[] memory polyChainBKs = ECCUtils.deserializeKeepers(eccd.getCurEpochConPubKeyBytes());
+
+ uint256 curEpochStartHeight = eccd.getCurEpochStartHeight();
+
+ uint n = polyChainBKs.length;
+ if (header.height >= curEpochStartHeight) {
+ 
+ require(ECCUtils.verifySig(rawHeader, headerSig, polyChainBKs, n - ( n - 1) / 3), "Verify poly chain header signature failed!");
+ } else {
+ 
+ require(ECCUtils.verifySig(curRawHeader, headerSig, polyChainBKs, n - ( n - 1) / 3), "Verify poly chain current epoch header signature failed!");
+
+ 
+ ECCUtils.Header memory curHeader = ECCUtils.deserializeHeader(curRawHeader);
+ bytes memory proveValue = ECCUtils.merkleProve(headerProof, curHeader.blockRoot);
+ require(ECCUtils.getHeaderHash(rawHeader) == Utils.bytesToBytes32(proveValue), "verify header proof failed!");
+ }
+ 
+ 
+ bytes memory toMerkleValueBs = ECCUtils.merkleProve(proof, header.crossStatesRoot);
+ 
+ 
+ ECCUtils.ToMerkleValue memory toMerkleValue = ECCUtils.deserializeMerkleValue(toMerkleValueBs);
+ require(!eccd.checkIfFromChainTxExist(toMerkleValue.fromChainID, Utils.bytesToBytes32(toMerkleValue.txHash)), "the transaction has been executed!");
+ require(eccd.markFromChainTxExist(toMerkleValue.fromChainID, Utils.bytesToBytes32(toMerkleValue.txHash)), "Save crosschain tx exist failed!");
+ 
+ 
+ require(toMerkleValue.makeTxParam.toChainId == uint64(2), "This Tx is not aiming at Ethereum network!");
+ 
+ 
+ address toContract = Utils.bytesToAddress(toMerkleValue.makeTxParam.toContract);
+ 
+ 
+ function _executeCrossChainTx(...) {...}
+require(_executeCrossChainTx(toContract, toMerkleValue.makeTxParam.method, toMerkleValue.makeTxParam.args, toMerkleValue.makeTxParam.fromContract, toMerkleValue.fromChainID), "Execute CrossChain Tx failed!");
+
+ 
+ 
+ emit VerifyHeaderAndExecuteTxEvent(toMerkleValue.fromChainID, toMerkleValue.makeTxParam.toContract, toMerkleValue.txHash, toMerkleValue.makeTxParam.txHash);
+
+ return true;
+ }
+
+function verifySig(bytes memory _rawHeader, bytes memory _sigList, address[] memory _keepers, uint _m) internal pure returns (bool){
+ bytes32 hash = getHeaderHash(_rawHeader);
+
+ uint sigCount = _sigList.length.div(POLYCHAIN_SIGNATURE_LEN);
+ address[] memory signers = new address[](sigCount);
+ bytes32 r;
+ bytes32 s;
+ uint8 v;
+ for(uint j = 0; j < sigCount; j++){
+ r = Utils.bytesToBytes32(Utils.slice(_sigList, j*POLYCHAIN_SIGNATURE_LEN, 32));
+ s = Utils.bytesToBytes32(Utils.slice(_sigList, j*POLYCHAIN_SIGNATURE_LEN + 32, 32));
+ v = uint8(_sigList[j*POLYCHAIN_SIGNATURE_LEN + 64]) + 27;
+ signers[j] = ecrecover(sha256(abi.encodePacked(hash)), v, r, s);
+ if (signers[j] == address(0)) return false;
+ }
+ return Utils.containMAddresses(_keepers, signers, _m);
+ }
+
+function merkleProve(bytes memory _auditPath, bytes32 _root) internal pure returns (bytes memory) {
+ uint256 off = 0;
+ bytes memory value;
+ (value, off) = ZeroCopySource.NextVarBytes(_auditPath, off);
+
+ bytes32 hash = Utils.hashLeaf(value);
+ uint size = _auditPath.length.sub(off).div(33);
+ bytes32 nodeHash;
+ byte pos;
+ for (uint i = 0; i < size; i++) {
+ (pos, off) = ZeroCopySource.NextByte(_auditPath, off);
+ (nodeHash, off) = ZeroCopySource.NextHash(_auditPath, off);
+ if (pos == 0x00) {
+ hash = Utils.hashChildren(nodeHash, hash);
+ } else if (pos == 0x01) {
+ hash = Utils.hashChildren(hash, nodeHash);
+ } else {
+ revert("merkleProve, NextByte for position info failed");
+ }
+ }
+ require(hash == _root, "merkleProve, expect root is not equal actual root");
+ return value;
+ }
+
+function _executeCrossChainTx(address _toContract, bytes memory _method, bytes memory _args, bytes memory _fromContractAddr, uint64 _fromChainId) internal returns (bool){
+ 
+ require(Utils.isContract(_toContract), "The passed in address is not a contract!");
+ bytes memory returnData;
+ bool success;
+ 
+ 
+ (success, returnData) = _toContract.call(abi.encodePacked(bytes4(keccak256(abi.encodePacked(_method, "(bytes,bytes,uint64)"))), abi.encode(_args, _fromContractAddr, _fromChainId)));
+ 
+ 
+ require(success == true, "EthCrossChain call business contract failed");
+ 
+ 
+ require(returnData.length != 0, "No return value from business contract!");
+ (bool res,) = ZeroCopySource.NextBool(returnData, 31);
+ require(res == true, "EthCrossChain call business contract return is not true");
+ 
+ return true;
+ }
+
+=== Analysis Detail ===
+The PolyNetwork attack exploited a critical flaw in the EthCrossChainManager contract, which failed to properly validate the `method` string in incoming cross-chain requests. By crafting a transaction from Ontology that appeared legitimate and passed through PolyChain, the attacker called `putCurEpochConPubKeyBytes` on the Ethereum-side EthCrossChainData contract. This replaced the authorized keeper public keys with attacker-controlled keys. Subsequent fake transactions using forged signatures were accepted, leading to unauthorized asset minting and withdrawal across multiple blockchains. The exploit occurred because there was no method whitelist or contract-level access control on cross-chain delegated calls.
+
+=== Task ===
+
+1. Perform a step-by-step security audit from Step 1 to Step 5. Use the following strict format:
+   - **Step 1: Behavior Summary**
+     Briefly summarize what each function does. Be factual and direct.
+   - **Step 2: Security-Critical Logic**
+     List key operations such as external calls, token transfers, access control, state changes, or signature verifications.
+   - **Step 3: Assumptions**
+     Identify critical assumptions made by the contract (e.g. input correctness, token behavior, caller trust, external contract reliability).
+   - **Step 4: Assumption Enforcement**
+     For each assumption, clearly state whether it is enforced by the contract code (e.g. `require`) or left unchecked.
+   - **Step 5: Vulnerability Conclusion**
+     Decide whether a vulnerability exists. If so, explain the exact reason, without rhetorical or emotional language. Only use factual, causal, or conditional reasoning.
+
+**Important**:
+- Do NOT skip any step. Output all 5 steps in your answer, even if a step has no content (write `"Step X: None"`).
+- Avoid using rhetorical connectors like “however”, “but”, “actually”, “in fact”, “instead”. Your tone should be formal and analytical.
+- Use only logical deduction and avoid speculation.
+
+Label this structured reasoning section as `"CoT"`.
+
+2. Extract the core logic relevant to potential vulnerabilities in **code-style pseudocode**:
+  - Preserve the original `function xxx(...) { ... }` syntax
+  - Retain critical operations such as: state updates, external calls, permission checks, and signature verifications
+  - Remove boilerplate code, logging, comments, and unrelated internal calculations
+  - Keep the output short, clean, and readable
+
+3. If a vulnerability is found (label is 'Yes'), summarize a **generalized security rule** that applies to similar situations. Do not refer to specific function or variable names. Return the rule as a JSON object with the following keys:
+  - "pattern": the kind of logic or structure this rule applies to
+  - "issue": what the general security risk is
+  - "recommendation": how this type of issue can be avoided or mitigated
+
+If the label is 'No', **do not fabricate a rule** — return an empty object: {}
+
+Ensure your final answer is valid JSON. Do not include extra text, comments, or explanations outside the JSON.
+
+Return your output as a valid JSON object. Enclose all string values in double quotes. Escape internal quotes or special characters as needed.
+
+For example:
+{
+  "CoT": "Step-by-step reasoning here...",
+  "functions": [
+    "function example(...) {
+  if (x > 0) { ... }
+}"
+  ],
+  "label": "Yes",
+  "rule": {
+    "pattern": "...",
+    "issue": "...",
+    "recommendation": "..."
+  }
+}
+
+
+================================================================================
+Sample 20 Error:
+Unterminated string starting at: line 7 column 5 (char 3158)
+Prompt:
+You are a smart contract security expert.
+
+Below is a group of smart contract functions and an analysis of their behavior.
+
+=== Smart Contract Functions ===
+function deposit(address payable vault, address asset, uint amount, string memory memo) external payable {
+ uint safeAmount;
+ if(asset == address(0)){
+ safeAmount = msg.value;
+ (bool success, bytes memory data) = vault.call{value:safeAmount}("");
+ require(success && (data.length == 0 || abi.decode(data, (bool))));
+ } else if(asset == RUNE) {
+ safeAmount = amount;
+ iRUNE(RUNE).transferTo(address(this), amount);
+ iERC20(RUNE).burn(amount);
+ } else {
+ safeAmount = safeTransferFrom(asset, amount); 
+ vaultAllowance[vault][asset] += safeAmount; 
+ }
+ emit Deposit(vault, asset, safeAmount, memo);
+ }
+
+function safeTransferFrom(address _asset, uint _amount) internal returns(uint amount) {
+ uint _startBal = iERC20(_asset).balanceOf(address(this));
+ (bool success, bytes memory data) = _asset.call(abi.encodeWithSelector(0x23b872dd, msg.sender, address(this), _amount));
+ require(success && (data.length == 0 || abi.decode(data, (bool))));
+ return (iERC20(_asset).balanceOf(address(this)) - _startBal);
+ }
+
+function returnVaultAssets(address router, address payable asgard, Coin[] memory coins, string memory memo) external payable {
+ if (router == address(this)){
+ for(uint i = 0; i < coins.length; i++){
+ _adjustAllowances(asgard, coins[i].asset, coins[i].amount);
+ }
+ emit VaultTransfer(msg.sender, asgard, coins, memo); 
+ } else {
+ for(uint i = 0; i < coins.length; i++){
+ _routerDeposit(router, asgard, coins[i].asset, coins[i].amount, memo);
+ }
+ }
+ (bool success, bytes memory data) = asgard.call{value:msg.value}(""); 
+ require(success && (data.length == 0 || abi.decode(data, (bool))));
+ }
+
+function _routerDeposit(address _router, address _vault, address _asset, uint _amount, string memory _memo) internal {
+ vaultAllowance[msg.sender][_asset] -= _amount;
+ require(iERC20(_asset).approve(_router, _amount)); 
+ function deposit(...) {...}
+iROUTER(_router).deposit(_vault, _asset, _amount, _memo); 
+ }
+
+=== Analysis Detail ===
+The attacker invoked the THORChain Router contract's deposit method via a malicious contract, passing an amount of 0. Then, the attacker initiated a transaction to call the malicious contract, setting a non-zero msg.value in the transaction. Due to a flaw in THORChain's code, the system used the msg.value from the transaction instead of the amount parameter in the deposit function when determining the deposit value. This allowed the attacker to fake a deposit and receive assets without actually transferring any real funds.
+
+=== Task ===
+
+1. Perform a step-by-step security audit from Step 1 to Step 5. Use the following strict format:
+   - **Step 1: Behavior Summary**
+     Briefly summarize what each function does. Be factual and direct.
+   - **Step 2: Security-Critical Logic**
+     List key operations such as external calls, token transfers, access control, state changes, or signature verifications.
+   - **Step 3: Assumptions**
+     Identify critical assumptions made by the contract (e.g. input correctness, token behavior, caller trust, external contract reliability).
+   - **Step 4: Assumption Enforcement**
+     For each assumption, clearly state whether it is enforced by the contract code (e.g. `require`) or left unchecked.
+   - **Step 5: Vulnerability Conclusion**
+     Decide whether a vulnerability exists. If so, explain the exact reason, without rhetorical or emotional language. Only use factual, causal, or conditional reasoning.
+
+**Important**:
+- Do NOT skip any step. Output all 5 steps in your answer, even if a step has no content (write `"Step X: None"`).
+- Avoid using rhetorical connectors like “however”, “but”, “actually”, “in fact”, “instead”. Your tone should be formal and analytical.
+- Use only logical deduction and avoid speculation.
+
+Label this structured reasoning section as `"CoT"`.
+
+2. Extract the core logic relevant to potential vulnerabilities in **code-style pseudocode**:
+  - Preserve the original `function xxx(...) { ... }` syntax
+  - Retain critical operations such as: state updates, external calls, permission checks, and signature verifications
+  - Remove boilerplate code, logging, comments, and unrelated internal calculations
+  - Keep the output short, clean, and readable
+
+3. If a vulnerability is found (label is 'Yes'), summarize a **generalized security rule** that applies to similar situations. Do not refer to specific function or variable names. Return the rule as a JSON object with the following keys:
+  - "pattern": the kind of logic or structure this rule applies to
+  - "issue": what the general security risk is
+  - "recommendation": how this type of issue can be avoided or mitigated
+
+If the label is 'No', **do not fabricate a rule** — return an empty object: {}
+
+Ensure your final answer is valid JSON. Do not include extra text, comments, or explanations outside the JSON.
+
+Return your output as a valid JSON object. Enclose all string values in double quotes. Escape internal quotes or special characters as needed.
+
+For example:
+{
+  "CoT": "Step-by-step reasoning here...",
+  "functions": [
+    "function example(...) {
+  if (x > 0) { ... }
+}"
+  ],
+  "label": "Yes",
+  "rule": {
+    "pattern": "...",
+    "issue": "...",
+    "recommendation": "..."
+  }
+}
+
+
+================================================================================
+Sample 21 Error:
+Unterminated string starting at: line 7 column 5 (char 3063)
+Prompt:
+You are a smart contract security expert.
+
+Below is a group of smart contract functions and an analysis of their behavior.
+
+=== Smart Contract Functions ===
+func (e *ETHScanner) FetchTxs(height int64) (stypes.TxIn, error) {
+	block, err := e.getRPCBlock(height)
+	if err != nil {
+		return stypes.TxIn{}, err
+	}
+
+	func processBlock(...) {...}
+txIn, err := e.processBlock(block)
+	if err != nil {
+		e.logger.Error().Err(err).Int64("height", height).Msg("fail to search tx in block")
+		return stypes.TxIn{}, fmt.Errorf("fail to process block: %d, err:%w", height, err)
+	}
+	
+	
+	blockMeta := types.NewBlockMeta(block.Header(), txIn)
+	if err := e.blockMetaAccessor.SaveBlockMeta(blockMeta.Height, blockMeta); err != nil {
+		e.logger.Err(err).Msgf("fail to save block meta of height: %d ", blockMeta.Height)
+	}
+
+	e.currentBlockHeight = height
+	pruneHeight := height - BlockCacheSize
+	if pruneHeight > 0 {
+		defer func() {
+			if err := e.blockMetaAccessor.PruneBlockMeta(pruneHeight); err != nil {
+				e.logger.Err(err).Msgf("fail to prune block meta, height(%d)", pruneHeight)
+			}
+		}()
+	}
+
+	if e.gasPriceChanged {
+		
+		gasPrice := e.GetGasPrice() 
+		
+		gasPriceForThorchain := big.NewInt(0).Div(gasPrice, big.NewInt(common.One*100))
+		gasValue := gasPriceForThorchain.Uint64()
+		if gasValue == 0 {
+			gasValue = 1
+		}
+		
+		if big.NewInt(1).Mul(big.NewInt(int64(gasValue)), big.NewInt(common.One*100)).Cmp(gasPrice) < 0 {
+			gasValue++
+		}
+		
+		if gasValue != e.lastReportedGasPrice {
+			e.lastReportedGasPrice = gasValue
+			if _, err := e.bridge.PostNetworkFee(height, common.ETHChain, MaxContractGas, gasValue); err != nil {
+				e.logger.Err(err).Msg("fail to post ETH chain single transfer fee to THORNode")
+			}
+		}
+	}
+	return txIn, nil
+}
+
+func (e *ETHScanner) processBlock(block *etypes.Block) (stypes.TxIn, error) {
+	height := int64(block.NumberU64())
+	txIn := stypes.TxIn{
+		Chain: common.ETHChain,
+		TxArray: nil,
+		Filtered: false,
+		MemPool: false,
+		SentUnFinalised: false,
+		Finalised: false,
+	}
+	
+	e.updateGasPrice()
+	func processReorg(...) {...}
+func extractTxs(...) {...}
+reorgedTxIns, err := e.processReorg(block.Header())
+	if err != nil {
+		e.logger.Error().Err(err).Msgf("fail to process reorg for block %d", height)
+		return txIn, err
+	}
+	if len(reorgedTxIns) > 0 {
+		for _, item := range reorgedTxIns {
+			if len(item.TxArray) == 0 {
+				continue
+			}
+			txIn.TxArray = append(txIn.TxArray, item.TxArray...)
+		}
+	}
+
+	if block.Transactions().Len() == 0 {
+		return txIn, nil
+	}
+
+	txInBlock, err := e.extractTxs(block)
+	if err != nil {
+		return txIn, err
+	}
+	if len(txInBlock.TxArray) > 0 {
+		txIn.TxArray = append(txIn.TxArray, txInBlock.TxArray...)
+	}
+	return txIn, nil
+}
+
+func (e *ETHScanner) extractTxs(block *etypes.Block) (stypes.TxIn, error) {
+	txInbound := stypes.TxIn{
+		Chain: common.ETHChain,
+		Filtered: false,
+		MemPool: false,
+	}
+
+	for _, tx := range block.Transactions() {
+		if tx.To() == nil {
+			continue
+		}
+		
+		
+		
+		if err := e.blockMetaAccessor.RemoveSignedTxItem(tx.Hash().String()); err != nil {
+			e.logger.Err(err).Msgf("fail to remove signed tx item, hash:%s", tx.Hash().String())
+		}
+		func fromTxToTxIn(...) {...}
+txInItem, err := e.fromTxToTxIn(tx)
+		if err != nil {
+			e.logger.Error().Err(err).Str("hash", tx.Hash().Hex()).Msg("fail to get one tx from server")
+			
+			
+			if errors.Is(err, etypes.ErrInvalidChainId) {
+				continue
+			}
+			e.errCounter.WithLabelValues("fail_get_tx", "").Inc()
+			
+			
+			return stypes.TxIn{}, fmt.Errorf("fail to get one tx from server: %w", err)
+		}
+		if txInItem == nil {
+			continue
+		}
+		
+		if len(txInItem.To) == 0 {
+			continue
+		}
+		if len([]byte(txInItem.Memo)) > constants.MaxMemoSize {
+			continue
+		}
+		txInItem.BlockHeight = block.Number().Int64()
+		txInbound.TxArray = append(txInbound.TxArray, *txInItem)
+		e.logger.Debug().Str("hash", tx.Hash().Hex()).Msgf("%s got %d tx", e.cfg.ChainID, 1)
+
+	}
+	if len(txInbound.TxArray) == 0 {
+		e.logger.Info().Int64("block", int64(block.NumberU64())).Msg("no tx need to be processed in this block")
+		return stypes.TxIn{}, nil
+	}
+	txInbound.Count = strconv.Itoa(len(txInbound.TxArray))
+	e.logger.Debug().Int64("block", int64(block.NumberU64())).Msgf("there are %s tx in this block need to process", txInbound.Count)
+	return txInbound, nil
+}
+
+func (e *ETHScanner) fromTxToTxIn(tx *etypes.Transaction) (*stypes.TxInItem, error) {
+	if tx == nil || tx.To() == nil {
+		return nil, nil
+	}
+	receipt, err := e.getReceipt(tx.Hash().Hex())
+	if err != nil {
+		if errors.Is(err, ethereum.NotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("fail to get transaction receipt: %w", err)
+	}
+	if receipt.Status != 1 {
+		e.logger.Debug().Msgf("tx(%s) state: %d means failed , ignore", tx.Hash().String(), receipt.Status)
+		return nil, nil
+	}
+	func isToSmartContract(...) {...}
+func getTxInFromSmartContract(...) {...}
+func getTxInFromTransaction(...) {...}
+smartContract := e.isToSmartContract(receipt)
+	if smartContract {
+		return e.getTxInFromSmartContract(tx, receipt)
+	}
+	return e.getTxInFromTransaction(tx)
+}
+
+func (e *ETHScanner) getTxInFromSmartContract(tx *etypes.Transaction, receipt *etypes.Receipt) (*stypes.TxInItem, error) {
+	e.logger.Debug().Msg("parse tx from smart contract")
+	txInItem := &stypes.TxInItem{
+		Tx: tx.Hash().Hex()[2:],
+	}
+	sender, err := e.eipSigner.Sender(tx)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get sender: %w", err)
+	}
+	txInItem.Sender = strings.ToLower(sender.String())
+	
+	if receipt.Status != 1 {
+		e.logger.Info().Msgf("tx(%s) state: %d means failed , ignore", tx.Hash().String(), receipt.Status)
+		return nil, nil
+	}
+	for _, item := range receipt.Logs {
+		switch item.Topics[0].String() {
+		case depositEvent:
+			depositEvt, err := e.parseDeposit(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse deposit event: %w", err)
+			}
+			e.logger.Info().Msgf("deposit:%+v", depositEvt)
+			txInItem.To = depositEvt.To.String()
+			txInItem.Memo = depositEvt.Memo
+			func getAssetFromTokenAddress(...) {...}
+asset, err := e.getAssetFromTokenAddress(depositEvt.Asset.String())
+			if err != nil {
+				return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+			}
+			decimals := e.getTokenDecimalsForTHORChain(depositEvt.Asset.String())
+			e.logger.Info().Msgf("token:%s,decimals:%d", depositEvt.Asset, decimals)
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(depositEvt.Asset.String(), depositEvt.Amount)).WithDecimals(decimals))
+		case transferOutEvent:
+			transferOutEvt, err := e.parseTransferOut(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse transfer out event: %w", err)
+			}
+			e.logger.Info().Msgf("transfer out: %+v", transferOutEvt)
+			txInItem.Sender = transferOutEvt.Vault.String()
+			txInItem.To = transferOutEvt.To.String()
+			txInItem.Memo = transferOutEvt.Memo
+			asset, err := e.getAssetFromTokenAddress(transferOutEvt.Asset.String())
+			if err != nil {
+				return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+			}
+			decimals := e.getTokenDecimalsForTHORChain(transferOutEvt.Asset.String())
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(transferOutEvt.Asset.String(), transferOutEvt.Amount)).WithDecimals(decimals))
+		case transferAllowanceEvent:
+			transferAllowanceEvt, err := e.parseTransferAllowanceEvent(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse transfer allowance event: %w", err)
+			}
+			e.logger.Info().Msgf("transfer allowance: %+v", transferAllowanceEvt)
+			txInItem.Sender = transferAllowanceEvt.OldVault.String()
+			txInItem.To = transferAllowanceEvt.NewVault.String()
+			txInItem.Memo = transferAllowanceEvt.Memo
+			asset, err := e.getAssetFromTokenAddress(transferAllowanceEvt.Asset.String())
+			if err != nil {
+				return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+			}
+			decimals := e.getTokenDecimalsForTHORChain(transferAllowanceEvt.Asset.String())
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(transferAllowanceEvt.Asset.String(), transferAllowanceEvt.Amount)).WithDecimals(decimals))
+		case vaultTransferEvent:
+			transferEvent, err := e.parseVaultTransfer(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse vault transfer event: %w", err)
+			}
+			e.logger.Info().Msgf("vault transfer: %+v", transferEvent)
+			txInItem.Sender = transferEvent.OldVault.String()
+			txInItem.To = transferEvent.NewVault.String()
+			txInItem.Memo = transferEvent.Memo
+			for _, item := range transferEvent.Coins {
+				asset, err := e.getAssetFromTokenAddress(item.Asset.String())
+				if err != nil {
+					return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+				}
+				decimals := e.getTokenDecimalsForTHORChain(item.Asset.String())
+				txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(item.Asset.String(), item.Amount)).WithDecimals(decimals))
+			}
+		}
+	}
+	
+	ethValue := cosmos.NewUintFromBigInt(tx.Value())
+	if !ethValue.IsZero() {
+		ethValue = e.convertAmount(ethToken, tx.Value())
+		if txInItem.Coins.GetCoin(common.ETHAsset).IsEmpty() && !ethValue.IsZero() {
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(common.ETHAsset, ethValue))
+		}
+	}
+	e.logger.Info().Msgf("tx: %s, gas price: %s, gas used: %d,receipt status:%d", txInItem.Tx, tx.GasPrice().String(), receipt.GasUsed, receipt.Status)
+	
+	txGasPrice := tx.GasPrice()
+	if txGasPrice.Cmp(big.NewInt(tenGwei)) < 0 {
+		txGasPrice = big.NewInt(tenGwei)
+	}
+	txInItem.Gas = common.MakeETHGas(txGasPrice, receipt.GasUsed)
+	if txInItem.Coins.IsEmpty() {
+		e.logger.Debug().Msgf("there is no coin in this tx, ignore, %+v", txInItem)
+		return nil, nil
+	}
+	e.logger.Debug().Msgf("tx in item: %+v", txInItem)
+	return txInItem, nil
+}
+
+func (e *ETHScanner) getAssetFromTokenAddress(token string) (common.Asset, error) {
+	if IsETH(token) {
+		return common.ETHAsset, nil
+	}
+	func getTokenMeta(...) {...}
+tokenMeta, err := e.getTokenMeta(token)
+	if err != nil {
+		return common.EmptyAsset, fmt.Errorf("fail to get token meta: %w", err)
+	}
+	asset := common.ETHAsset
+	if tokenMeta.Symbol != common.ETHChain.String() {
+		asset, err = common.NewAsset(fmt.Sprintf("ETH.%s-%s", tokenMeta.Symbol, strings.ToUpper(tokenMeta.Address)))
+		if err != nil {
+			return common.EmptyAsset, fmt.Errorf("fail to create asset: %w", err)
+		}
+	}
+	return asset, nil
+}
+
+func (e *ETHScanner) getTokenMeta(token string) (types.TokenMeta, error) {
+	tokenMeta, err := e.tokens.GetTokenMeta(token)
+	if err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to get token meta: %w", err)
+	}
+	if tokenMeta.IsEmpty() {
+		func getSymbol(...) {...}
+symbol, err := e.getSymbol(token)
+		if err != nil {
+			return types.TokenMeta{}, fmt.Errorf("fail to get symbol: %w", err)
+		}
+		decimals, err := e.getDecimals(token)
+		if err != nil {
+			e.logger.Err(err).Msgf("fail to get decimals from smart contract, default to: %d", defaultDecimals)
+		}
+		e.logger.Info().Msgf("token:%s, decimals: %d", token, decimals)
+		tokenMeta = types.NewTokenMeta(symbol, token, decimals)
+		if err = e.tokens.SaveTokenMeta(symbol, token, decimals); err != nil {
+			return types.TokenMeta{}, fmt.Errorf("fail to save token meta: %w", err)
+		}
+	}
+	return tokenMeta, nil
+}
+
+func (t *LevelDBTokenMeta) GetTokenMeta(address string) (types.TokenMeta, error) {
+	func getTokenMetaKey(...) {...}
+key := t.getTokenMetaKey(address)
+	exist, err := t.db.Has([]byte(key), nil)
+	if err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to check whether token meta(%s) exist: %w", key, err)
+	}
+	if !exist {
+		return types.TokenMeta{}, nil
+	}
+	v, err := t.db.Get([]byte(key), nil)
+	if err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to get token meta(%s) from storage: %w", key, err)
+	}
+	var tm types.TokenMeta
+	if err := json.Unmarshal(v, &tm); err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to unmarshal token meta from json: %w", err)
+	}
+	return tm, nil
+}
+
+func (e *ETHScanner) getSymbol(token string) (string, error) {
+	if IsETH(token) {
+		return "ETH", nil
+	}
+	to := ecommon.HexToAddress(token)
+	input, err := e.erc20ABI.Pack(symbolMethod)
+	if err != nil {
+		return "", nil
+	}
+	ctx, cancel := e.getContext()
+	defer cancel()
+	res, err := e.client.CallContract(ctx, ethereum.CallMsg{
+		To: &to,
+		Data: input,
+	}, nil)
+	if err != nil {
+		return "", fmt.Errorf("fail to call to smart contract and get symbol: %w", err)
+	}
+	output, err := e.erc20ABI.Unpack(symbolMethod, res)
+	if err != nil {
+		return "", fmt.Errorf("fail to unpack symbol method call: %w", err)
+	}
+	symbol := *abi.ConvertType(output[0], new(string)).(*string)
+	return sanitiseSymbol(symbol), nil
+}
+
+func (t *LevelDBTokenMeta) SaveTokenMeta(symbol, address string, decimals uint64) error {
+	func getTokenMetaKey(...) {...}
+key := t.getTokenMetaKey(address)
+	tokenMeta := types.NewTokenMeta(symbol, address, decimals)
+	buf, err := json.Marshal(tokenMeta)
+	if err != nil {
+		return fmt.Errorf("fail to marshal token meta to json: %w", err)
+	}
+	return t.db.Put([]byte(key), buf, nil)
+}
+
+func (e *ETHScanner) getTxInFromTransaction(tx *etypes.Transaction) (*stypes.TxInItem, error) {
+	txInItem := &stypes.TxInItem{
+		Tx: tx.Hash().Hex()[2:],
+	}
+	asset := common.ETHAsset
+	sender, err := e.eipSigner.Sender(tx)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get sender: %w", err)
+	}
+	txInItem.Sender = strings.ToLower(sender.String())
+	txInItem.To = strings.ToLower(tx.To().String())
+	
+	data := tx.Data()
+	if len(data) > 0 {
+		memo, err := hex.DecodeString(string(data))
+		if err != nil {
+			txInItem.Memo = string(data)
+		} else {
+			txInItem.Memo = string(memo)
+		}
+	}
+	ethValue := e.convertAmount(ethToken, tx.Value())
+	txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, ethValue))
+	txGasPrice := tx.GasPrice()
+	if txGasPrice.Cmp(big.NewInt(tenGwei)) < 0 {
+		txGasPrice = big.NewInt(tenGwei)
+	}
+	txInItem.Gas = common.MakeETHGas(txGasPrice, tx.Gas())
+	if txInItem.Coins.IsEmpty() {
+		e.logger.Debug().Msgf("there is no coin in this tx, ignore, %+v", txInItem)
+		return nil, nil
+	}
+	return txInItem, nil
+}
+
+=== Analysis Detail ===
+No known vulnerability found in this function group.
+
+=== Task ===
+
+1. Perform a step-by-step security audit from Step 1 to Step 5. Use the following strict format:
+   - **Step 1: Behavior Summary**
+     Briefly summarize what each function does. Be factual and direct.
+   - **Step 2: Security-Critical Logic**
+     List key operations such as external calls, token transfers, access control, state changes, or signature verifications.
+   - **Step 3: Assumptions**
+     Identify critical assumptions made by the contract (e.g. input correctness, token behavior, caller trust, external contract reliability).
+   - **Step 4: Assumption Enforcement**
+     For each assumption, clearly state whether it is enforced by the contract code (e.g. `require`) or left unchecked.
+   - **Step 5: Vulnerability Conclusion**
+     Decide whether a vulnerability exists. If so, explain the exact reason, without rhetorical or emotional language. Only use factual, causal, or conditional reasoning.
+
+**Important**:
+- Do NOT skip any step. Output all 5 steps in your answer, even if a step has no content (write `"Step X: None"`).
+- Avoid using rhetorical connectors like “however”, “but”, “actually”, “in fact”, “instead”. Your tone should be formal and analytical.
+- Use only logical deduction and avoid speculation.
+
+Label this structured reasoning section as `"CoT"`.
+
+2. Extract the core logic relevant to potential vulnerabilities in **code-style pseudocode**:
+  - Preserve the original `function xxx(...) { ... }` syntax
+  - Retain critical operations such as: state updates, external calls, permission checks, and signature verifications
+  - Remove boilerplate code, logging, comments, and unrelated internal calculations
+  - Keep the output short, clean, and readable
+
+3. If a vulnerability is found (label is 'Yes'), summarize a **generalized security rule** that applies to similar situations. Do not refer to specific function or variable names. Return the rule as a JSON object with the following keys:
+  - "pattern": the kind of logic or structure this rule applies to
+  - "issue": what the general security risk is
+  - "recommendation": how this type of issue can be avoided or mitigated
+
+If the label is 'No', **do not fabricate a rule** — return an empty object: {}
+
+Ensure your final answer is valid JSON. Do not include extra text, comments, or explanations outside the JSON.
+
+Return your output as a valid JSON object. Enclose all string values in double quotes. Escape internal quotes or special characters as needed.
+
+For example:
+{
+  "CoT": "Step-by-step reasoning here...",
+  "functions": [
+    "function example(...) {
+  if (x > 0) { ... }
+}"
+  ],
+  "label": "No",
+  "rule": {
+    "pattern": "...",
+    "issue": "...",
+    "recommendation": "..."
+  }
+}
+
+
+================================================================================
+Sample 23 Error:
+Unterminated string starting at: line 8 column 5 (char 2981)
+Prompt:
+You are a smart contract security expert.
+
+Below is a group of smart contract functions and an analysis of their behavior.
+
+=== Smart Contract Functions ===
+func (e *ETHScanner) FetchTxs(height int64) (stypes.TxIn, error) {
+	block, err := e.getRPCBlock(height)
+	if err != nil {
+		return stypes.TxIn{}, err
+	}
+
+	func processBlock(...) {...}
+txIn, err := e.processBlock(block)
+	if err != nil {
+		e.logger.Error().Err(err).Int64("height", height).Msg("fail to search tx in block")
+		return stypes.TxIn{}, fmt.Errorf("fail to process block: %d, err:%w", height, err)
+	}
+	
+	
+	blockMeta := types.NewBlockMeta(block.Header(), txIn)
+	if err := e.blockMetaAccessor.SaveBlockMeta(blockMeta.Height, blockMeta); err != nil {
+		e.logger.Err(err).Msgf("fail to save block meta of height: %d ", blockMeta.Height)
+	}
+
+	e.currentBlockHeight = height
+	pruneHeight := height - BlockCacheSize
+	if pruneHeight > 0 {
+		defer func() {
+			if err := e.blockMetaAccessor.PruneBlockMeta(pruneHeight); err != nil {
+				e.logger.Err(err).Msgf("fail to prune block meta, height(%d)", pruneHeight)
+			}
+		}()
+	}
+
+	if e.gasPriceChanged {
+		
+		gasPrice := e.GetGasPrice() 
+		
+		gasPriceForThorchain := big.NewInt(0).Div(gasPrice, big.NewInt(common.One*100))
+		gasValue := gasPriceForThorchain.Uint64()
+		if gasValue == 0 {
+			gasValue = 1
+		}
+		
+		if big.NewInt(1).Mul(big.NewInt(int64(gasValue)), big.NewInt(common.One*100)).Cmp(gasPrice) < 0 {
+			gasValue++
+		}
+		
+		if gasValue != e.lastReportedGasPrice {
+			e.lastReportedGasPrice = gasValue
+			if _, err := e.bridge.PostNetworkFee(height, common.ETHChain, MaxContractGas, gasValue); err != nil {
+				e.logger.Err(err).Msg("fail to post ETH chain single transfer fee to THORNode")
+			}
+		}
+	}
+	return txIn, nil
+}
+
+func (e *ETHScanner) processBlock(block *etypes.Block) (stypes.TxIn, error) {
+	height := int64(block.NumberU64())
+	txIn := stypes.TxIn{
+		Chain: common.ETHChain,
+		TxArray: nil,
+		Filtered: false,
+		MemPool: false,
+		SentUnFinalised: false,
+		Finalised: false,
+	}
+	
+	e.updateGasPrice()
+	func processReorg(...) {...}
+func extractTxs(...) {...}
+reorgedTxIns, err := e.processReorg(block.Header())
+	if err != nil {
+		e.logger.Error().Err(err).Msgf("fail to process reorg for block %d", height)
+		return txIn, err
+	}
+	if len(reorgedTxIns) > 0 {
+		for _, item := range reorgedTxIns {
+			if len(item.TxArray) == 0 {
+				continue
+			}
+			txIn.TxArray = append(txIn.TxArray, item.TxArray...)
+		}
+	}
+
+	if block.Transactions().Len() == 0 {
+		return txIn, nil
+	}
+
+	txInBlock, err := e.extractTxs(block)
+	if err != nil {
+		return txIn, err
+	}
+	if len(txInBlock.TxArray) > 0 {
+		txIn.TxArray = append(txIn.TxArray, txInBlock.TxArray...)
+	}
+	return txIn, nil
+}
+
+func (e *ETHScanner) extractTxs(block *etypes.Block) (stypes.TxIn, error) {
+	txInbound := stypes.TxIn{
+		Chain: common.ETHChain,
+		Filtered: false,
+		MemPool: false,
+	}
+
+	for _, tx := range block.Transactions() {
+		if tx.To() == nil {
+			continue
+		}
+		
+		
+		
+		if err := e.blockMetaAccessor.RemoveSignedTxItem(tx.Hash().String()); err != nil {
+			e.logger.Err(err).Msgf("fail to remove signed tx item, hash:%s", tx.Hash().String())
+		}
+		func fromTxToTxIn(...) {...}
+txInItem, err := e.fromTxToTxIn(tx)
+		if err != nil {
+			e.logger.Error().Err(err).Str("hash", tx.Hash().Hex()).Msg("fail to get one tx from server")
+			
+			
+			if errors.Is(err, etypes.ErrInvalidChainId) {
+				continue
+			}
+			e.errCounter.WithLabelValues("fail_get_tx", "").Inc()
+			
+			
+			return stypes.TxIn{}, fmt.Errorf("fail to get one tx from server: %w", err)
+		}
+		if txInItem == nil {
+			continue
+		}
+		
+		if len(txInItem.To) == 0 {
+			continue
+		}
+		if len([]byte(txInItem.Memo)) > constants.MaxMemoSize {
+			continue
+		}
+		txInItem.BlockHeight = block.Number().Int64()
+		txInbound.TxArray = append(txInbound.TxArray, *txInItem)
+		e.logger.Debug().Str("hash", tx.Hash().Hex()).Msgf("%s got %d tx", e.cfg.ChainID, 1)
+
+	}
+	if len(txInbound.TxArray) == 0 {
+		e.logger.Info().Int64("block", int64(block.NumberU64())).Msg("no tx need to be processed in this block")
+		return stypes.TxIn{}, nil
+	}
+	txInbound.Count = strconv.Itoa(len(txInbound.TxArray))
+	e.logger.Debug().Int64("block", int64(block.NumberU64())).Msgf("there are %s tx in this block need to process", txInbound.Count)
+	return txInbound, nil
+}
+
+func (e *ETHScanner) fromTxToTxIn(tx *etypes.Transaction) (*stypes.TxInItem, error) {
+	if tx == nil || tx.To() == nil {
+		return nil, nil
+	}
+	receipt, err := e.getReceipt(tx.Hash().Hex())
+	if err != nil {
+		if errors.Is(err, ethereum.NotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("fail to get transaction receipt: %w", err)
+	}
+	if receipt.Status != 1 {
+		e.logger.Debug().Msgf("tx(%s) state: %d means failed , ignore", tx.Hash().String(), receipt.Status)
+		return nil, nil
+	}
+	func isToSmartContract(...) {...}
+func getTxInFromSmartContract(...) {...}
+func getTxInFromTransaction(...) {...}
+smartContract := e.isToSmartContract(receipt)
+	if smartContract {
+		return e.getTxInFromSmartContract(tx, receipt)
+	}
+	return e.getTxInFromTransaction(tx)
+}
+
+func (e *ETHScanner) getTxInFromSmartContract(tx *etypes.Transaction, receipt *etypes.Receipt) (*stypes.TxInItem, error) {
+	e.logger.Debug().Msg("parse tx from smart contract")
+	txInItem := &stypes.TxInItem{
+		Tx: tx.Hash().Hex()[2:],
+	}
+	sender, err := e.eipSigner.Sender(tx)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get sender: %w", err)
+	}
+	txInItem.Sender = strings.ToLower(sender.String())
+	
+	if receipt.Status != 1 {
+		e.logger.Info().Msgf("tx(%s) state: %d means failed , ignore", tx.Hash().String(), receipt.Status)
+		return nil, nil
+	}
+	for _, item := range receipt.Logs {
+		switch item.Topics[0].String() {
+		case depositEvent:
+			depositEvt, err := e.parseDeposit(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse deposit event: %w", err)
+			}
+			e.logger.Info().Msgf("deposit:%+v", depositEvt)
+			txInItem.To = depositEvt.To.String()
+			txInItem.Memo = depositEvt.Memo
+			func getAssetFromTokenAddress(...) {...}
+asset, err := e.getAssetFromTokenAddress(depositEvt.Asset.String())
+			if err != nil {
+				return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+			}
+			decimals := e.getTokenDecimalsForTHORChain(depositEvt.Asset.String())
+			e.logger.Info().Msgf("token:%s,decimals:%d", depositEvt.Asset, decimals)
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(depositEvt.Asset.String(), depositEvt.Amount)).WithDecimals(decimals))
+		case transferOutEvent:
+			transferOutEvt, err := e.parseTransferOut(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse transfer out event: %w", err)
+			}
+			e.logger.Info().Msgf("transfer out: %+v", transferOutEvt)
+			txInItem.Sender = transferOutEvt.Vault.String()
+			txInItem.To = transferOutEvt.To.String()
+			txInItem.Memo = transferOutEvt.Memo
+			asset, err := e.getAssetFromTokenAddress(transferOutEvt.Asset.String())
+			if err != nil {
+				return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+			}
+			decimals := e.getTokenDecimalsForTHORChain(transferOutEvt.Asset.String())
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(transferOutEvt.Asset.String(), transferOutEvt.Amount)).WithDecimals(decimals))
+		case transferAllowanceEvent:
+			transferAllowanceEvt, err := e.parseTransferAllowanceEvent(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse transfer allowance event: %w", err)
+			}
+			e.logger.Info().Msgf("transfer allowance: %+v", transferAllowanceEvt)
+			txInItem.Sender = transferAllowanceEvt.OldVault.String()
+			txInItem.To = transferAllowanceEvt.NewVault.String()
+			txInItem.Memo = transferAllowanceEvt.Memo
+			asset, err := e.getAssetFromTokenAddress(transferAllowanceEvt.Asset.String())
+			if err != nil {
+				return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+			}
+			decimals := e.getTokenDecimalsForTHORChain(transferAllowanceEvt.Asset.String())
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(transferAllowanceEvt.Asset.String(), transferAllowanceEvt.Amount)).WithDecimals(decimals))
+		case vaultTransferEvent:
+			transferEvent, err := e.parseVaultTransfer(*item)
+			if err != nil {
+				return nil, fmt.Errorf("fail to parse vault transfer event: %w", err)
+			}
+			e.logger.Info().Msgf("vault transfer: %+v", transferEvent)
+			txInItem.Sender = transferEvent.OldVault.String()
+			txInItem.To = transferEvent.NewVault.String()
+			txInItem.Memo = transferEvent.Memo
+			for _, item := range transferEvent.Coins {
+				asset, err := e.getAssetFromTokenAddress(item.Asset.String())
+				if err != nil {
+					return nil, fmt.Errorf("fail to get asset from token address: %w", err)
+				}
+				decimals := e.getTokenDecimalsForTHORChain(item.Asset.String())
+				txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, e.convertAmount(item.Asset.String(), item.Amount)).WithDecimals(decimals))
+			}
+		}
+	}
+	
+	ethValue := cosmos.NewUintFromBigInt(tx.Value())
+	if !ethValue.IsZero() {
+		ethValue = e.convertAmount(ethToken, tx.Value())
+		if txInItem.Coins.GetCoin(common.ETHAsset).IsEmpty() && !ethValue.IsZero() {
+			txInItem.Coins = append(txInItem.Coins, common.NewCoin(common.ETHAsset, ethValue))
+		}
+	}
+	e.logger.Info().Msgf("tx: %s, gas price: %s, gas used: %d,receipt status:%d", txInItem.Tx, tx.GasPrice().String(), receipt.GasUsed, receipt.Status)
+	
+	txGasPrice := tx.GasPrice()
+	if txGasPrice.Cmp(big.NewInt(tenGwei)) < 0 {
+		txGasPrice = big.NewInt(tenGwei)
+	}
+	txInItem.Gas = common.MakeETHGas(txGasPrice, receipt.GasUsed)
+	if txInItem.Coins.IsEmpty() {
+		e.logger.Debug().Msgf("there is no coin in this tx, ignore, %+v", txInItem)
+		return nil, nil
+	}
+	e.logger.Debug().Msgf("tx in item: %+v", txInItem)
+	return txInItem, nil
+}
+
+func (e *ETHScanner) getAssetFromTokenAddress(token string) (common.Asset, error) {
+	if IsETH(token) {
+		return common.ETHAsset, nil
+	}
+	func getTokenMeta(...) {...}
+tokenMeta, err := e.getTokenMeta(token)
+	if err != nil {
+		return common.EmptyAsset, fmt.Errorf("fail to get token meta: %w", err)
+	}
+	asset := common.ETHAsset
+	if tokenMeta.Symbol != common.ETHChain.String() {
+		asset, err = common.NewAsset(fmt.Sprintf("ETH.%s-%s", tokenMeta.Symbol, strings.ToUpper(tokenMeta.Address)))
+		if err != nil {
+			return common.EmptyAsset, fmt.Errorf("fail to create asset: %w", err)
+		}
+	}
+	return asset, nil
+}
+
+func (e *ETHScanner) getTokenMeta(token string) (types.TokenMeta, error) {
+	tokenMeta, err := e.tokens.GetTokenMeta(token)
+	if err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to get token meta: %w", err)
+	}
+	if tokenMeta.IsEmpty() {
+		func getSymbol(...) {...}
+symbol, err := e.getSymbol(token)
+		if err != nil {
+			return types.TokenMeta{}, fmt.Errorf("fail to get symbol: %w", err)
+		}
+		decimals, err := e.getDecimals(token)
+		if err != nil {
+			e.logger.Err(err).Msgf("fail to get decimals from smart contract, default to: %d", defaultDecimals)
+		}
+		e.logger.Info().Msgf("token:%s, decimals: %d", token, decimals)
+		tokenMeta = types.NewTokenMeta(symbol, token, decimals)
+		if err = e.tokens.SaveTokenMeta(symbol, token, decimals); err != nil {
+			return types.TokenMeta{}, fmt.Errorf("fail to save token meta: %w", err)
+		}
+	}
+	return tokenMeta, nil
+}
+
+func (t *LevelDBTokenMeta) GetTokenMeta(address string) (types.TokenMeta, error) {
+	func getTokenMetaKey(...) {...}
+key := t.getTokenMetaKey(address)
+	exist, err := t.db.Has([]byte(key), nil)
+	if err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to check whether token meta(%s) exist: %w", key, err)
+	}
+	if !exist {
+		return types.TokenMeta{}, nil
+	}
+	v, err := t.db.Get([]byte(key), nil)
+	if err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to get token meta(%s) from storage: %w", key, err)
+	}
+	var tm types.TokenMeta
+	if err := json.Unmarshal(v, &tm); err != nil {
+		return types.TokenMeta{}, fmt.Errorf("fail to unmarshal token meta from json: %w", err)
+	}
+	return tm, nil
+}
+
+func (e *ETHScanner) getSymbol(token string) (string, error) {
+	if IsETH(token) {
+		return "ETH", nil
+	}
+	to := ecommon.HexToAddress(token)
+	input, err := e.erc20ABI.Pack(symbolMethod)
+	if err != nil {
+		return "", nil
+	}
+	ctx, cancel := e.getContext()
+	defer cancel()
+	res, err := e.client.CallContract(ctx, ethereum.CallMsg{
+		To: &to,
+		Data: input,
+	}, nil)
+	if err != nil {
+		return "", fmt.Errorf("fail to call to smart contract and get symbol: %w", err)
+	}
+	output, err := e.erc20ABI.Unpack(symbolMethod, res)
+	if err != nil {
+		return "", fmt.Errorf("fail to unpack symbol method call: %w", err)
+	}
+	symbol := *abi.ConvertType(output[0], new(string)).(*string)
+	return sanitiseSymbol(symbol), nil
+}
+
+func (t *LevelDBTokenMeta) SaveTokenMeta(symbol, address string, decimals uint64) error {
+	func getTokenMetaKey(...) {...}
+key := t.getTokenMetaKey(address)
+	tokenMeta := types.NewTokenMeta(symbol, address, decimals)
+	buf, err := json.Marshal(tokenMeta)
+	if err != nil {
+		return fmt.Errorf("fail to marshal token meta to json: %w", err)
+	}
+	return t.db.Put([]byte(key), buf, nil)
+}
+
+func (e *ETHScanner) getTxInFromTransaction(tx *etypes.Transaction) (*stypes.TxInItem, error) {
+	txInItem := &stypes.TxInItem{
+		Tx: tx.Hash().Hex()[2:],
+	}
+	asset := common.ETHAsset
+	sender, err := e.eipSigner.Sender(tx)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get sender: %w", err)
+	}
+	txInItem.Sender = strings.ToLower(sender.String())
+	txInItem.To = strings.ToLower(tx.To().String())
+	
+	data := tx.Data()
+	if len(data) > 0 {
+		memo, err := hex.DecodeString(string(data))
+		if err != nil {
+			txInItem.Memo = string(data)
+		} else {
+			txInItem.Memo = string(memo)
+		}
+	}
+	ethValue := e.convertAmount(ethToken, tx.Value())
+	txInItem.Coins = append(txInItem.Coins, common.NewCoin(asset, ethValue))
+	txGasPrice := tx.GasPrice()
+	if txGasPrice.Cmp(big.NewInt(tenGwei)) < 0 {
+		txGasPrice = big.NewInt(tenGwei)
+	}
+	txInItem.Gas = common.MakeETHGas(txGasPrice, tx.Gas())
+	if txInItem.Coins.IsEmpty() {
+		e.logger.Debug().Msgf("there is no coin in this tx, ignore, %+v", txInItem)
+		return nil, nil
+	}
+	return txInItem, nil
+}
+
+=== Analysis Detail ===
+No known vulnerability found in this function group.
+
+=== Task ===
+
+1. Perform a step-by-step security audit from Step 1 to Step 5. Use the following strict format:
+   - **Step 1: Behavior Summary**
+     Briefly summarize what each function does. Be factual and direct.
+   - **Step 2: Security-Critical Logic**
+     List key operations such as external calls, token transfers, access control, state changes, or signature verifications.
+   - **Step 3: Assumptions**
+     Identify critical assumptions made by the contract (e.g. input correctness, token behavior, caller trust, external contract reliability).
+   - **Step 4: Assumption Enforcement**
+     For each assumption, clearly state whether it is enforced by the contract code (e.g. `require`) or left unchecked.
+   - **Step 5: Vulnerability Conclusion**
+     Decide whether a vulnerability exists. If so, explain the exact reason, without rhetorical or emotional language. Only use factual, causal, or conditional reasoning.
+
+**Important**:
+- Do NOT skip any step. Output all 5 steps in your answer, even if a step has no content (write `"Step X: None"`).
+- Avoid using rhetorical connectors like “however”, “but”, “actually”, “in fact”, “instead”. Your tone should be formal and analytical.
+- Use only logical deduction and avoid speculation.
+
+Label this structured reasoning section as `"CoT"`.
+
+2. Extract the core logic relevant to potential vulnerabilities in **code-style pseudocode**:
+  - Preserve the original `function xxx(...) { ... }` syntax
+  - Retain critical operations such as: state updates, external calls, permission checks, and signature verifications
+  - Remove boilerplate code, logging, comments, and unrelated internal calculations
+  - Keep the output short, clean, and readable
+
+3. If a vulnerability is found (label is 'Yes'), summarize a **generalized security rule** that applies to similar situations. Do not refer to specific function or variable names. Return the rule as a JSON object with the following keys:
+  - "pattern": the kind of logic or structure this rule applies to
+  - "issue": what the general security risk is
+  - "recommendation": how this type of issue can be avoided or mitigated
+
+If the label is 'No', **do not fabricate a rule** — return an empty object: {}
+
+Ensure your final answer is valid JSON. Do not include extra text, comments, or explanations outside the JSON.
+
+Return your output as a valid JSON object. Enclose all string values in double quotes. Escape internal quotes or special characters as needed.
+
+For example:
+{
+  "CoT": "Step-by-step reasoning here...",
+  "functions": [
+    "function example(...) {
+  if (x > 0) { ... }
+}"
+  ],
+  "label": "No",
+  "rule": {
+    "pattern": "...",
+    "issue": "...",
+    "recommendation": "..."
+  }
+}
+
+
+================================================================================
+Sample 26 Error:
+Unterminated string starting at: line 6 column 5 (char 2457)
+Prompt:
+You are a smart contract security expert.
+
+Below is a group of smart contract functions and an analysis of their behavior.
+
+=== Smart Contract Functions ===
+fn transfer_wrapped(
+ ctx: &ExecutionContext,
+ accs: &mut TransferWrapped,
+ data: TransferWrappedData,
+) -> Result<()> {
+ 
+ if data.target_chain == CHAIN_ID_SOLANA {
+ return Err(InvalidChain.into());
+ }
+
+ let derivation_data: WrappedMetaDerivationData = (&*accs).into();
+ verify_and_execute_wrapped_transfers(
+ ctx,
+ &derivation_data,
+ &accs.payer,
+ &accs.from,
+ &accs.from_owner,
+ &accs.mint,
+ &accs.wrapped_meta,
+ &accs.authority_signer,
+ &accs.bridge,
+ &accs.fee_collector,
+ data.amount,
+ data.fee,
+ )?;
+
+ 
+ let payload = PayloadTransfer {
+ amount: U256::from(data.amount),
+ token_address: accs.wrapped_meta.token_address,
+ token_chain: accs.wrapped_meta.chain,
+ to: data.target_address,
+ to_chain: data.target_chain,
+ fee: U256::from(data.fee),
+ };
+ let params = (
+ bridge::instruction::Instruction::PostMessage,
+ PostMessageData {
+ nonce: data.nonce,
+ payload: payload.try_to_vec()?,
+ consistency_level: ConsistencyLevel::Finalized,
+ },
+ );
+
+ let ix = Instruction::new_with_bytes(
+ accs.config.wormhole_bridge,
+ params.try_to_vec()?.as_slice(),
+ vec![
+ AccountMeta::new(*accs.bridge.info().key, false),
+ AccountMeta::new(*accs.message.key, true),
+ AccountMeta::new_readonly(*accs.emitter.key, true),
+ AccountMeta::new(*accs.sequence.key, false),
+ AccountMeta::new(*accs.payer.key, true),
+ AccountMeta::new(*accs.fee_collector.key, false),
+ AccountMeta::new_readonly(*accs.clock.info().key, false),
+ AccountMeta::new_readonly(solana_program::system_program::id(), false),
+ AccountMeta::new_readonly(solana_program::sysvar::rent::ID, false),
+ ],
+ );
+ invoke_seeded(&ix, ctx, &accs.emitter, None)?;
+
+ Ok(())
+}
+
+fn verify_and_execute_wrapped_transfers(
+ ctx: &ExecutionContext,
+ derivation_data: &WrappedMetaDerivationData,
+ payer: &Mut<Signer<AccountInfo>>,
+ from: &Mut<Data<SplAccount, { AccountState::Initialized }>>,
+ from_owner: &MaybeMut<Signer<Info>>,
+ mint: &Mut<WrappedMint<{ AccountState::Initialized }>>,
+ wrapped_meta: &WrappedTokenMeta<{ AccountState::Initialized }>,
+ authority_signer: &AuthoritySigner,
+ bridge: &Mut<CoreBridge<{ AccountState::Initialized }>>,
+ fee_collector: &Mut<Info>,
+ amount: u64,
+ fee: u64,
+) -> Result<()> {
+ 
+ if &from.owner != from_owner.key {
+ return Err(WrongAccountOwner.into());
+ }
+
+ 
+ if mint.info().key != &from.mint {
+ return Err(TokenBridgeError::InvalidMint.into());
+ }
+
+ 
+ if fee > amount {
+ return Err(InvalidFee.into());
+ }
+
+ 
+ wrapped_meta.verify_derivation(ctx.program_id, derivation_data)?;
+
+ 
+ let burn_ix = spl_token::instruction::burn(
+ &spl_token::id(),
+ from.info().key,
+ mint.info().key,
+ authority_signer.key,
+ &[],
+ amount,
+ )?;
+ invoke_seeded(&burn_ix, ctx, authority_signer, None)?;
+
+ 
+ let transfer_ix = solana_program::system_instruction::transfer(
+ payer.key,
+ fee_collector.key,
+ bridge.config.fee,
+ );
+
+ invoke(&transfer_ix, ctx.accounts)?;
+
+ Ok(())
+}
+
+function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal returns (bytes memory) {
+ (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
+
+ require(valid, reason);
+ function verifyBridgeVM(...) {...}
+function _truncateAddress(...) {...}
+function deNormalizeAmount(...) {...}
+require(verifyBridgeVM(vm), "invalid emitter");
+
+ BridgeStructs.Transfer memory transfer = _parseTransferCommon(vm.payload);
+
+ 
+ address transferRecipient = _truncateAddress(transfer.to);
+ if (transfer.payloadID == 3) {
+ require(msg.sender == transferRecipient, "invalid sender");
+ }
+
+ require(!isTransferCompleted(vm.hash), "transfer already completed");
+ setTransferCompleted(vm.hash);
+
+ 
+ emit TransferRedeemed(vm.emitterChainId, vm.emitterAddress, vm.sequence);
+
+ require(transfer.toChain == chainId(), "invalid target chain");
+
+ IERC20 transferToken;
+ if (transfer.tokenChain == chainId()) {
+ transferToken = IERC20(_truncateAddress(transfer.tokenAddress));
+
+ 
+ bridgedIn(address(transferToken), transfer.amount);
+ } else {
+ address wrapped = wrappedAsset(transfer.tokenChain, transfer.tokenAddress);
+ require(wrapped != address(0), "no wrapper for this token created yet");
+
+ transferToken = IERC20(wrapped);
+ }
+
+ require(unwrapWETH == false || address(transferToken) == address(WETH()), "invalid token, can only unwrap WETH");
+
+ 
+ (,bytes memory queriedDecimals) = address(transferToken).staticcall(abi.encodeWithSignature("decimals()"));
+ uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+ 
+ uint256 nativeAmount = deNormalizeAmount(transfer.amount, decimals);
+ uint256 nativeFee = deNormalizeAmount(transfer.fee, decimals);
+
+ 
+ if (nativeFee > 0 && transferRecipient != msg.sender) {
+ require(nativeFee <= nativeAmount, "fee higher than transferred amount");
+
+ if (unwrapWETH) {
+ WETH().withdraw(nativeFee);
+
+ payable(msg.sender).transfer(nativeFee);
+ } else {
+ if (transfer.tokenChain != chainId()) {
+ 
+ TokenImplementation(address(transferToken)).mint(msg.sender, nativeFee);
+ } else {
+ SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
+ }
+ }
+ } else {
+ 
+ nativeFee = 0;
+ }
+
+ 
+ uint transferAmount = nativeAmount - nativeFee;
+
+ if (unwrapWETH) {
+ WETH().withdraw(transferAmount);
+
+ payable(transferRecipient).transfer(transferAmount);
+ } else {
+ if (transfer.tokenChain != chainId()) {
+ 
+ TokenImplementation(address(transferToken)).mint(transferRecipient, transferAmount);
+ } else {
+ SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);
+ }
+ }
+
+ return vm.payload;
+ }
+
+=== Analysis Detail ===
+The attacker used a forged sysvar account to call the "verify_signatures" function. The function "load_current_index" used inside did not verify whether the provided sysvar account was the legitimate system sysvar. This allowed the attacker to bypass signature verification, create a malicious VAA claiming to mint 120,000 WETH, and ultimately transfer the minted tokens to Ethereum.
+
+=== Task ===
+
+1. Perform a step-by-step security audit from Step 1 to Step 5. Use the following strict format:
+   - **Step 1: Behavior Summary**
+     Briefly summarize what each function does. Be factual and direct.
+   - **Step 2: Security-Critical Logic**
+     List key operations such as external calls, token transfers, access control, state changes, or signature verifications.
+   - **Step 3: Assumptions**
+     Identify critical assumptions made by the contract (e.g. input correctness, token behavior, caller trust, external contract reliability).
+   - **Step 4: Assumption Enforcement**
+     For each assumption, clearly state whether it is enforced by the contract code (e.g. `require`) or left unchecked.
+   - **Step 5: Vulnerability Conclusion**
+     Decide whether a vulnerability exists. If so, explain the exact reason, without rhetorical or emotional language. Only use factual, causal, or conditional reasoning.
+
+**Important**:
+- Do NOT skip any step. Output all 5 steps in your answer, even if a step has no content (write `"Step X: None"`).
+- Avoid using rhetorical connectors like “however”, “but”, “actually”, “in fact”, “instead”. Your tone should be formal and analytical.
+- Use only logical deduction and avoid speculation.
+
+Label this structured reasoning section as `"CoT"`.
+
+2. Extract the core logic relevant to potential vulnerabilities in **code-style pseudocode**:
+  - Preserve the original `function xxx(...) { ... }` syntax
+  - Retain critical operations such as: state updates, external calls, permission checks, and signature verifications
+  - Remove boilerplate code, logging, comments, and unrelated internal calculations
+  - Keep the output short, clean, and readable
+
+3. If a vulnerability is found (label is 'Yes'), summarize a **generalized security rule** that applies to similar situations. Do not refer to specific function or variable names. Return the rule as a JSON object with the following keys:
+  - "pattern": the kind of logic or structure this rule applies to
+  - "issue": what the general security risk is
+  - "recommendation": how this type of issue can be avoided or mitigated
+
+If the label is 'No', **do not fabricate a rule** — return an empty object: {}
+
+Ensure your final answer is valid JSON. Do not include extra text, comments, or explanations outside the JSON.
+
+Return your output as a valid JSON object. Enclose all string values in double quotes. Escape internal quotes or special characters as needed.
+
+For example:
+{
+  "CoT": "Step-by-step reasoning here...",
+  "functions": [
+    "function example(...) {
+  if (x > 0) { ... }
+}"
+  ],
+  "label": "Yes",
+  "rule": {
+    "pattern": "...",
+    "issue": "...",
+    "recommendation": "..."
+  }
+}
+
+
+================================================================================

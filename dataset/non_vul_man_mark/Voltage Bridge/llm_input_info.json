@@ -1,0 +1,36 @@
+{
+    "src_chain": {
+        "UserRequestForAffirmation1": [
+            {
+                "requireToPassMessage": "function requireToPassMessage(address _contract, bytes _data, uint256 _gas) public returns (bytes32) {\n \n function messageId(...) {...}\nfunction maxGasPerTx(...) {...}\nfunction getMinimumGasUsage(...) {...}\nrequire(messageId() == bytes32(0));\n\n require(_gas >= getMinimumGasUsage(_data) && _gas <= maxGasPerTx());\n\n bytes32 _messageId;\n bytes memory header = _packHeader(_contract, _gas);\n _setNonce(_nonce() + 1);\n\n assembly {\n _messageId := mload(add(header, 32))\n }\n\n bytes memory eventData = abi.encodePacked(header, _data);\n\n emitEventOnMessageRequest(_messageId, eventData);\n return _messageId;\n }"
+            }
+        ],
+        "FailedMessageFixed2": [
+            {
+                "fixFailedMessage": "function fixFailedMessage(bytes32 _messageId) public onlyMediator {\n function messageFixed(...) {...}\nrequire(!messageFixed(_messageId));\n\n address token = messageToken(_messageId);\n address recipient = messageRecipient(_messageId);\n uint256 value = messageValue(_messageId);\n setMessageFixed(_messageId);\n executeActionOnFixedTokens(token, recipient, value);\n emit FailedMessageFixed(_messageId, token, recipient, value);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "RelayedMessage": [
+            {
+                "executeSignatures": "function executeSignatures(bytes _data, bytes _signatures) external {\n function hasEnoughValidSignatures(...) {...}\nfunction validatorContract(...) {...}\nfunction _isMessageVersionValid(...) {...}\nfunction _isDestinationChainIdValid(...) {...}\nfunction relayedMessages(...) {...}\nMessage.hasEnoughValidSignatures(_data, _signatures, validatorContract(), true);\n\n bytes32 messageId;\n address sender;\n address executor;\n uint32 gasLimit;\n bytes1 dataType;\n uint256[2] memory chainIds;\n uint256 gasPrice;\n bytes memory data;\n\n (messageId, sender, executor, gasLimit, dataType, chainIds, gasPrice, data) = ArbitraryMessage.unpackData(\n _data\n );\n require(_isMessageVersionValid(messageId));\n require(_isDestinationChainIdValid(chainIds[1]));\n require(!relayedMessages(messageId));\n setRelayedMessages(messageId, true);\n processMessage(sender, executor, messageId, gasLimit, dataType, gasPrice, chainIds[0], data);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokensBridged1": [
+            {
+                "handleBridgedTokens": "function handleBridgedTokens(ERC677 _token, address _recipient, uint256 _value) external onlyMediator {\n ERC677 homeToken = ERC677(homeTokenAddress(_token));\n require(isTokenRegistered(homeToken));\n _handleBridgedTokens(homeToken, _recipient, _value);\n }"
+            },
+            {
+                "_handleBridgedTokens": "function _handleBridgedTokens(ERC677 _token, address _recipient, uint256 _value) internal {\n if (withinExecutionLimit(_token, _value)) {\n addTotalExecutedPerDay(_token, getCurrentDay(), _value);\n executeActionOnBridgedTokens(_token, _recipient, _value);\n } else {\n executeActionOnBridgedTokensOutOfLimit(_token, _recipient, _value);\n }\n }"
+            }
+        ],
+        "FailedMessageFixed2": [
+            {
+                "fixFailedMessage": "function fixFailedMessage(bytes32 _messageId) public onlyMediator {\n function messageFixed(...) {...}\nrequire(!messageFixed(_messageId));\n\n address token = messageToken(_messageId);\n address recipient = messageRecipient(_messageId);\n uint256 value = messageValue(_messageId);\n setMessageFixed(_messageId);\n executeActionOnFixedTokens(token, recipient, value);\n emit FailedMessageFixed(_messageId, token, recipient, value);\n }"
+            }
+        ]
+    }
+}

@@ -1,0 +1,126 @@
+{
+  "contract": "SolarBeam Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "SolarBeam Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "TokenDeposit1",
+          "TokenRedeem2"
+        ],
+        "rel_chain": [
+          "mint",
+          "withdraw"
+        ],
+        "det_chain": [
+          "TokenMint1"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "TokenDeposit1": {
+            "0": {
+              "func_name": "depositPool",
+              "file_name": "CommonEclipse.sol",
+              "key_ops": [
+                "require(_pid < numberPools, \"pool does not exist\");",
+                "require(poolInfo[_pid].offeringAmount > 0 && poolInfo[_pid].raisingAmount > 0, \"Pool not set\");",
+                "for (uint8 i=0; i<numberPools; i++) { if (i != _pid) { require(userInfo[msg.sender][i].amount == 0, \"already commited in another pool\"); } }",
+                "lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);",
+                "user.amount += _amount;",
+                "require(success, \"user not eligible\");",
+                "poolInfo[_pid].totalAmountPool += _amount;"
+              ],
+              "child": {}
+            }
+          },
+          "TokenRedeem2": {
+            "0": {
+              "func_name": "harvestPool",
+              "file_name": "CommonEclipse.sol",
+              "key_ops": [
+                "require(_pid < numberPools, \"pool does not exist\");",
+                "require(_harvestPeriod < HARVEST_PERIODS, \"harvest period out of range\");",
+                "require(block.number > harvestReleaseBlocks[_harvestPeriod], \"not harvest time\");",
+                "require(userInfo[msg.sender][_pid].amount > 0, \"did not participate\");",
+                "require(!userInfo[msg.sender][_pid].claimed[_harvestPeriod], \"harvest for period already claimed\");",
+                "userInfo[msg.sender][_pid].claimed[_harvestPeriod] = true;",
+                "offeringToken.safeTransfer(address(msg.sender), offeringTokenAmountPerPeriod);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_calcOfferingAndRefundingAmounts",
+                  "file_name": "CommonEclipse.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Solana",
+        "events": {
+          "mint": {
+            "0": {
+              "func_name": "create",
+              "file_name": "VestedSolarBeamToken.sol",
+              "key_ops": [
+                "require(_value >= minLockedAmount, \"create: less than min amount\");",
+                "require(locked[_msgSender()].amount == 0, \"create: withdraw old tokens first\");",
+                "require(_days >= MINDAYS, \"create: less than min amount of 7 days\");",
+                "require(_days <= MAXDAYS, \"create: voting lock can be 4 years max\");"
+              ],
+              "child": {}
+            }
+          },
+          "withdraw": {
+            "0": {
+              "func_name": "withdraw",
+              "file_name": "VestedSolarBeamToken.sol",
+              "key_ops": [
+                "require(_locked.amount > 0, \"withdraw: nothing to withdraw\");",
+                "require(_now >= _locked.end, \"withdraw: user still locked\");",
+                "IBoringERC20(lockedToken).safeTransfer(_msgSender(), _amount);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "BSC",
+        "events": {
+          "TokenMint1": {
+            "0": {
+              "func_name": "harvestPool",
+              "file_name": "CommonEclipseAmara.sol",
+              "key_ops": [
+                "require(_pid < 2, \"invalid pid\");",
+                "require(block.timestamp > eclipseV2.harvestReleaseTimestamps(_harvestPeriod), \"not harvest time\");",
+                "require(!userInfo[msg.sender][_pid].claimed[_harvestPeriod], \"harvest for period already claimed\");",
+                "offeringToken.safeTransfer(address(msg.sender), offeringTokenAmountPerPeriod);"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

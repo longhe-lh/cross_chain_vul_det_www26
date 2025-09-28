@@ -1,0 +1,20 @@
+{
+    "src_chain": {
+        "TokenDeposit1": []
+    },
+    "rel_chain": {
+        "BlockSubmission": []
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "withdrawFromMerkleTree": "function withdrawFromMerkleTree(\n ExchangeData.State storage S,\n ExchangeData.MerkleProof calldata merkleProof\n ) public {\n require(S.isInWithdrawalMode(), \"NOT_IN_WITHDRAW_MODE\");\n address owner = merkleProof.accountLeaf.owner;\n uint32 accountID = merkleProof.accountLeaf.accountID;\n uint32 tokenID = merkleProof.balanceLeaf.tokenID;\n uint248 balance = merkleProof.balanceLeaf.balance;\n \n require(\n S.withdrawnInWithdrawMode[accountID][tokenID] == false,\n \"WITHDRAWN_ALREADY\"\n );\n \n ExchangeBalances.verifyAccountBalance(\n uint(S.merkleAssetRoot),\n merkleProof\n );\n \n S.withdrawnInWithdrawMode[accountID][tokenID] = true;\n \n transferTokens(\n S,\n uint8(WithdrawalCategory.FROM_MERKLE_TREE),\n owner,\n owner,\n tokenID,\n balance,\n gasleft(),\n false\n );\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "withdrawFromDepositRequest": "function withdrawFromDepositRequest(\n ExchangeData.State storage S,\n address owner,\n address token\n ) public {\n uint32 tokenID = S.getTokenID(token);\n ExchangeData.Deposit storage deposit = S.pendingDeposits[owner][\n tokenID\n ];\n require(deposit.timestamp != 0, \"DEPOSIT_NOT_WITHDRAWABLE_YET\");\n \n require(\n block.timestamp >=\n deposit.timestamp + S.maxAgeDepositUntilWithdrawable ||\n S.isInWithdrawalMode(),\n \"DEPOSIT_NOT_WITHDRAWABLE_YET\"\n );\n uint248 amount = deposit.amount;\n \n delete S.pendingDeposits[owner][tokenID];\n \n transferTokens(\n S,\n uint8(WithdrawalCategory.FROM_DEPOSIT_REQUEST),\n owner,\n owner,\n tokenID,\n amount,\n gasleft(),\n false\n );\n }"
+            }
+        ]
+    }
+}

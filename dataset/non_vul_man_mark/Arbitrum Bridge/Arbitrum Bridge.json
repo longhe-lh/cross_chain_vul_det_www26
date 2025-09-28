@@ -1,0 +1,197 @@
+{
+  "contract": "Arbitrum Bridge",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Arbitrum Bridge": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "MessageDelivered1",
+          "BridgeCallTriggered2"
+        ],
+        "rel_chain": [
+          "SequencerBatchDelivered",
+          "NodeCreated",
+          "ChallengeStarted"
+        ],
+        "det_chain": [
+          "OutBoxTransactionExecuted1",
+          "SendRootUpdated2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "L1",
+        "events": {
+          "MessageDelivered1": {
+            "0": {
+              "func_name": "enqueueDelayedMessage",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "if (!allowedDelayedInboxesMap[msg.sender].allowed) revert NotDelayedInbox(msg.sender);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "addMessageToDelayedAccumulator",
+                  "file_name": "Bridge.sol",
+                  "key_ops": [
+                    "uint256 count = delayedInboxAccs.length;",
+                    "delayedInboxAccs.push(Messages.accumulateInboxMessage(prevAcc, messageHash));"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "BridgeCallTriggered2": {
+            "0": {
+              "func_name": "executeCall",
+              "file_name": "Bridge.sol",
+              "key_ops": [
+                "if (!allowedOutboxesMap[msg.sender].allowed) revert NotOutbox(msg.sender);",
+                "address prevOutbox = _activeOutbox;",
+                "_activeOutbox = msg.sender;",
+                "(success, returnData) = to.call{value: value}(data);",
+                "_activeOutbox = prevOutbox;"
+              ],
+              "child": {}
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "Rollup",
+        "events": {
+          "SequencerBatchDelivered": {
+            "0": {
+              "func_name": "addSequencerL2BatchFromOrigin",
+              "file_name": "SequencerInbox.sol",
+              "key_ops": [
+                "if (msg.sender != tx.origin) revert NotOrigin();",
+                "require(isBatchPoster[msg.sender], \"NotBatchPoster\");",
+                "formDataHash(data, afterDelayedMessagesRead);",
+                "addSequencerL2BatchImpl(dataHash, afterDelayedMessagesRead, data.length);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "addSequencerL2BatchImpl",
+                  "file_name": "SequencerInbox.sol",
+                  "key_ops": [
+                    "if (afterDelayedMessagesRead < totalDelayedMessagesRead) revert DelayedBackwards();",
+                    "if (afterDelayedMessagesRead > bridge.delayedMessageCount()) revert DelayedTooFar();",
+                    "bridge.enqueueSequencerMessage(dataHash, afterDelayedMessagesRead);",
+                    "totalDelayedMessagesRead = afterDelayedMessagesRead;"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "enqueueSequencerMessage",
+                      "file_name": "Bridge.sol",
+                      "key_ops": [
+                        "seqMessageIndex = sequencerInboxAccs.length;",
+                        "beforeAcc = sequencerInboxAccs[sequencerInboxAccs.length - 1];",
+                        "acc = keccak256(abi.encodePacked(beforeAcc, dataHash, delayedAcc));",
+                        "sequencerInboxAccs.push(acc);"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "NodeCreated": {
+            "0": {
+              "func_name": "createNewNode",
+              "file_name": "RollupCore.sol",
+              "key_ops": [
+                "require(assertion.afterState.machineStatus == MachineStatus.FINISHED || assertion.afterState.machineStatus == MachineStatus.ERRORED);",
+                "require(RollupLib.stateHash(assertion.beforeState, prevNodeInboxMaxCount) == memoryFrame.prevNode.stateHash);",
+                "getNodeStorage(prevNodeNum).childCreated(nodeNum);"
+              ],
+              "child": {}
+            }
+          },
+          "ChallengeStarted": {
+            "0": {
+              "func_name": "createChallenge",
+              "file_name": "ChallengeManager.sol",
+              "key_ops": [
+                "require(msg.sender == address(resultReceiver), \"ONLY_ROLLUP_CHAL\");",
+                "completeBisection(challengeIndex, 0, numBlocks, segments);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "completeBisection",
+                  "file_name": "ChallengeManager.sol",
+                  "key_ops": [
+                    "assert(challengeLength >= 1);",
+                    "assert(newSegments.length >= 2);",
+                    "challenges[challengeIndex].challengeStateHash = challengeStateHash;"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "L2",
+        "events": {
+          "OutBoxTransactionExecuted1": {
+            "0": {
+              "func_name": "executeTransaction",
+              "file_name": "Outbox.sol",
+              "key_ops": [
+                "recordOutputAsSpent(proof, index, userTx);",
+                "executeTransactionImpl(index, l2Sender, to, l2Block, l1Block, l2Timestamp, value, data);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeTransactionImpl",
+                  "file_name": "Outbox.sol",
+                  "key_ops": [
+                    "executeBridgeCall(to, value, data);",
+                    "context = prevContext;"
+                  ],
+                  "child": {
+                    "0": {
+                      "func_name": "executeBridgeCall",
+                      "file_name": "Outbox.sol",
+                      "key_ops": [
+                        "(bool success, bytes memory returndata) = bridge.executeCall(to, value, data);",
+                        "if (!success) { assembly { revert(add(32, returndata), returndatasize()) } else { return(0, returndatasize()) }"
+                      ],
+                      "child": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "SendRootUpdated2": {
+            "0": {
+              "func_name": "updateSendRoot",
+              "file_name": "Outbox.sol",
+              "key_ops": [
+                "roots[root] = l2BlockHash;"
+              ],
+              "child": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

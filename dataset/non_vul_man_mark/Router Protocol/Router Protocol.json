@@ -1,0 +1,179 @@
+{
+  "contract": "Router Protocol",
+  "source_code_path": "../contracts/",
+  "type": "",
+  "vulnerable_entry_function": {
+    "file": "",
+    "name": "",
+    "signature": "",
+    "lines": "",
+    "attack_type": "",
+    "vul_reason": "",
+    "code_snippet": ""
+  },
+  "detail": "",
+  "blg": {
+    "Router Protocol": {
+      "interoperability": "heterogeneous",
+      "roles": {
+        "src_chain": [
+          "Deposit1",
+          "Stake2"
+        ],
+        "rel_chain": [
+          "voteProposal",
+          "executeProposal",
+          "cancelProposal"
+        ],
+        "det_chain": [
+          "Settlement1",
+          "Unstake2"
+        ]
+      },
+      "src_chain": {
+        "chain_name": "Ethereum",
+        "events": {
+          "Deposit1": {
+            "0": {
+              "func_name": "deposit",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "_deposit(destinationChainID, resourceID, data, distribution, flags, path, feeTokenAddress)"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "_deposit",
+                  "file_name": "BridgeUpgradeable.sol",
+                  "key_ops": [
+                    "swapDetails.depositNonce = ++_depositCounts[destinationChainID];",
+                    "IDepositExecute depositHandler = IDepositExecute(swapDetails.handler);",
+                    "depositHandler.deposit(resourceID, destinationChainID, swapDetails.depositNonce, swapDetails);",
+                    "require(swapDetails.handler != address(0), \"resourceID not mapped to handler\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "Stake2": {
+            "0": {
+              "func_name": "stake",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "ILiquidityPool depositHandler = ILiquidityPool(handler);",
+                "depositHandler.stake(msg.sender, tokenAddress, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "stake",
+                  "file_name": "ERC20HandlerUpgradeable.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "rel_chain": {
+        "chain_name": "RelayChain",
+        "events": {
+          "voteProposal": {
+            "0": {
+              "func_name": "voteProposal",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "bytes32 proposalHash = keccak256(abi.encodePacked(chainID, depositNonce, dataHash));",
+                "_voter.vote(_proposals[proposalHash], 1, msg.sender);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "vote",
+                  "file_name": "VoterUpgradeable.sol",
+                  "key_ops": [
+                    "hasVoted[issueId][relayer] = hasVotedStruct(true, option);",
+                    "voteWeight[issueId][option] = voteWeight[issueId][option] + balance;"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "executeProposal": {
+            "0": {
+              "func_name": "executeProposal",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "(settlementToken, swapDetails.returnAmount) = depositHandler.executeProposal(swapDetails, resourceID);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "executeProposal",
+                  "file_name": "ERC20HandlerUpgradeable.sol",
+                  "key_ops": [
+                    "require(_contractWhitelist[swapDetails.destStableTokenAddress], \"provided token is not whitelisted\");"
+                  ],
+                  "child": {}
+                }
+              }
+            }
+          },
+          "cancelProposal": {
+            "0": {
+              "func_name": "cancelProposal",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "require(currentStatus == IVoterUpgradeable.ProposalStatus.Active || currentStatus == IVoterUpgradeable.ProposalStatus.Passed, \"Proposal cannot be cancelled\");",
+                "_voter.setStatus(_proposals[proposalHash]);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "setStatus",
+                  "file_name": "VoterUpgradeable.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "det_chain": {
+        "chain_name": "BinanceSmartChain",
+        "events": {
+          "Settlement1": {
+            "0": {
+              "func_name": "executeProposal",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "require(currentStatus == IVoterUpgradeable.ProposalStatus.Passed, \"Proposal must have Passed status\");",
+                "emit Settlement(chainID, depositNonce, settlementToken, swapDetails.returnAmount, IVoterUpgradeable.ProposalStatus.Executed);",
+                "emit ProposalEvent(chainID, depositNonce, IVoterUpgradeable.ProposalStatus.Executed, dataHash);"
+              ],
+              "child": {}
+            }
+          },
+          "Unstake2": {
+            "0": {
+              "func_name": "unstake",
+              "file_name": "BridgeUpgradeable.sol",
+              "key_ops": [
+                "ILiquidityPool depositHandler = ILiquidityPool(handler);",
+                "depositHandler.unstake(msg.sender, tokenAddress, amount);"
+              ],
+              "child": {
+                "0": {
+                  "func_name": "unstake",
+                  "file_name": "ERC20HandlerUpgradeable.sol",
+                  "key_ops": [],
+                  "child": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cag": []
+}

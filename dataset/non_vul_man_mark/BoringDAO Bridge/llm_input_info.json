@@ -1,0 +1,38 @@
+{
+    "src_chain": {
+        "TokenDeposit1": [
+            {
+                "pledge": "function pledge(\n bytes32 _tunnelKey,\n uint256 _amount\n ) public override whenNotPaused whenContractExist(_tunnelKey) {\n require(\n borERC20().allowance(msg.sender, address(this)) >= _amount,\n \"not allow enough boring\"\n );\n\n borERC20().transferFrom(\n msg.sender,\n address(tunnel(_tunnelKey)),\n _amount\n );\n\n tunnel(_tunnelKey).pledge(msg.sender, _amount);\n }"
+            }
+        ],
+        "TokenRedeem2": [
+            {
+                "redeem": "function redeem(\n bytes32 _tunnelKey,\n uint256 _amount\n ) public override whenNotPaused whenContractExist(_tunnelKey) {\n function redeem(...) {...}\nfunction tunnel(...) {...}\ntunnel(_tunnelKey).redeem(msg.sender, _amount);\n }"
+            }
+        ]
+    },
+    "rel_chain": {
+        "mint": [
+            {
+                "approveMint": "function approveMint(\n bytes32 _tunnelKey,\n string memory _txid,\n uint256 _amount,\n address to,\n string memory assetAddress\n )\n public\n override\n whenNotPaused\n whenTunnelNotPause(_tunnelKey)\n onlyTrustee(_tunnelKey)\n shouldMoreThan(_tunnelKey, _amount)\n {\n if (to == address(0)) {\n if (approveFlag[_txid] == false) {\n approveFlag[_txid] = true;\n\n emit ETHAddressNotExist(\n _tunnelKey,\n _txid,\n _amount,\n to,\n msg.sender,\n assetAddress\n );\n }\n\n return;\n }\n\n uint256 trusteeCount = getRoleMemberCount(_tunnelKey);\n\n bool shouldMint = mintProposal().approve(\n _tunnelKey,\n _txid,\n _amount,\n to,\n msg.sender,\n trusteeCount\n );\n\n if (!shouldMint) {\n return;\n }\n\n uint256 canIssueAmount = tunnel(_tunnelKey).canIssueAmount();\n\n if (_amount.add(otoken(_tunnelKey).totalSupply()) > canIssueAmount) {\n emit NotEnoughPledgeValue(\n _tunnelKey,\n _txid,\n _amount,\n to,\n msg.sender,\n assetAddress\n );\n\n return;\n }\n\n \n\n function tunnel(...) {...}\ntunnel(_tunnelKey).issue(to, _amount);\n\n uint borMintAmount = calculateMintBORAmount(_tunnelKey, _amount);\n\n if (borMintAmount != 0) {\n amountByMint = amountByMint.add(borMintAmount);\n\n borERC20().transferFrom(mine, to, borMintAmount);\n }\n\n emit ApproveMintSuccess(_tunnelKey, _txid, _amount, to, assetAddress);\n }"
+            }
+        ],
+        "withdraw": [
+            {
+                "burnBToken": "function burnBToken(\n bytes32 _tunnelKey,\n uint256 amount,\n string memory assetAddress\n )\n public\n override\n whenNotPaused\n whenContractExist(_tunnelKey)\n whenTunnelNotPause(_tunnelKey)\n {\n function tunnel(...) {...}\ntunnel(_tunnelKey).burn(msg.sender, amount, assetAddress);\n }"
+            }
+        ]
+    },
+    "det_chain": {
+        "TokenWithdraw1": [
+            {
+                "unlock": "function unlock(\n address token0,\n uint256 chainID,\n address from,\n address to,\n uint256 amount,\n string memory txid\n )\n public\n onlySupportToken(token0, chainID)\n onlyCrosser(token0, chainID)\n whenNotUnlocked(txid)\n {\n bool result = _vote(token0, from, to, amount, txid);\n\n if (result) {\n txUnlocked[txid] = true;\n\n function safeTransfer(...) {...}\nIERC20Upgradeable(token0).safeTransfer(to, amount);\n\n address token1 = supportToken[token0][chainID];\n\n emit Unlock(token0, token1, chainID, from, to, amount, txid);\n }\n }"
+            }
+        ],
+        "TokenMint2": [
+            {
+                "lock": "function lock(\n address token0,\n uint256 chainID,\n address to,\n uint256 amount\n ) public onlySupportToken(token0, chainID) {\n IERC20Upgradeable(token0).safeTransferFrom(\n msg.sender,\n address(this),\n amount\n );\n\n emit Lock(\n token0,\n supportToken[token0][chainID],\n chainID,\n msg.sender,\n to,\n amount\n );\n }"
+            }
+        ]
+    }
+}
