@@ -49,4 +49,4 @@ Results will be stored in `results/`.
 ## 📖 Reference
 
 This project is based on the paper:
- *LLM-BridgeGuard: Large Language Model-Driven Vulnerability Detection for Cross-Chain Bridges (WWW 2026 submission)*
+ *LLM-BridgeGuard: LLM for Logic and Knowledge-Driven Vulnerability Detection in Cross-Chain Bridge Smart Contracts*
